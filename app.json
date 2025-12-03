@@ -15,34 +15,34 @@
         "enablePullDownRefresh": false
     },
     "tabBar": {
-        "color": "#999999",
-        "selectedColor": "#667eea",
+        "color": "#6b7280",
+        "selectedColor": "#22c55e",
         "backgroundColor": "#ffffff",
         "borderStyle": "white",
         "list": [
             {
                 "pagePath": "pages/index/index",
                 "text": "首页",
-                "iconPath": "images/icons/home.png",
-                "selectedIconPath": "images/icons/home-active.png"
+                "iconPath": "images/tabbar/home.png",
+                "selectedIconPath": "images/tabbar/home-active.png"
             },
             {
                 "pagePath": "pages/plan/plan",
                 "text": "行程",
-                "iconPath": "images/icons/route.png",
-                "selectedIconPath": "images/icons/route-active.png"
+                "iconPath": "images/tabbar/plan.png",
+                "selectedIconPath": "images/tabbar/plan-active.png"
             },
             {
                 "pagePath": "pages/postcard/postcard",
                 "text": "明信片",
-                "iconPath": "images/icons/postcard.png",
-                "selectedIconPath": "images/icons/postcard-active.png"
+                "iconPath": "images/tabbar/postcard.png",
+                "selectedIconPath": "images/tabbar/postcard-active.png"
             },
             {
                 "pagePath": "pages/profile/profile",
                 "text": "我的",
-                "iconPath": "images/icons/profile.png",
-                "selectedIconPath": "images/icons/profile-active.png"
+                "iconPath": "images/tabbar/profile.png",
+                "selectedIconPath": "images/tabbar/profile-active.png"
             }
         ]
     },
