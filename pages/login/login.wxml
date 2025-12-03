@@ -1,0 +1,49 @@
+<!--pages/login/login.wxml-->
+<view class="login-container">
+    <!-- 返回按钮 -->
+    <view class="back-section" wx:if="{{showBackButton}}">
+        <view class="back-btn" bindtap="onBack">
+            <text class="back-icon">←</text>
+            <text class="back-text">返回</text>
+        </view>
+    </view>
+
+    <view class="login-content">
+        <!-- 头像 -->
+        <view class="avatar">
+            <view class="avatar-bg">
+                <image 
+                    class="avatar-image" 
+                    src="/images/logo.png" 
+                    mode="aspectFill"
+                ></image>
+            </view>
+        </view>
+
+        <!-- 标题 -->
+        <view class="title-section">
+            <text class="title">欢迎回来</text>
+            <text class="subtitle">登录以同步您的行程和收藏,享受完整的个性化体验。</text>
+        </view>
+
+        <!-- 登录按钮 -->
+        <view class="button-section">
+            <button 
+                class="login-btn {{agreementChecked ? '' : 'disabled'}}" 
+                open-type="getUserInfo" 
+                bindgetuserinfo="onGetUserInfo" 
+                disabled="{{!agreementChecked}}">
+                <text class="btn-icon">💬</text>
+                <text>微信一键登录</text>
+            </button>
+        </view>
+    </view>
+
+    <!-- 底部协议 -->
+    <view class="footer">
+        <view class="agreement-label" bindtap="toggleAgreement">
+            <checkbox value="agree" checked="{{agreementChecked}}" color="#ffffff" />
+            <text class="agreement-text">登录即代表您同意我们的<text class="link" data-link="true" bindtap="onAgreement">服务条款</text>和<text class="link" data-link="true" bindtap="onPrivacy">隐私政策</text></text>
+        </view>
+    </view>
+</view>

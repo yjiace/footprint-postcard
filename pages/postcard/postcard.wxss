@@ -1,0 +1,94 @@
+/* pages/postcard/postcard.wxss */
+/* 基于HTML原型: from-amber-200 via-violet-400 to-sky-400 */
+
+.page-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fde68a 0%, #a78bfa 50%, #60a5fa 100%);
+  display: flex;
+  flex-direction: column;
+  padding-top: 88rpx;
+}
+
+.top-nav {
+  padding: 64rpx 0 32rpx;
+  background: transparent;
+}
+
+.nav-title {
+  font-size: 60rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  display: block;
+}
+
+.content-scroll {
+  flex: 1;
+  padding: 0 32rpx;
+}
+
+.postcard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32rpx;
+  padding: 0;
+}
+
+.postcard-item {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  transition: all 0.3s;
+}
+
+.postcard-item:active {
+  transform: scale(0.95);
+}
+
+.postcard-image {
+  width: 100%;
+  aspect-ratio: 3/4;
+  border-radius: 16rpx;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.postcard-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #FFFFFF;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  padding: 128rpx 32rpx;
+}
+
+.empty-icon {
+  font-size: 200rpx;
+  color: #FFFFFF;
+  opacity: 0.6;
+}
+
+.empty-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.empty-desc {
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.bottom-placeholder {
+  height: 0;
+}

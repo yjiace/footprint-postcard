@@ -1,0 +1,60 @@
+{
+    "pages": [
+        "pages/index/index",
+        "pages/plan/plan",
+        "pages/plan-detail/plan-detail",
+        "pages/postcard/postcard",
+        "pages/profile/profile",
+        "pages/login/login"
+    ],
+    "window": {
+        "navigationBarTextStyle": "white",
+        "navigationBarTitleText": "足迹明信片",
+        "navigationStyle": "custom",
+        "backgroundTextStyle": "light",
+        "enablePullDownRefresh": false
+    },
+    "tabBar": {
+        "color": "#999999",
+        "selectedColor": "#667eea",
+        "backgroundColor": "#ffffff",
+        "borderStyle": "white",
+        "list": [
+            {
+                "pagePath": "pages/index/index",
+                "text": "首页",
+                "iconPath": "images/icons/home.png",
+                "selectedIconPath": "images/icons/home-active.png"
+            },
+            {
+                "pagePath": "pages/plan/plan",
+                "text": "行程",
+                "iconPath": "images/icons/route.png",
+                "selectedIconPath": "images/icons/route-active.png"
+            },
+            {
+                "pagePath": "pages/postcard/postcard",
+                "text": "明信片",
+                "iconPath": "images/icons/postcard.png",
+                "selectedIconPath": "images/icons/postcard-active.png"
+            },
+            {
+                "pagePath": "pages/profile/profile",
+                "text": "我的",
+                "iconPath": "images/icons/profile.png",
+                "selectedIconPath": "images/icons/profile-active.png"
+            }
+        ]
+    },
+    "permission": {
+        "scope.userLocation": {
+            "desc": "您的位置信息将用于显示周边景点和记录旅行轨迹"
+        }
+    },
+    "requiredPrivateInfos": [
+        "getLocation"
+    ],
+    "sitemapLocation": "sitemap.json",
+    "style": "v2",
+    "lazyCodeLoading": "requiredComponents"
+}

@@ -1,0 +1,94 @@
+<!--pages/index/index.wxml-->
+<custom-navbar title="足迹明信片" background="transparent"></custom-navbar>
+
+<view class="page-container">
+  <!-- 顶部定位区 -->
+  <view class="top-bar">
+    <view class="location-badge">
+      <view class="icon icon-location location-icon"></view>
+      <text class="location-text">{{currentCity}}</text>
+    </view>
+  </view>
+
+  <scroll-view class="content-scroll" scroll-y>
+    <!-- 热门目的地 -->
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">热门目的地</text>
+      </view>
+      
+      <view class="destinations-container">
+        <scroll-view class="destinations-scroll" scroll-x>
+          <view class="destinations-list">
+            <view class="destination-item" wx:for="{{hotDestinations}}" wx:key="id" bindtap="onDestinationTap" data-item="{{item}}">
+              <view class="destination-image-wrapper">
+                <image class="destination-image" src="{{item.image}}" mode="aspectFill"></image>
+                <view class="destination-overlay">
+                  <text class="destination-name">{{item.name}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+      
+      <!-- 指示器 -->
+      <view class="indicators">
+        <view class="indicator" wx:for="{{hotDestinations}}" wx:key="id" wx:for-index="index">
+          <view class="indicator-dot {{index === 0 ? 'active' : ''}}"></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 快捷功能入口 -->
+    <view class="quick-actions">
+      <view class="action-item" bindtap="onActionTap" data-action="plan">
+        <view class="action-icon-wrapper">
+          <view class="icon icon-route action-icon"></view>
+        </view>
+        <text class="action-text">路线规划</text>
+      </view>
+      <view class="action-item" bindtap="onActionTap" data-action="share">
+        <view class="action-icon-wrapper">
+          <view class="icon icon-share action-icon"></view>
+        </view>
+        <text class="action-text">分享行程</text>
+      </view>
+      <view class="action-item" bindtap="onActionTap" data-action="food">
+        <view class="action-icon-wrapper">
+          <view class="icon icon-restaurant action-icon"></view>
+        </view>
+        <text class="action-text">附近美食</text>
+      </view>
+      <view class="action-item" bindtap="onActionTap" data-action="favorite">
+        <view class="action-icon-wrapper">
+          <view class="icon icon-favorite action-icon"></view>
+        </view>
+        <text class="action-text">我的收藏</text>
+      </view>
+    </view>
+
+    <!-- 周边景点推荐 -->
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">周边景点推荐</text>
+        <text class="section-more" bindtap="onMoreAttractions">查看更多</text>
+      </view>
+      
+      <view class="attractions-list">
+        <view class="attraction-item" wx:for="{{nearbyAttractions}}" wx:key="id" bindtap="onAttractionTap" data-item="{{item}}">
+          <image class="attraction-image" src="{{item.image}}" mode="aspectFill"></image>
+          <view class="attraction-info">
+            <text class="attraction-name">{{item.name}}</text>
+            <text class="attraction-tags">{{item.tags}}</text>
+            <text class="attraction-distance">距离您 {{item.distance}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部占位 -->
+    <view class="bottom-placeholder"></view>
+  </scroll-view>
+
+</view>

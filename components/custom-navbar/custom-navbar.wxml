@@ -1,0 +1,6 @@
+<!--components/custom-navbar/custom-navbar.wxml-->
+<view class="custom-navbar" style="background: {{background}};">
+  <view class="navbar-content">
+    <view class="navbar-title">{{title}}</view>
+  </view>
+</view>

@@ -1,0 +1,234 @@
+/* pages/plan-detail/plan-detail.wxss */
+.page-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #FFDEE9 0%, #B5FFFC 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx;
+  background-color: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(30px);
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.nav-left,
+.nav-right {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon {
+  width: 48rpx;
+  height: 48rpx;
+  opacity: 0.85;
+}
+
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.5rpx;
+}
+
+.day-tabs {
+  position: sticky;
+  top: 96rpx;
+  z-index: 99;
+  background-color: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(30px);
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.06);
+}
+
+.day-tabs-wrapper {
+  display: flex;
+  padding: 0 32rpx;
+  gap: 48rpx;
+}
+
+.day-tab {
+  padding: 26rpx 0;
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  border-bottom: 4rpx solid transparent;
+  white-space: nowrap;
+  transition: all 0.3s;
+  font-weight: 500;
+}
+
+.day-tab-active {
+  color: #FF5722;
+  font-weight: 700;
+  border-bottom-color: #FF5722;
+}
+
+.content-scroll {
+  flex: 1;
+}
+
+.schedule-container {
+  padding: 32rpx;
+}
+
+.date-header {
+  margin-bottom: 32rpx;
+}
+
+.date-text {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.5rpx;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 24rpx;
+  margin-bottom: 48rpx;
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.node-icon {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+}
+
+.node-icon.museum {
+  background-color: #FFF3E0;
+}
+
+.node-icon.park {
+  background-color: #E8F5E9;
+}
+
+.node-icon.restaurant {
+  background-color: #FFEBEE;
+}
+
+.node-icon.street {
+  background-color: #E3F2FD;
+}
+
+.node-image {
+  width: 38rpx;
+  height: 38rpx;
+}
+
+.node-line {
+  width: 3rpx;
+  flex: 1;
+  background-color: var(--border-color);
+  margin: 10rpx 0;
+  border-radius: 2rpx;
+}
+
+.timeline-content {
+  flex: 1;
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  padding: 26rpx;
+  border-radius: 24rpx;
+  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.item-name {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.3rpx;
+}
+
+.item-time {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 8rpx;
+}
+
+.item-tag {
+  padding: 8rpx 16rpx;
+  border-radius: var(--radius-full);
+  font-size: 22rpx;
+  background-color: var(--bg-gray);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.bottom-placeholder {
+  height: 180rpx;
+}
+
+.bottom-action {
+  position: fixed;
+  bottom: 64rpx;
+  left: 0;
+  right: 0;
+  padding: 0 32rpx;
+  display: flex;
+  justify-content: center;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  padding: 26rpx 52rpx;
+  background: linear-gradient(135deg, #FF9A8B 0%, #FF6A88 100%);
+  color: var(--text-white);
+  border-radius: var(--radius-full);
+  font-size: 30rpx;
+  font-weight: 700;
+  box-shadow: 0 12rpx 32rpx rgba(255, 106, 136, 0.35);
+  transition: all 0.3s;
+}
+
+.action-btn:active {
+  transform: scale(0.98);
+  box-shadow: 0 8rpx 24rpx rgba(255, 106, 136, 0.28);
+}
+
+.btn-icon {
+  width: 38rpx;
+  height: 38rpx;
+}

@@ -1,0 +1,20 @@
+{
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true
+  },
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "pages/login/login",
+          "pathName": "pages/login/login",
+          "query": "redirect=%2Fpages%2Fplan%2Fplan",
+          "scene": null,
+          "launchMode": "default"
+        }
+      ]
+    }
+  }
+}
