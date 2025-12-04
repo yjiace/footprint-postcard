@@ -2,13 +2,22 @@
 /* 基于HTML原型: from-amber-200 via-violet-400 to-sky-400 */
 
 .page-container {
+  position: relative;
   min-height: 100vh;
+}
+
+.page-container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: linear-gradient(135deg, #fde68a 0%, #a78bfa 50%, #60a5fa 100%);
+  z-index: -1;
 }
 
 .page-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #fde68a 0%, #a78bfa 50%, #60a5fa 100%);
   padding-top: 88rpx;
 }
 

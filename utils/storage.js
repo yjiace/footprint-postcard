@@ -80,7 +80,9 @@ const KEYS = {
     TRACK_LIST: 'trackList',
     POSTCARD_LIST: 'postcardList',
     CURRENT_PLAN: 'currentPlan',
-    CURRENT_TRACK: 'currentTrack'
+    CURRENT_TRACK: 'currentTrack',
+    HOME_ATTRACTIONS: 'homeAttractions', // 首页景点推荐缓存
+    HOT_DESTINATIONS: 'hotDestinations'   // 热门目的地缓存
 }
 
 /**
@@ -140,7 +142,7 @@ function getLocation() {
 function getDetailedLocation() {
     const location = getLocation()
     if (!location) return null
-    
+
     // 返回完整的定位信息，包括新的数据结构字段
     return {
         latitude: location.latitude,
@@ -255,6 +257,84 @@ function getCurrentTrack() {
     return get(KEYS.CURRENT_TRACK)
 }
 
+/**
+ * 保存首页景点推荐缓存
+ * @param {Object} data - 包含位置和景点数据的对象
+ * @param {Number} data.latitude - 纬度
+ * @param {Number} data.longitude - 经度
+ * @param {Array} data.attractions - 景点列表
+ * @param {Number} data.timestamp - 缓存时间戳
+ */
+function setHomeAttractions(data) {
+    const cacheData = {
+        ...data,
+        timestamp: Date.now()
+    }
+    return set(KEYS.HOME_ATTRACTIONS, cacheData)
+}
+
+/**
+ * 获取首页景点推荐缓存
+ * @returns {Object|null} 缓存的景点数据，包含位置和景点列表；如果缓存过期则返回null
+ */
+function getHomeAttractions() {
+    const cached = get(KEYS.HOME_ATTRACTIONS)
+    if (!cached || !cached.timestamp) {
+        return null
+    }
+
+    // 判断缓存是否是今天的
+    const cacheDate = new Date(cached.timestamp)
+    const today = new Date()
+
+    // 比较年月日，如果不是同一天则缓存失效
+    if (cacheDate.getFullYear() !== today.getFullYear() ||
+        cacheDate.getMonth() !== today.getMonth() ||
+        cacheDate.getDate() !== today.getDate()) {
+        console.log('景点缓存已过期（不是今天的数据），自动失效')
+        return null
+    }
+
+    return cached
+}
+
+/**
+ * 保存热门目的地缓存
+ * @param {Array} destinations - 热门目的地列表
+ */
+function setHotDestinations(destinations) {
+    const cacheData = {
+        destinations: destinations,
+        timestamp: Date.now()
+    }
+    return set(KEYS.HOT_DESTINATIONS, cacheData)
+}
+
+/**
+ * 获取热门目的地缓存
+ * @returns {Array|null} 缓存的热门目的地列表；如果缓存过期则返回null
+ */
+function getHotDestinations() {
+    const cached = get(KEYS.HOT_DESTINATIONS)
+    if (!cached || !cached.timestamp) {
+        return null
+    }
+
+    // 判断缓存是否是今天的
+    const cacheDate = new Date(cached.timestamp)
+    const today = new Date()
+
+    // 比较年月日，如果不是同一天则缓存失效
+    if (cacheDate.getFullYear() !== today.getFullYear() ||
+        cacheDate.getMonth() !== today.getMonth() ||
+        cacheDate.getDate() !== today.getDate()) {
+        console.log('热门目的地缓存已过期（不是今天的数据），自动失效')
+        return null
+    }
+
+    return cached.destinations
+}
+
 module.exports = {
     set,
     get,
@@ -281,5 +361,9 @@ module.exports = {
     setCurrentPlan,
     getCurrentPlan,
     setCurrentTrack,
-    getCurrentTrack
+    getCurrentTrack,
+    setHomeAttractions,
+    getHomeAttractions,
+    setHotDestinations,
+    getHotDestinations
 }

@@ -14,9 +14,9 @@
         </view>
         <text class="nav-title">行程详情</text>
         <view class="nav-right">
-          <button class="share-btn" open-type="share">
+          <!-- <button class="share-btn" open-type="share">
             <image class="icon-24" src="/images/icons/share.png" mode="aspectFit"></image>
-          </button>
+          </button> -->
         </view>
       </view>
 

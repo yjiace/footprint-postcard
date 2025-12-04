@@ -3,6 +3,7 @@ const app = getApp()
 const api = require('../../utils/api.js')
 const storage = require('../../utils/storage.js')
 const util = require('../../utils/util.js')
+const mapUtil = require('../../utils/map.js')
 
 Page({
     data: {
@@ -57,7 +58,7 @@ Page({
                     success: resolve
                 })
             })
-            
+
             // 如果用户未授权定位权限，则请求授权
             if (!authSetting.authSetting['scope.userLocation']) {
                 const authResult = await new Promise((resolve) => {
@@ -67,7 +68,7 @@ Page({
                         fail: () => resolve(false)
                     })
                 })
-                
+
                 if (!authResult) {
                     // 用户拒绝授权，显示提示
                     wx.showModal({
@@ -84,7 +85,7 @@ Page({
                     return
                 }
             }
-            
+
             // 获取位置信息
             const location = await new Promise((resolve, reject) => {
                 wx.getLocation({
@@ -93,23 +94,52 @@ Page({
                     fail: reject
                 })
             })
-            
+
+            // ====== 距离判断逻辑 ======
+            // 先检查缓存的位置
+            const cachedLocation = storage.getLocation()
+            if (cachedLocation && cachedLocation.latitude && cachedLocation.longitude) {
+                const distance = mapUtil.calculateDistance(
+                    cachedLocation.latitude,
+                    cachedLocation.longitude,
+                    location.latitude,
+                    location.longitude
+                )
+                console.log('位置变化距离:', mapUtil.formatDistance(distance))
+
+                // 距离小于3000米(3公里)，使用缓存数据，不调用API
+                if (distance < 3000) {
+                    console.log('位置变化小于3km，使用缓存城市')
+                    this.setData({
+                        city: cachedLocation.city
+                    })
+                    wx.showToast({
+                        title: '已使用当前位置',
+                        icon: 'success'
+                    })
+                    return // 直接返回，不调用API
+                }
+
+                console.log('位置变化超过3km，重新获取城市信息')
+            }
+
+            // ====== 需要更新数据时才调用API ======
             // 调用后端API获取城市信息
             const cityInfo = await api.getCityByLocation(location.latitude, location.longitude)
-            
+
             // 根据新的API数据结构适配
             const cityData = cityInfo.data || {}
             const cityName = cityData.city || cityData.formattedAddress || '未知城市'
-            
+
             this.setData({
                 city: cityName
             })
-            
+
             wx.showToast({
                 title: '已使用当前位置',
                 icon: 'success'
             })
-            
+
         } catch (err) {
             console.error('获取位置失败:', err)
             if (err.message && err.message.includes('权限')) {
@@ -224,7 +254,7 @@ Page({
 
             // 调用实际API生成行程
             const result = await api.generatePlan(params)
-            
+
             // 保存行程到本地存储
             const plan = {
                 id: util.generateId(),
@@ -236,7 +266,7 @@ Page({
                 schedule: result.data || [],
                 createdAt: Date.now()
             }
-            
+
             // 保存到本地存储
             storage.addPlan(plan)
 
@@ -253,7 +283,7 @@ Page({
         } catch (err) {
             console.error('生成行程失败', err)
             util.hideLoading()
-            
+
             // 显示具体的错误信息
             if (err.errMsg && err.errMsg.includes('fail')) {
                 util.showError('网络连接失败，请检查网络后重试')
