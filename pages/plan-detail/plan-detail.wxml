@@ -10,12 +10,12 @@
     <view class="header">
       <view class="nav-bar">
         <view class="nav-left" bindtap="onBack">
-          <image class="icon-24" src="/images/icons/arrow_back_ios_new.svg" mode="aspectFit"></image>
+          <image class="icon-24" src="/images/icons/arrow_back_ios_new.png" mode="aspectFit"></image>
         </view>
         <text class="nav-title">行程详情</text>
         <view class="nav-right">
           <button class="share-btn" open-type="share">
-            <image class="icon-24" src="/images/icons/share.svg" mode="aspectFit"></image>
+            <image class="icon-24" src="/images/icons/share.png" mode="aspectFit"></image>
           </button>
         </view>
       </view>
@@ -46,7 +46,7 @@
                 <view class="timeline-left">
                   <view class="icon-circle bg-orange-100 text-orange-500">
                     <!-- Assuming generic attraction icon for now as data only has 'attraction' type -->
-                    <image class="icon-20" src="/images/icons/museum.svg" mode="aspectFit"></image> 
+                    <image class="icon-20" src="/images/icons/museum.png" mode="aspectFit"></image> 
                   </view>
                   <view class="timeline-line" wx:if="{{index < plan.schedule[currentDay].items.length - 1}}"></view>
                 </view>
@@ -69,7 +69,7 @@
     <!-- Footer -->
     <view class="footer">
       <button class="add-btn" bindtap="onAddActivity">
-        <image class="icon-24" src="/images/icons/add_circle.svg" mode="aspectFit"></image>
+        <image class="icon-24" src="/images/icons/add_circle.png" mode="aspectFit"></image>
         <text>添加活动到行程</text>
       </button>
     </view>
