@@ -1,76 +1,77 @@
-<!--pages/plan-detail/plan-detail.wxml-->
 <view class="page-container">
-  <!-- 顶部导航 -->
-  <view class="top-nav">
-    <view class="nav-left" bindtap="onBack">
-      <image class="nav-icon" src="/images/icons/back.png" mode="aspectFit"></image>
-    </view>
-    <text class="nav-title">行程详情</text>
-    <view class="nav-right" bindtap="onShare">
-      <image class="nav-icon" src="/images/icons/share.png" mode="aspectFit"></image>
-    </view>
+  <!-- Loading State -->
+  <view wx:if="{{loading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
   </view>
 
-  <!-- 分天切换 -->
-  <scroll-view class="day-tabs" scroll-x>
-    <view class="day-tabs-wrapper">
-      <view 
-        class="day-tab {{currentDay === index ? 'day-tab-active' : ''}}"
-        wx:for="{{schedule}}"
-        wx:key="day"
-        bindtap="onDayChange"
-        data-index="{{index}}"
-      >
-        <text>第{{item.day}}天</text>
+  <block wx:else>
+    <!-- Header -->
+    <view class="header">
+      <view class="nav-bar">
+        <view class="nav-left" bindtap="onBack">
+          <image class="icon-24" src="/images/icons/arrow_back_ios_new.svg" mode="aspectFit"></image>
+        </view>
+        <text class="nav-title">行程详情</text>
+        <view class="nav-right">
+          <button class="share-btn" open-type="share">
+            <image class="icon-24" src="/images/icons/share.svg" mode="aspectFit"></image>
+          </button>
+        </view>
+      </view>
+
+      <!-- Days Tabs -->
+      <view class="tabs-wrapper">
+        <scroll-view scroll-x class="tabs-scroll" enable-flex>
+          <block wx:for="{{plan.schedule}}" wx:key="day">
+            <view class="tab-item {{currentDay === index ? 'active' : ''}}" bindtap="onDayChange" data-index="{{index}}">
+              <text class="tab-text">第{{item.day}}天</text>
+            </view>
+          </block>
+        </scroll-view>
       </view>
     </view>
-  </scroll-view>
 
-  <!-- 行程内容 -->
-  <scroll-view class="content-scroll" scroll-y>
-    <view class="schedule-container">
-      <!-- 日期标题 -->
-      <view class="date-header">
-        <text class="date-text">第{{schedule[currentDay].day}}天 {{schedule[currentDay].date}}</text>
-      </view>
-
-      <!-- 时间轴 -->
-      <view class="timeline">
-        <view 
-          class="timeline-item"
-          wx:for="{{schedule[currentDay].items}}"
-          wx:key="index"
-        >
-          <!-- 时间轴节点 -->
-          <view class="timeline-node">
-            <view class="node-icon {{getNodeClass(item.type)}}">
-              <image class="node-image" src="{{getNodeIcon(item.type)}}" mode="aspectFit"></image>
-            </view>
-            <view class="node-line" wx:if="{{index < schedule[currentDay].items.length - 1}}"></view>
+    <!-- Content -->
+    <scroll-view scroll-y class="content-scroll">
+      <view class="content-wrapper">
+        <view class="card">
+          <view class="card-header">
+            <text class="card-title">第{{plan.schedule[currentDay].day}}天 {{plan.schedule[currentDay].date}}</text>
           </view>
-
-          <!-- 内容 -->
-          <view class="timeline-content">
-            <text class="item-name">{{item.name}}</text>
-            <text class="item-time">{{item.time}}</text>
-            <view class="item-tags">
-              <view class="item-tag" wx:if="{{item.tips}}">{{item.tips}}</view>
-              <view class="item-tag">预计{{item.duration}}</view>
-            </view>
+          
+          <view class="timeline">
+            <block wx:for="{{plan.schedule[currentDay].items}}" wx:key="name">
+              <view class="timeline-item">
+                <view class="timeline-left">
+                  <view class="icon-circle bg-orange-100 text-orange-500">
+                    <!-- Assuming generic attraction icon for now as data only has 'attraction' type -->
+                    <image class="icon-20" src="/images/icons/museum.svg" mode="aspectFit"></image> 
+                  </view>
+                  <view class="timeline-line" wx:if="{{index < plan.schedule[currentDay].items.length - 1}}"></view>
+                </view>
+                
+                <view class="timeline-content">
+                  <text class="item-name">{{item.name}}</text>
+                  <text class="item-time">{{item.time}}</text>
+                  <view class="tags">
+                    <text class="tag bg-orange-100 text-orange-600" wx:if="{{item.tips}}">{{item.tips}}</text>
+                    <text class="tag bg-gray-100 text-gray-600">{{item.duration}}</text>
+                  </view>
+                </view>
+              </view>
+            </block>
           </view>
         </view>
       </view>
+    </scroll-view>
+
+    <!-- Footer -->
+    <view class="footer">
+      <button class="add-btn" bindtap="onAddActivity">
+        <image class="icon-24" src="/images/icons/add_circle.svg" mode="aspectFit"></image>
+        <text>添加活动到行程</text>
+      </button>
     </view>
-
-    <!-- 底部占位 -->
-    <view class="bottom-placeholder"></view>
-  </scroll-view>
-
-  <!-- 底部按钮 -->
-  <view class="bottom-action">
-    <button class="action-btn" bindtap="onAddActivity">
-      <image class="btn-icon" src="/images/icons/add.png" mode="aspectFit"></image>
-      <text>添加活动到行程</text>
-    </button>
-  </view>
+  </block>
 </view>

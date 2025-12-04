@@ -238,7 +238,7 @@ Page({
             }
             
             // 保存到本地存储
-            storage.savePlan(plan)
+            storage.addPlan(plan)
 
             util.hideLoading()
             util.showSuccess('行程生成成功')
