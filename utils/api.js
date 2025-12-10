@@ -224,6 +224,20 @@ function getPostcardDetail(id) {
 }
 
 /**
+ * 删除明信片
+ */
+function deletePostcard(id) {
+    return del(`/postcard/delete?id=${id}`)
+}
+
+/**
+ * 根据行程ID生成明信片（使用180秒超时，等待AI生成）
+ */
+function generatePostcardFromPlan(planId) {
+    return request('/postcard/generate', { planId }, 'POST', {}, 180000)
+}
+
+/**
  * 上传图片
  */
 function uploadImage(filePath) {
@@ -265,5 +279,7 @@ module.exports = {
     generatePostcard,
     getPostcardList,
     getPostcardDetail,
+    deletePostcard,
+    generatePostcardFromPlan,
     uploadImage
 }

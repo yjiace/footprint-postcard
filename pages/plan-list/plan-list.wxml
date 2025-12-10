@@ -65,6 +65,15 @@
         >
           <text class="delete-text">删除</text>
         </view>
+        <view 
+          class="postcard-action {{item.swiped ? 'show' : ''}}"
+          catchtap="onGeneratePostcard"
+          data-id="{{item.id}}"
+          data-city="{{item.city}}"
+          data-index="{{index}}"
+        >
+          <text class="postcard-action-text">明信片</text>
+        </view>
       </view>
     </view>
 

@@ -124,6 +124,52 @@ Page({
         })
     },
 
+    // 长按明信片
+    onLongPress(e) {
+        const item = e.currentTarget.dataset.item
+        const index = e.currentTarget.dataset.index
+
+        wx.showModal({
+            title: '删除明信片',
+            content: `确定要删除「${item.title || '这张明信片'}」吗？`,
+            confirmColor: '#ef4444',
+            success: (res) => {
+                if (res.confirm) {
+                    this.onDelete(item.id, index)
+                }
+            }
+        })
+    },
+
+    // 删除明信片
+    async onDelete(id, index) {
+        try {
+            util.showLoading('删除中...')
+
+            // 调用API删除
+            if (storage.isLoggedIn()) {
+                await api.deletePostcard(id)
+            }
+
+            // 从本地存储删除
+            storage.removePostcard(id)
+
+            // 更新列表
+            const newList = this.data.postcardList.filter(item => item.id !== id)
+            this.setData({ postcardList: newList })
+
+            // 更新缓存
+            storage.setPostcardListCache({ list: newList, timestamp: Date.now() })
+
+            util.hideLoading()
+            util.showSuccess('删除成功')
+        } catch (err) {
+            console.error('删除明信片失败:', err)
+            util.hideLoading()
+            util.showError('删除失败')
+        }
+    },
+
     // 生成明信片
     async onGenerate() {
         // 先检查用户是否已登录

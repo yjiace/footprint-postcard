@@ -171,16 +171,16 @@ Page({
         })
 
         // 根据滑动方向设置当前项状态
-        if (moveX < -50) {
-            // 向左滑动，显示删除按钮
+        if (moveX < -80) {
+            // 向左滑动，显示操作按钮
             planList[index].swiped = true
 
             // 5秒后自动隐藏
             this.hideTimer = setTimeout(() => {
                 this.hideAllSwiped()
             }, 5000)
-        } else if (moveX > 50) {
-            // 向右滑动，隐藏删除按钮
+        } else if (moveX > 80) {
+            // 向右滑动，隐藏操作按钮
             planList[index].swiped = false
         }
 
@@ -256,6 +256,53 @@ Page({
     onAdd() {
         wx.navigateTo({
             url: '/pages/plan/plan'
+        })
+    },
+
+    // 生成明信片
+    async onGeneratePostcard(e) {
+        const id = e.currentTarget.dataset.id
+        const city = e.currentTarget.dataset.city
+
+        // 隐藏滑动按钮
+        this.hideAllSwiped()
+
+        wx.showModal({
+            title: '生成明信片',
+            content: `确定要为「${city}」的行程生成明信片吗？`,
+            confirmText: '生成',
+            success: async (res) => {
+                if (res.confirm) {
+                    try {
+                        util.showLoading('正在生成明信片...')
+
+                        // 调用生成明信片API
+                        const result = await api.generatePostcardFromPlan(id)
+
+                        util.hideLoading()
+
+                        if (result && result.id) {
+                            wx.showModal({
+                                title: '生成成功',
+                                content: '明信片已生成，是否立即查看？',
+                                confirmText: '查看',
+                                cancelText: '稍后',
+                                success: (modalRes) => {
+                                    if (modalRes.confirm) {
+                                        wx.switchTab({
+                                            url: '/pages/postcard/postcard'
+                                        })
+                                    }
+                                }
+                            })
+                        }
+                    } catch (err) {
+                        console.error('生成明信片失败:', err)
+                        util.hideLoading()
+                        util.showError('生成失败，请稍后重试')
+                    }
+                }
+            }
         })
     },
 

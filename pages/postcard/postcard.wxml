@@ -25,7 +25,9 @@
         wx:for="{{postcardList}}"
         wx:key="id"
         bindtap="onPostcardTap"
+        bindlongpress="onLongPress"
         data-item="{{item}}"
+        data-index="{{index}}"
       >
         <image class="postcard-image" src="{{item.image}}" mode="aspectFill"></image>
         <text class="postcard-title">{{item.title}}</text>

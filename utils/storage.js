@@ -246,6 +246,15 @@ function addPostcard(postcard) {
 }
 
 /**
+ * 删除单个明信片
+ */
+function removePostcard(postcardId) {
+    const postcardList = getPostcardList()
+    const newList = postcardList.filter(postcard => postcard.id !== postcardId)
+    return setPostcardList(newList)
+}
+
+/**
  * 保存当前行程
  */
 function setCurrentPlan(plan) {
@@ -376,6 +385,7 @@ module.exports = {
     setPostcardList,
     getPostcardList,
     addPostcard,
+    removePostcard,
     setCurrentPlan,
     getCurrentPlan,
     setCurrentTrack,

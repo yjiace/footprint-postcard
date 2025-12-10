@@ -581,7 +581,7 @@ async function handleDeletePlan(request, env) {
 }
 
 /**
- * 12. AI生成明信片
+ * 12. AI生成明信片 - 使用 kuai.host Nano Banana Pro API
  */
 async function handleGeneratePostcard(request, env) {
     const user = await getUserFromRequest(request, env)
@@ -590,28 +590,299 @@ async function handleGeneratePostcard(request, env) {
     }
 
     const body = await request.json()
-    const { type, sourceId, photos } = body
+    const { planId } = body
 
-    if (!type || !sourceId) {
-        return errorResponse('缺少必要参数', 400)
+    if (!planId) {
+        return errorResponse('缺少行程ID参数', 400)
+    }
+
+    // 检查环境变量配置
+    if (!env.KUAI_API_KEY) {
+        return errorResponse('服务配置错误：未配置KUAI_API_KEY', 500)
     }
 
     try {
-        // TODO: 调用AI API生成明信片
+        // 1. 根据 planId 查询行程详情
+        const planData = await env.KV.get(`plan:${user.openid}:${planId}`)
+        if (!planData) {
+            return errorResponse('行程不存在', 404)
+        }
+        const plan = JSON.parse(planData)
+
+        // 2. 构建生成提示词
+        const prompt = buildPostcardPrompt(plan)
+        console.log('生成明信片提示词:', prompt)
+
+        // 3. 调用 kuai.host API 生成图片 (Google AI generateContent 格式)
+        const kuaiApiBase = env.KUAI_API_BASE || 'https://api.kuai.host'
+        const modelName = env.KUAI_MODEL || 'gemini-3-pro-image-preview'
+        const apiUrl = `${kuaiApiBase}/v1beta/models/${modelName}:generateContent`
+
+        // 调试日志
+        console.log('KUAI_API_KEY 存在:', !!env.KUAI_API_KEY)
+        console.log('KUAI_API_KEY 前10位:', env.KUAI_API_KEY ? env.KUAI_API_KEY.substring(0, 10) + '...' : 'undefined')
+        console.log('请求 URL:', apiUrl)
+
+        const imageResponse = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${env.KUAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                contents: [{
+                    role: 'user',
+                    parts: [{
+                        text: prompt
+                    }]
+                }],
+                generationConfig: {
+                    responseModalities: ['TEXT', 'IMAGE'],
+                    imageConfig: {
+                        aspectRatio: '3:4',
+                        imageSize: '2K'
+                    }
+                }
+            })
+        })
+
+        if (!imageResponse.ok) {
+            const errorText = await imageResponse.text()
+            console.error('kuai.host API 错误:', imageResponse.status, errorText)
+            return errorResponse('AI生成图片失败，请稍后重试', 500)
+        }
+
+        const imageResult = await imageResponse.json()
+        console.log('kuai.host 响应:', JSON.stringify(imageResult).substring(0, 500))
+
+        // 4. 解析响应获取图片数据 (Google AI generateContent 格式)
+        let imageUrl = null
+        let imageData = null
+
+        // 处理 Google AI generateContent 格式的响应
+        // 格式: { candidates: [{ content: { parts: [{ inlineData: { data, mimeType } }] } }] }
+        if (imageResult.candidates && imageResult.candidates[0]) {
+            const candidate = imageResult.candidates[0]
+            const parts = candidate.content?.parts
+
+            if (parts && Array.isArray(parts)) {
+                for (const part of parts) {
+                    // 检查 inlineData（base64 图片）
+                    if (part.inlineData && part.inlineData.data) {
+                        imageData = part.inlineData.data
+                        console.log('获取到 inlineData 图片数据，长度:', imageData.length)
+                        break
+                    }
+                    // 检查 inline_data（另一种命名格式）
+                    if (part.inline_data && part.inline_data.data) {
+                        imageData = part.inline_data.data
+                        console.log('获取到 inline_data 图片数据，长度:', imageData.length)
+                        break
+                    }
+                    // 检查文本中的 URL
+                    if (part.text) {
+                        const urlMatch = part.text.match(/(https?:\/\/[^\s"']+\.(png|jpg|jpeg|webp|gif))/i)
+                        if (urlMatch) {
+                            imageUrl = urlMatch[1]
+                            console.log('从文本中提取到图片 URL:', imageUrl)
+                        }
+                    }
+                }
+            }
+        }
+
+        // 5. 如果有 base64 数据，上传到 R2
+        if (imageData && env.R2_BUCKET) {
+            const filename = `postcards/${user.openid}/${Date.now()}.png`
+            const imageBuffer = Uint8Array.from(atob(imageData), c => c.charCodeAt(0))
+
+            await env.R2_BUCKET.put(filename, imageBuffer, {
+                httpMetadata: {
+                    contentType: 'image/png'
+                }
+            })
+
+            // 构建 R2 公开访问 URL
+            imageUrl = `https://${env.R2_PUBLIC_DOMAIN || 'r2.smallyoung.cn'}/${filename}`
+        }
+
+        // 如果没有获取到图片，使用默认图片
+        if (!imageUrl) {
+            console.warn('未获取到AI生成的图片，使用默认图片')
+            imageUrl = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600'
+        }
+
+        // 6. 生成明信片记录
         const postcardId = generateId('postcard_')
         const postcard = {
             id: postcardId,
-            title: '美好的旅行回忆',
-            image: photos && photos[0] ? photos[0] : 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600',
-            date: new Date().toISOString().split('T')[0],
-            description: '这是一段美好的旅行回忆...',
+            planId: planId,
+            title: `${plan.city}之旅`,
+            image: imageUrl,
+            city: plan.city,
+            date: plan.date,
+            endDate: plan.endDate,
+            days: plan.days,
+            description: `${plan.city} ${plan.days}天${plan.days - 1}晚精彩旅程`,
             createdAt: Date.now()
         }
 
+        // 7. 保存明信片详情到 KV
+        await env.KV.put(`postcard:${user.openid}:${postcardId}`, JSON.stringify(postcard))
+
+        // 8. 更新用户明信片列表
+        const listKey = `postcard_list:${user.openid}`
+        const existingList = await env.KV.get(listKey)
+        const postcardList = existingList ? JSON.parse(existingList) : []
+        postcardList.unshift({
+            id: postcardId,
+            title: postcard.title,
+            image: postcard.image,
+            city: postcard.city,
+            date: postcard.date,
+            createdAt: postcard.createdAt
+        })
+        await env.KV.put(listKey, JSON.stringify(postcardList))
+
         return jsonResponse(postcard)
     } catch (err) {
-        return errorResponse('生成失败', 500)
+        console.error('生成明信片失败:', err)
+        return errorResponse('生成明信片失败: ' + err.message, 500)
     }
+}
+
+/**
+ * 构建明信片生成提示词
+ * 根据行程数据动态生成详细的提示词
+ */
+function buildPostcardPrompt(plan) {
+    const city = plan.city || '未知城市'
+    const days = plan.days || 1
+
+    // 提取所有景点信息
+    const attractions = []
+    if (plan.schedule && Array.isArray(plan.schedule)) {
+        plan.schedule.forEach((day) => {
+            if (day.attractions && Array.isArray(day.attractions)) {
+                day.attractions.forEach(attraction => {
+                    attractions.push({
+                        name: attraction.name,
+                        description: attraction.description || ''
+                    })
+                })
+            }
+        })
+    }
+
+    // 构建旅行站点列表
+    let stationsText = ''
+    attractions.slice(0, 8).forEach((attraction, index) => {
+        stationsText += `- "第 ${index + 1} 站：{${attraction.name} + ${attraction.description}}"\n\n`
+    })
+    stationsText += `- "最终站：{当地招牌美食/纪念品 + 温馨结束语}"`
+
+    // 根据城市生成地标（这里使用通用描述，实际可以扩展为城市数据库）
+    const landmarks = getCityLandmarks(city)
+    const foods = getCityFoods(city)
+
+    return `请绘制一张色彩鲜艳、竖版（3:4）手绘风格的《${city}旅行明信片》，画风仿佛由一位充满好奇心的孩子用蜡笔创作，整体使用柔和温暖的浅色背景（如浅黄色），搭配红色、蓝色、绿色等明亮色调，营造温馨、童趣、满满旅行气息的氛围。
+
+一、主画面：手账式旅行路线
+
+在插画中央绘制一条"蜿蜒曲折的旅行路线"，路线用箭头 + 虚线连接多个地点，由 ${days} 日行程自动生成推荐景点：
+
+${stationsText}
+
+> 旅程站点数量随天数自动生成：
+> 若用户未输入天数，则按默认 1 日 / 精华线路生成。
+
+二、周围趣味元素（全部根据城市自动替换）
+
+在路线周围加入大量充满童趣的小元素，例如：
+
+- 可爱的旅行角色： "拿着当地特色小吃的小朋友"、 "背着旅行包的冒险小孩"等。
+
+- 当地标志性建筑的童趣 Q 版手绘： 如 "${landmarks[0]}"、"${landmarks[1]}"、"${landmarks[2]}"。
+
+- 有趣的提示牌： "小心迷路！"、"注意人流！"、"前方好吃的！"（可根据城市语境调整）。
+
+- 贴纸式小标语： "${city}旅行记忆已解锁！" "${city}美食大冒险！" "下一站去哪儿？"
+
+- 当地美食的可爱小图标： 如 "${foods[0]}"、"${foods[1]}"、"${foods[2]}"。
+
+- 感叹句（保持童真风）： "原来${city}这么好玩！" "我要再来一次！"
+
+三、整体风格要求
+
+- 手绘蜡笔风 / 儿童旅行日志风格
+- 色彩鲜艳、构图饱满但温暖
+- 强调旅行的欢乐与探索感
+- 所有文字采用可爱的手写字体
+- 让整个画面像一本童趣满满的旅行手账页面
+
+请直接生成图片，不需要文字描述。`
+}
+
+/**
+ * 获取城市地标（可扩展为数据库查询）
+ */
+function getCityLandmarks(city) {
+    const landmarkMap = {
+        '石家庄市': ['正定古城', '赵州桥', '西柏坡'],
+        '石家庄': ['正定古城', '赵州桥', '西柏坡'],
+        '北京': ['天安门', '故宫', '长城'],
+        '北京市': ['天安门', '故宫', '长城'],
+        '上海': ['东方明珠', '外滩', '城隍庙'],
+        '上海市': ['东方明珠', '外滩', '城隍庙'],
+        '广州': ['广州塔', '陈家祠', '白云山'],
+        '广州市': ['广州塔', '陈家祠', '白云山'],
+        '深圳': ['世界之窗', '华强北', '大梅沙'],
+        '深圳市': ['世界之窗', '华强北', '大梅沙'],
+        '杭州': ['西湖', '雷峰塔', '灵隐寺'],
+        '杭州市': ['西湖', '雷峰塔', '灵隐寺'],
+        '成都': ['宽窄巷子', '武侯祠', '大熊猫基地'],
+        '成都市': ['宽窄巷子', '武侯祠', '大熊猫基地'],
+        '西安': ['兵马俑', '大雁塔', '钟楼'],
+        '西安市': ['兵马俑', '大雁塔', '钟楼'],
+        '重庆': ['洪崖洞', '解放碑', '朝天门'],
+        '重庆市': ['洪崖洞', '解放碑', '朝天门'],
+        '南京': ['中山陵', '夫子庙', '玄武湖'],
+        '南京市': ['中山陵', '夫子庙', '玄武湖'],
+        '桂林': ['漓江', '象鼻山', '阳朔'],
+        '桂林市': ['漓江', '象鼻山', '阳朔']
+    }
+    return landmarkMap[city] || ['城市地标1', '城市地标2', '城市地标3']
+}
+
+/**
+ * 获取城市美食（可扩展为数据库查询）
+ */
+function getCityFoods(city) {
+    const foodMap = {
+        '石家庄市': ['驴肉火烧', '正定八大碗', '缸炉烧饼'],
+        '石家庄': ['驴肉火烧', '正定八大碗', '缸炉烧饼'],
+        '北京': ['北京烤鸭', '炸酱面', '豆汁焦圈'],
+        '北京市': ['北京烤鸭', '炸酱面', '豆汁焦圈'],
+        '上海': ['小笼包', '生煎', '蟹壳黄'],
+        '上海市': ['小笼包', '生煎', '蟹壳黄'],
+        '广州': ['早茶点心', '肠粉', '白切鸡'],
+        '广州市': ['早茶点心', '肠粉', '白切鸡'],
+        '深圳': ['潮汕牛肉丸', '肠粉', '烧鹅'],
+        '深圳市': ['潮汕牛肉丸', '肠粉', '烧鹅'],
+        '杭州': ['东坡肉', '西湖醋鱼', '龙井虾仁'],
+        '杭州市': ['东坡肉', '西湖醋鱼', '龙井虾仁'],
+        '成都': ['火锅', '担担面', '龙抄手'],
+        '成都市': ['火锅', '担担面', '龙抄手'],
+        '西安': ['肉夹馍', '羊肉泡馍', '凉皮'],
+        '西安市': ['肉夹馍', '羊肉泡馍', '凉皮'],
+        '重庆': ['重庆火锅', '重庆小面', '酸辣粉'],
+        '重庆市': ['重庆火锅', '重庆小面', '酸辣粉'],
+        '南京': ['盐水鸭', '鸭血粉丝汤', '汤包'],
+        '南京市': ['盐水鸭', '鸭血粉丝汤', '汤包'],
+        '桂林': ['桂林米粉', '啤酒鱼', '油茶'],
+        '桂林市': ['桂林米粉', '啤酒鱼', '油茶']
+    }
+    return foodMap[city] || ['当地特色小吃', '传统美食', '网红小吃']
 }
 
 /**
@@ -682,6 +953,42 @@ async function handleGetPostcardDetail(request, env) {
 }
 
 /**
+ * 15. 删除明信片
+ */
+async function handleDeletePostcard(request, env) {
+    const user = await getUserFromRequest(request, env)
+    if (!user) {
+        return errorResponse('未登录', 401)
+    }
+
+    const url = new URL(request.url)
+    const id = url.searchParams.get('id')
+
+    if (!id) {
+        return errorResponse('缺少id参数', 400)
+    }
+
+    try {
+        // 删除明信片详情
+        await env.KV.delete(`postcard:${user.openid}:${id}`)
+
+        // 更新明信片列表
+        const listKey = `postcard_list:${user.openid}`
+        const existingList = await env.KV.get(listKey)
+        if (existingList) {
+            const postcardList = JSON.parse(existingList)
+            const newList = postcardList.filter(item => item.id !== id)
+            await env.KV.put(listKey, JSON.stringify(newList))
+        }
+
+        return jsonResponse({ id, deleted: true })
+    } catch (err) {
+        console.error('删除明信片失败:', err)
+        return errorResponse('删除失败', 500)
+    }
+}
+
+/**
  * 15. 上传图片
  */
 async function handleUploadImage(request, env) {
@@ -741,6 +1048,7 @@ const routes = {
     'POST /postcard/generate': handleGeneratePostcard,
     'GET /postcard/list': handleGetPostcardList,
     'GET /postcard/detail': handleGetPostcardDetail,
+    'DELETE /postcard/delete': handleDeletePostcard,
 
     // 文件上传
     'POST /upload/image': handleUploadImage
