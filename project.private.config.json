@@ -8,16 +8,16 @@
     "miniprogram": {
       "list": [
         {
-          "name": "pages/plan-detail/plan-detail",
-          "pathName": "pages/plan-detail/plan-detail",
-          "query": "id=1764850651103_0edyd7xvf",
+          "name": "pages/plan/plan",
+          "pathName": "pages/plan/plan",
+          "query": "",
           "scene": null,
           "launchMode": "default"
         },
         {
-          "name": "pages/login/login",
-          "pathName": "pages/login/login",
-          "query": "redirect=%2Fpages%2Fplan%2Fplan",
+          "name": "pages/plan/plan",
+          "pathName": "pages/plan/plan",
+          "query": "",
           "launchMode": "default",
           "scene": null
         }

@@ -10,44 +10,42 @@
     <view class="form-container">
       <!-- 选择城市 -->
       <view class="form-item">
-        <view class="form-label-row">
-          <text class="form-label">选择城市</text>
-          <view class="current-location-btn" bindtap="useCurrentLocation">
-            <view class="icon icon-location location-icon"></view>
-            <text class="location-text">使用当前位置</text>
+        <text class="form-label">选择城市</text>
+        <view class="city-input-container">
+          <picker mode="region" value="{{cityRegion}}" bindchange="onCityChange" class="city-picker">
+            <view class="city-input">
+              <text class="{{city ? 'picker-value' : 'picker-placeholder'}}">
+                {{city || '例如:上海'}}
+              </text>
+            </view>
+          </picker>
+          <view class="location-btn" bindtap="useCurrentLocation" catchtap="useCurrentLocation">
+            <view class="icon icon-location"></view>
           </view>
         </view>
-        <picker mode="region" value="{{cityRegion}}" bindchange="onCityChange">
-          <view class="picker-input">
-            <text class="{{city ? 'picker-value' : 'picker-placeholder'}}">
-              {{city || '例如:上海'}}
-            </text>
-          </view>
-        </picker>
       </view>
 
-      <!-- 开始日期 -->
+      <!-- 出行日期 -->
       <view class="form-item">
-        <text class="form-label">开始日期</text>
-        <picker mode="date" value="{{startDate}}" start="{{todayDate}}" bindchange="onStartDateChange">
-          <view class="picker-input">
-            <text class="{{startDate ? 'picker-value' : 'picker-placeholder'}}">
-              {{startDate || '请选择出行日期'}}
-            </text>
-          </view>
-        </picker>
-      </view>
-
-      <!-- 结束日期 -->
-      <view class="form-item">
-        <text class="form-label">结束日期</text>
-        <picker mode="date" value="{{endDate}}" start="{{startDate || todayDate}}" bindchange="onEndDateChange">
-          <view class="picker-input">
-            <text class="{{endDate ? 'picker-value' : 'picker-placeholder'}}">
-              {{endDate || '请选择返程日期'}}
-            </text>
-          </view>
-        </picker>
+        <text class="form-label">出行日期</text>
+        <view class="date-range-wrapper">
+          <picker mode="date" value="{{startDate}}" start="{{todayDate}}" end="{{maxStartDate}}" bindchange="onStartDateChange" class="date-picker-half">
+            <view class="date-half-input">
+              <text class="{{startDate ? 'picker-value' : 'picker-placeholder'}}">
+                {{startDate || '开始日期'}}
+              </text>
+            </view>
+          </picker>
+          <text class="date-separator">至</text>
+          <picker mode="date" value="{{endDate}}" start="{{startDate || todayDate}}" end="{{maxEndDate}}" bindchange="onEndDateChange" class="date-picker-half">
+            <view class="date-half-input">
+              <text class="{{endDate ? 'picker-value' : 'picker-placeholder'}}">
+                {{endDate || '结束日期'}}
+              </text>
+            </view>
+          </picker>
+          <text class="date-days-tag" wx:if="{{startDate && endDate}}">{{tripDays}}天</text>
+        </view>
       </view>
 
       <!-- 交通方式 -->

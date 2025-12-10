@@ -15,6 +15,9 @@ Page({
         startDate: '',
         endDate: '',
         todayDate: '',
+        maxStartDate: '', // 开始日期的最大值（无限制）
+        maxEndDate: '', // 结束日期的最大值（开始日期+10天）
+        tripDays: 0, // 行程天数
 
         // 交通方式
         transportTypes: [
@@ -182,22 +185,59 @@ Page({
         const startDate = e.detail.value
         let endDate = this.data.endDate
 
-        // 如果结束日期早于开始日期，清空结束日期
-        if (endDate && endDate < startDate) {
+        // 计算结束日期的最大值（开始日期+10天）
+        const startDateObj = new Date(startDate)
+        const maxEndDateObj = new Date(startDateObj)
+        maxEndDateObj.setDate(maxEndDateObj.getDate() + 9) // +9天，共10天
+        const maxEndDate = util.formatDate(maxEndDateObj)
+
+        // 如果结束日期早于开始日期或超过10天，清空结束日期
+        if (endDate && (endDate < startDate || endDate > maxEndDate)) {
             endDate = ''
+        }
+
+        // 计算天数
+        let tripDays = 0
+        if (endDate) {
+            tripDays = this.calculateDays(startDate, endDate)
         }
 
         this.setData({
             startDate: startDate,
-            endDate: endDate
+            endDate: endDate,
+            maxEndDate: maxEndDate,
+            tripDays: tripDays
         })
     },
 
     // 选择结束日期
     onEndDateChange(e) {
-        this.setData({
-            endDate: e.detail.value
-        })
+        const endDate = e.detail.value
+        const startDate = this.data.startDate
+
+        // 检查是否超过10天
+        if (startDate) {
+            const days = this.calculateDays(startDate, endDate)
+            if (days > 10) {
+                util.showError('行程日期间隔不能超过10天')
+                return
+            }
+            this.setData({
+                endDate: endDate,
+                tripDays: days
+            })
+        } else {
+            this.setData({
+                endDate: endDate
+            })
+        }
+    },
+
+    // 计算两个日期之间的天数
+    calculateDays(startDate, endDate) {
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+        return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
     },
 
     // 切换景点类型
@@ -255,12 +295,12 @@ Page({
         })
     },
 
-    // 生成行程
+    // 规划行程
     async onGenerate() {
         // 检查用户是否已登录
         if (!storage.isLoggedIn()) {
             console.log('用户未登录，显示登录提示')
-            this.showLoginGuide('生成行程')
+            this.showLoginGuide('规划行程')
             return
         }
 
@@ -326,9 +366,9 @@ Page({
         }
 
         try {
-            util.showLoading('AI正在生成行程，请稍等...')
+            util.showLoading('正在规划行程，请稍等...')
 
-            // 调用实际API生成行程
+            // 调用实际API规划行程
             const result = await api.generatePlan(params)
 
             // API已经保存并返回完整的行程数据
@@ -338,7 +378,7 @@ Page({
             storage.addPlan(plan)
 
             util.hideLoading()
-            util.showSuccess('行程生成成功')
+            util.showSuccess('行程规划成功')
 
             // 跳转到行程详情页
             setTimeout(() => {
@@ -348,7 +388,7 @@ Page({
             }, 1000)
 
         } catch (err) {
-            console.error('生成行程失败', err)
+            console.error('行程规划失败', err)
             util.hideLoading()
 
             // 显示具体的错误信息
@@ -357,13 +397,13 @@ Page({
             } else if (err.statusCode && err.statusCode >= 500) {
                 util.showError('服务器繁忙，请稍后重试')
             } else {
-                util.showError('生成行程失败，请重试')
+                util.showError('行程规划失败，请重试')
             }
         }
     },
 
     // 显示登录引导
-    showLoginGuide(action = '生成行程') {
+    showLoginGuide(action = '行程规划') {
         wx.showModal({
             title: '登录提示',
             content: `您需要登录后才能${action}`,
