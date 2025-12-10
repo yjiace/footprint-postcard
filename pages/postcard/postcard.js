@@ -5,82 +5,105 @@ const api = require('../../utils/api.js')
 
 Page({
     data: {
-        postcardList: []
+        postcardList: [],
+        isLoggedIn: false,
+        loading: true,
+        // 分页相关
+        page: 1,
+        pageSize: 10,
+        hasMore: true,
+        loadingMore: false
     },
 
     onLoad() {
-        this.loadPostcardList()
+        this.loadPostcardList(true)
     },
 
     onShow() {
-        // 每次显示时刷新列表
-        this.loadPostcardList()
+        // 每次显示时刷新列表（从缓存或服务器）
+        this.loadPostcardList(true)
     },
 
     onPullDownRefresh() {
-        this.loadPostcardList().then(() => {
+        this.loadPostcardList(true).then(() => {
             wx.stopPullDownRefresh()
         })
     },
 
+    // 上拉加载更多
+    onReachBottom() {
+        if (this.data.loadingMore || !this.data.hasMore || !this.data.isLoggedIn) {
+            return
+        }
+        this.setData({ loadingMore: true })
+        this.loadPostcardList(false)
+    },
+
     // 加载明信片列表
-    async loadPostcardList() {
-        // 先检查用户是否已登录
-        if (!storage.isLoggedIn()) {
+    async loadPostcardList(reset = false) {
+        const isLoggedIn = storage.isLoggedIn()
+        this.setData({ isLoggedIn })
+
+        if (!isLoggedIn) {
             console.log('用户未登录，直接显示空内容')
             this.setData({
-                postcardList: []
+                postcardList: [],
+                loading: false
             })
             return
         }
-        
+
+        // 如果是重置，重新从第一页开始
+        if (reset) {
+            this.setData({
+                page: 1,
+                hasMore: true,
+                loading: true
+            })
+
+            // 先从缓存快速显示
+            const cachedData = storage.getPostcardListCache()
+            if (cachedData && cachedData.list && cachedData.list.length > 0) {
+                this.setData({
+                    postcardList: cachedData.list,
+                    loading: false
+                })
+            }
+        }
+
+        if (!reset && !this.data.hasMore) {
+            return
+        }
+
         try {
-            console.log('开始加载明信片列表...')
-            // 调用实际API获取明信片列表
-            const result = await api.getPostcardList()
-            console.log('明信片列表数据:', result)
-            
-            // 处理多种数据格式
-            const postcardList = result.list || result.data || []
-            
-            if (postcardList.length > 0) {
+            const result = await api.getPostcardList(this.data.page, this.data.pageSize)
+            const serverList = result.list || []
+            const hasMore = result.hasMore !== undefined ? result.hasMore : serverList.length >= this.data.pageSize
+
+            if (reset) {
                 this.setData({
-                    postcardList: postcardList
+                    postcardList: serverList,
+                    loading: false,
+                    hasMore,
+                    page: this.data.page + 1
                 })
-                // 保存到本地存储
-                storage.setPostcardList(postcardList)
-                console.log('明信片列表渲染完成:', postcardList.length)
+                // 缓存第一页数据
+                storage.setPostcardListCache({ list: serverList, timestamp: Date.now() })
             } else {
-                // 如果API返回空数据，显示空状态
+                const newList = [...this.data.postcardList, ...serverList]
                 this.setData({
-                    postcardList: []
+                    postcardList: newList,
+                    loadingMore: false,
+                    hasMore,
+                    page: this.data.page + 1
                 })
-                console.log('暂无明信片数据')
             }
         } catch (err) {
             console.error('加载明信片列表失败', err)
-            // 如果是401错误，直接显示空内容
-            if (err.statusCode === 401) {
-                this.setData({
-                    postcardList: []
-                })
-                return
-            }
-            
-            // 降级处理：使用本地存储数据
-            const cachedPostcards = storage.getPostcardList()
-            if (cachedPostcards && cachedPostcards.length > 0) {
-                this.setData({
-                    postcardList: cachedPostcards
-                })
-                console.log('使用缓存的明信片列表:', cachedPostcards.length)
-            } else {
-                // 没有缓存数据时显示空内容
-                this.setData({
-                    postcardList: []
-                })
-                console.log('暂无明信片数据')
-            }
+            this.setData({
+                loading: false,
+                loadingMore: false
+            })
         }
     },
 
@@ -148,11 +171,11 @@ Page({
 
             // 调用实际API生成明信片
             const result = await api.generatePostcard({ type: 'track', data: trackList[0] })
-            
+
             if (result && result.success) {
                 util.hideLoading()
                 util.showSuccess('生成成功')
-                
+
                 // 刷新列表
                 this.loadPostcardList()
             } else {
@@ -161,7 +184,7 @@ Page({
         } catch (err) {
             console.error('生成明信片失败', err)
             util.hideLoading()
-            
+
             if (err.statusCode === 401) {
                 util.showError('请先登录')
             } else if (err.statusCode >= 500) {
@@ -185,11 +208,11 @@ Page({
 
             // 调用实际API生成明信片
             const result = await api.generatePostcard({ type: 'plan', data: planList[0] })
-            
+
             if (result && result.success) {
                 util.hideLoading()
                 util.showSuccess('生成成功')
-                
+
                 // 刷新列表
                 this.loadPostcardList()
             } else {
@@ -198,7 +221,7 @@ Page({
         } catch (err) {
             console.error('生成明信片失败', err)
             util.hideLoading()
-            
+
             if (err.statusCode === 401) {
                 util.showError('请先登录')
             } else if (err.statusCode >= 500) {
@@ -207,6 +230,13 @@ Page({
                 util.showError('生成失败，请重试')
             }
         }
+    },
+
+    // 跳转登录
+    goLogin() {
+        wx.navigateTo({
+            url: '/pages/login/login?redirect=/pages/postcard/postcard'
+        })
     },
 
     // 分享

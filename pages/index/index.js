@@ -566,7 +566,7 @@ Page({
         const action = e.currentTarget.dataset.action
         switch (action) {
             case 'plan':
-                wx.switchTab({
+                wx.navigateTo({
                     url: '/pages/plan/plan'
                 })
                 break

@@ -11,7 +11,7 @@ Page({
 
     onLoad(options) {
         console.log('登录页面加载', options)
-        
+
         // 保存来源页面信息
         const pages = getCurrentPages()
         if (pages.length > 1) {
@@ -23,12 +23,12 @@ Page({
                 console.log('保存来源页面:', fromPage)
             }
         }
-        
+
         // 如果有回调页面,保存到本地
         if (options.redirect) {
             wx.setStorageSync('login_redirect', options.redirect)
         }
-        
+
         // 判断是否显示返回按钮
         // 只要不是从首页直接进入的，都显示返回按钮
         const showBack = pages.length > 0 && (pages.length > 1 || options.from || options.redirect)
@@ -59,7 +59,7 @@ Page({
         if (e && e.target && e.target.dataset && e.target.dataset.link) {
             return
         }
-        
+
         const newState = !this.data.agreementChecked
         console.log('toggleAgreement:', newState)
         this.setData({
@@ -70,13 +70,13 @@ Page({
     // 微信登录
     async onGetUserInfo(e) {
         console.log('微信登录', e)
-        
+
         // 检查是否同意协议
         if (!this.data.agreementChecked) {
             util.showError('请先同意服务条款和隐私政策')
             return
         }
-        
+
         // 检查用户信息授权状态
         if (!e.detail.userInfo) {
             // 用户拒绝授权，需要引导用户重新授权
@@ -97,7 +97,7 @@ Page({
 
         try {
             util.showLoading('登录中...')
-            
+
             // 获取微信code
             const loginRes = await new Promise((resolve, reject) => {
                 wx.login({
@@ -112,7 +112,7 @@ Page({
 
             // 调用登录API
             const result = await api.login(loginRes.code)
-            
+
             if (result && result.token) {
                 // 保存用户信息，确保包含微信头像和昵称
                 const userInfo = {
@@ -124,17 +124,17 @@ Page({
                     userId: result.userId || result.id || result.openid,
                     openid: result.openid
                 }
-                
+
                 console.log('保存的用户信息:', userInfo)
                 storage.setUserInfo(userInfo)
-                
+
                 // 同时更新全局用户信息
                 const app = getApp()
                 app.globalData.userInfo = userInfo
-                
+
                 util.hideLoading()
                 util.showSuccess('登录成功')
-                
+
                 // 强制刷新个人中心页面数据
                 const pages = getCurrentPages()
                 for (let i = 0; i < pages.length; i++) {
@@ -144,7 +144,7 @@ Page({
                         console.log('已刷新个人中心页面数据')
                     }
                 }
-                
+
                 // 延迟跳转，确保数据更新完成
                 setTimeout(() => {
                     this.redirectAfterLogin()
@@ -156,7 +156,7 @@ Page({
         } catch (err) {
             console.error('微信登录失败', err)
             util.hideLoading()
-            
+
             // 检查错误类型，提供具体的错误提示
             if (err.data && err.data.message) {
                 if (err.data.message.includes('invalid code')) {
@@ -334,13 +334,13 @@ Page({
         // 获取回调页面
         const redirect = wx.getStorageSync('login_redirect')
         const fromPage = wx.getStorageSync('login_from_page')
-        
+
         console.log('登录后跳转信息:', { redirect, fromPage })
-        
+
         // 清除存储的跳转信息
         wx.removeStorageSync('login_redirect')
         wx.removeStorageSync('login_from_page')
-        
+
         if (redirect) {
             // 跳转到指定页面
             wx.redirectTo({
@@ -373,15 +373,26 @@ Page({
         if (fromPage) {
             console.log('尝试返回来源页面:', fromPage)
             // 检查页面类型，如果是tab页使用switchTab，否则使用redirectTo
-            const tabPages = ['/pages/index/index', '/pages/plan/plan', '/pages/postcard/postcard', '/pages/profile/profile']
-            
+            const tabPages = ['/pages/index/index', '/pages/plan-list/plan-list', '/pages/postcard/postcard', '/pages/profile/profile']
+
             if (tabPages.includes(fromPage)) {
                 wx.switchTab({
                     url: fromPage
                 })
             } else {
                 wx.redirectTo({
-                    url: fromPage
+                    url: fromPage,
+                    fail: () => {
+                        // 如果redirectTo失败，尝试navigateBack
+                        wx.navigateBack({
+                            fail: () => {
+                                // 最后的回退：返回首页
+                                wx.switchTab({
+                                    url: '/pages/index/index'
+                                })
+                            }
+                        })
+                    }
                 })
             }
         } else {

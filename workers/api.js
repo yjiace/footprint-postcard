@@ -478,52 +478,7 @@ async function handleGeneratePlan(request, env) {
 }
 
 /**
- * 6. 保存行程
- */
-async function handleSavePlan(request, env) {
-    const user = await getUserFromRequest(request, env)
-    if (!user) {
-        return errorResponse('未登录', 401)
-    }
-
-    const body = await request.json()
-    const { plan } = body
-
-    if (!plan || !plan.id) {
-        return errorResponse('缺少行程数据', 400)
-    }
-
-    try {
-        // 保存到KV
-        await env.KV.put(`plan:${user.openid}:${plan.id}`, JSON.stringify(plan))
-
-        // 更新用户的行程列表
-        const listKey = `plan_list:${user.openid}`
-        const existingList = await env.KV.get(listKey)
-        const planList = existingList ? JSON.parse(existingList) : []
-
-        // 添加到列表开头
-        planList.unshift({
-            id: plan.id,
-            city: plan.city,
-            date: plan.date,
-            days: plan.days,
-            createdAt: plan.createdAt
-        })
-
-        await env.KV.put(listKey, JSON.stringify(planList))
-
-        return jsonResponse({
-            id: plan.id,
-            createdAt: plan.createdAt
-        })
-    } catch (err) {
-        return errorResponse('保存失败', 500)
-    }
-}
-
-/**
- * 7. 获取行程列表
+ * 6. 获取行程列表（支持分页）
  */
 async function handleGetPlanList(request, env) {
     const user = await getUserFromRequest(request, env)
@@ -531,12 +486,31 @@ async function handleGetPlanList(request, env) {
         return errorResponse('未登录', 401)
     }
 
+    const url = new URL(request.url)
+    const page = parseInt(url.searchParams.get('page')) || 1
+    const pageSize = parseInt(url.searchParams.get('pageSize')) || 10
+
     try {
         const listKey = `plan_list:${user.openid}`
         const data = await env.KV.get(listKey)
-        const list = data ? JSON.parse(data) : []
+        const allList = data ? JSON.parse(data) : []
 
-        return jsonResponse({ list })
+        // 计算分页
+        const total = allList.length
+        const totalPages = Math.ceil(total / pageSize)
+        const start = (page - 1) * pageSize
+        const end = start + pageSize
+        const list = allList.slice(start, end)
+        const hasMore = page < totalPages
+
+        return jsonResponse({
+            list,
+            total,
+            page,
+            pageSize,
+            totalPages,
+            hasMore
+        })
     } catch (err) {
         return errorResponse('获取失败', 500)
     }
@@ -567,6 +541,42 @@ async function handleGetPlanDetail(request, env) {
         return jsonResponse(JSON.parse(data))
     } catch (err) {
         return errorResponse('获取失败', 500)
+    }
+}
+
+/**
+ * 9. 删除行程
+ */
+async function handleDeletePlan(request, env) {
+    const user = await getUserFromRequest(request, env)
+    if (!user) {
+        return errorResponse('未登录', 401)
+    }
+
+    const url = new URL(request.url)
+    const id = url.searchParams.get('id')
+
+    if (!id) {
+        return errorResponse('缺少id参数', 400)
+    }
+
+    try {
+        // 删除行程详情
+        await env.KV.delete(`plan:${user.openid}:${id}`)
+
+        // 更新行程列表
+        const listKey = `plan_list:${user.openid}`
+        const existingList = await env.KV.get(listKey)
+        if (existingList) {
+            const planList = JSON.parse(existingList)
+            const newList = planList.filter(item => item.id !== id)
+            await env.KV.put(listKey, JSON.stringify(newList))
+        }
+
+        return jsonResponse({ id, deleted: true })
+    } catch (err) {
+        console.error('删除行程失败:', err)
+        return errorResponse('删除失败', 500)
     }
 }
 
@@ -605,7 +615,7 @@ async function handleGeneratePostcard(request, env) {
 }
 
 /**
- * 13. 获取明信片列表
+ * 13. 获取明信片列表（支持分页）
  */
 async function handleGetPostcardList(request, env) {
     const user = await getUserFromRequest(request, env)
@@ -613,12 +623,31 @@ async function handleGetPostcardList(request, env) {
         return errorResponse('未登录', 401)
     }
 
+    const url = new URL(request.url)
+    const page = parseInt(url.searchParams.get('page')) || 1
+    const pageSize = parseInt(url.searchParams.get('pageSize')) || 10
+
     try {
         const listKey = `postcard_list:${user.openid}`
         const data = await env.KV.get(listKey)
-        const list = data ? JSON.parse(data) : []
+        const allList = data ? JSON.parse(data) : []
 
-        return jsonResponse({ list })
+        // 计算分页
+        const total = allList.length
+        const totalPages = Math.ceil(total / pageSize)
+        const start = (page - 1) * pageSize
+        const end = start + pageSize
+        const list = allList.slice(start, end)
+        const hasMore = page < totalPages
+
+        return jsonResponse({
+            list,
+            total,
+            page,
+            pageSize,
+            totalPages,
+            hasMore
+        })
     } catch (err) {
         return errorResponse('获取失败', 500)
     }
@@ -704,9 +733,9 @@ const routes = {
 
     // 行程相关
     'POST /plan/generate': handleGeneratePlan,
-    'POST /plan/save': handleSavePlan,
     'GET /plan/list': handleGetPlanList,
     'GET /plan/detail': handleGetPlanDetail,
+    'DELETE /plan/delete': handleDeletePlan,
 
     // 明信片相关
     'POST /postcard/generate': handleGeneratePostcard,

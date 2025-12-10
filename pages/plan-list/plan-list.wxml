@@ -1,0 +1,92 @@
+<!--pages/plan-list/plan-list.wxml-->
+<custom-navbar title="行程规划" background="transparent"></custom-navbar>
+
+<view class="page-container">
+  <view class="header">
+    <text class="page-title">我的行程</text>
+  </view>
+
+  <scroll-view class="content-scroll" scroll-y refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" bindrefresherrefresh="onRefresh" bindtap="onPageTap">
+    <!-- 加载中 -->
+    <view wx:if="{{loading}}" class="loading-container">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载中...</text>
+    </view>
+
+    <!-- 未登录状态 -->
+    <view wx:elif="{{!isLoggedIn}}" class="empty-container">
+      <view class="empty-icon">🔐</view>
+      <text class="empty-title">请先登录</text>
+      <text class="empty-desc">登录后查看和管理您的行程规划</text>
+      <view class="login-btn" bindtap="goLogin">
+        <text>立即登录</text>
+      </view>
+    </view>
+
+    <!-- 空状态（已登录但无数据）-->
+    <view wx:elif="{{!planList || planList.length === 0}}" class="empty-container">
+      <view class="empty-icon">📋</view>
+      <text class="empty-title">暂无行程规划</text>
+      <text class="empty-desc">点击右下角 + 开始规划您的旅行</text>
+    </view>
+
+    <!-- 列表 -->
+    <view wx:else class="plan-list">
+      <view 
+        class="plan-card-wrapper" 
+        wx:for="{{planList}}" 
+        wx:key="id"
+      >
+        <view 
+          class="plan-card {{item.swiped ? 'swiped' : ''}}"
+          bindtouchstart="onTouchStart"
+          bindtouchmove="onTouchMove"
+          bindtouchend="onTouchEnd"
+          data-index="{{index}}"
+          bindtap="onViewDetail"
+          data-id="{{item.id}}"
+        >
+          <view class="plan-card-main">
+            <view class="plan-header">
+              <text class="city-name">{{item.city}}</text>
+              <text class="plan-days-tag">{{item.days}}天</text>
+            </view>
+            <view class="plan-meta">
+              <text class="plan-date">📅 {{item.date}} 至 {{item.endDate}}</text>
+            </view>
+          </view>
+        </view>
+        <view 
+          class="delete-action {{item.swiped ? 'show' : ''}}"
+          catchtap="onDelete"
+          data-id="{{item.id}}"
+          data-city="{{item.city}}"
+          data-index="{{index}}"
+        >
+          <text class="delete-text">删除</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载更多状态 -->
+    <view wx:if="{{!loading && planList.length > 0}}" class="load-more-container">
+      <view wx:if="{{loadingMore}}" class="load-more-loading">
+        <view class="loading-spinner-small"></view>
+        <text>加载中...</text>
+      </view>
+      <view wx:elif="{{!hasMore}}" class="load-more-end">
+        <text>— 已经到底了 —</text>
+      </view>
+    </view>
+
+    <!-- 底部占位 -->
+    <view class="bottom-placeholder"></view>
+  </scroll-view>
+
+  <!-- 悬浮添加按钮（仅登录后显示）-->
+  <view class="fab-container" wx:if="{{isLoggedIn}}">
+    <view class="fab-btn" bindtap="onAdd">
+      <text class="fab-icon">+</text>
+    </view>
+  </view>
+</view>

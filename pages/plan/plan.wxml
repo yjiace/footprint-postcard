@@ -3,7 +3,13 @@
 
 <view class="page-container">
   <view class="header">
-    <text class="page-title">行程规划</text>
+    <view class="header-top">
+      <view class="back-btn" bindtap="onBack">
+        <text class="back-icon">←</text>
+        <text class="back-text">返回</text>
+      </view>
+    </view>
+    <text class="page-title">新增规划</text>
   </view>
 
   <scroll-view class="content-scroll" scroll-y>

@@ -146,48 +146,59 @@
   background-color: #FFFFFF;
 }
 
-/* 快捷功能 */
-.quick-actions {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24rpx;
-  padding: 8rpx 32rpx 16rpx;
+/* 规划行程入口 */
+.plan-action {
+  padding: 16rpx 32rpx 24rpx;
 }
 
-.action-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16rpx;
-}
-
-.action-icon-wrapper {
-  width: 96rpx;
-  height: 96rpx;
+.plan-action-btn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background-color: rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
+  justify-content: space-between;
+  padding: 28rpx 32rpx;
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10rpx);
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
   transition: all 0.3s;
 }
 
-.action-item:active .action-icon-wrapper {
-  transform: scale(0.95);
-  background-color: rgba(255, 255, 255, 0.4);
+.plan-action-btn:active {
+  transform: scale(0.98);
+  background: rgba(255, 255, 255, 0.4);
 }
 
-.action-icon {
-  width: 48rpx;
-  height: 48rpx;
+.plan-action-content {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.plan-action-icon {
+  font-size: 48rpx;
+}
+
+.plan-action-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.plan-action-title {
+  font-size: 32rpx;
+  font-weight: 700;
   color: #FFFFFF;
 }
 
-.action-text {
-  font-size: 28rpx;
-  font-weight: 500;
+.plan-action-desc {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.plan-action-arrow {
+  font-size: 36rpx;
+  font-weight: 600;
   color: #FFFFFF;
-  letter-spacing: -0.03rpx;
 }
 
 /* 周边景点 */

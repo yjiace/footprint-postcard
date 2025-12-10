@@ -182,17 +182,10 @@ function generatePlan(params) {
 }
 
 /**
- * 保存行程
+ * 获取行程列表（支持分页）
  */
-function savePlan(plan) {
-    return post('/plan/save', plan)
-}
-
-/**
- * 获取行程列表
- */
-function getPlanList() {
-    return get('/plan/list')
+function getPlanList(page = 1, pageSize = 10) {
+    return get('/plan/list', { page, pageSize })
 }
 
 /**
@@ -203,6 +196,13 @@ function getPlanDetail(id) {
 }
 
 /**
+ * 删除行程
+ */
+function deletePlan(id) {
+    return del(`/plan/delete?id=${id}`)
+}
+
+/**
  * 生成明信片
  */
 function generatePostcard(params) {
@@ -210,10 +210,10 @@ function generatePostcard(params) {
 }
 
 /**
- * 获取明信片列表
+ * 获取明信片列表（支持分页）
  */
-function getPostcardList() {
-    return get('/postcard/list')
+function getPostcardList(page = 1, pageSize = 10) {
+    return get('/postcard/list', { page, pageSize })
 }
 
 /**
@@ -258,9 +258,9 @@ module.exports = {
     getNearbyAttractions,
     getCityByLocation,
     generatePlan,
-    savePlan,
     getPlanList,
     getPlanDetail,
+    deletePlan,
 
     generatePostcard,
     getPostcardList,

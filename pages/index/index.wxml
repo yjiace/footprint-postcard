@@ -40,31 +40,17 @@
       </view>
     </view>
 
-    <!-- 快捷功能入口 -->
-    <view class="quick-actions">
-      <view class="action-item" bindtap="onActionTap" data-action="plan">
-        <view class="action-icon-wrapper">
-          <view class="icon icon-route action-icon"></view>
+    <!-- 规划行程入口 -->
+    <view class="plan-action">
+      <view class="plan-action-btn" bindtap="onActionTap" data-action="plan">
+        <view class="plan-action-content">
+          <text class="plan-action-icon">🗺️</text>
+          <view class="plan-action-text">
+            <text class="plan-action-title">规划行程</text>
+            <text class="plan-action-desc">AI智能规划您的旅行路线</text>
+          </view>
         </view>
-        <text class="action-text">路线规划</text>
-      </view>
-      <view class="action-item" bindtap="onActionTap" data-action="share">
-        <view class="action-icon-wrapper">
-          <view class="icon icon-share action-icon"></view>
-        </view>
-        <text class="action-text">分享行程</text>
-      </view>
-      <view class="action-item" bindtap="onActionTap" data-action="food">
-        <view class="action-icon-wrapper">
-          <view class="icon icon-restaurant action-icon"></view>
-        </view>
-        <text class="action-text">附近美食</text>
-      </view>
-      <view class="action-item" bindtap="onActionTap" data-action="favorite">
-        <view class="action-icon-wrapper">
-          <view class="icon icon-favorite action-icon"></view>
-        </view>
-        <text class="action-text">我的收藏</text>
+        <text class="plan-action-arrow">→</text>
       </view>
     </view>
 

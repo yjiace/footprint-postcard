@@ -16,6 +16,38 @@
   padding: 32rpx;
 }
 
+.header-top {
+  margin-bottom: 16rpx;
+}
+
+/* 统一返回按钮样式 */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx 24rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 48rpx;
+  backdrop-filter: blur(20rpx);
+  transition: all 0.3s;
+}
+
+.back-btn:active {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.back-icon {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #FFFFFF;
+}
+
+.back-text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+
 .page-title {
   font-size: 60rpx;
   font-weight: 700;

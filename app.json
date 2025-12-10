@@ -1,6 +1,7 @@
 {
     "pages": [
         "pages/index/index",
+        "pages/plan-list/plan-list",
         "pages/plan/plan",
         "pages/plan-detail/plan-detail",
         "pages/postcard/postcard",
@@ -27,7 +28,7 @@
                 "selectedIconPath": "images/tabbar/home-active.png"
             },
             {
-                "pagePath": "pages/plan/plan",
+                "pagePath": "pages/plan-list/plan-list",
                 "text": "行程",
                 "iconPath": "images/tabbar/plan.png",
                 "selectedIconPath": "images/tabbar/plan-active.png"

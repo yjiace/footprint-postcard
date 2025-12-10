@@ -54,28 +54,57 @@ Page({
     },
 
     // 加载行程详情
-    loadPlanDetail(planId) {
+    async loadPlanDetail(planId) {
+        const api = require('../../utils/api.js')
+
         // 先尝试从本地存储获取
         const plans = storage.getPlanList()
-        const plan = plans.find(p => p.id === planId)
+        const localPlan = plans.find(p => p.id === planId)
 
-        if (plan && plan.schedule && plan.schedule.length > 0) {
-            const currentDayData = this.processDayData(plan.schedule[0])
-            const currentWeather = this.getWeatherForDay(plan, 0)
+        // 如果本地有完整数据（包含schedule），直接使用
+        if (localPlan && localPlan.schedule && localPlan.schedule.length > 0) {
+            const currentDayData = this.processDayData(localPlan.schedule[0])
+            const currentWeather = this.getWeatherForDay(localPlan, 0)
 
             this.setData({
-                plan: plan,
+                plan: localPlan,
                 loading: false,
                 currentDay: 0,
                 currentDayData: currentDayData,
                 currentWeather: currentWeather
             })
-        } else {
+            return
+        }
+
+        // 本地没有完整数据，从服务器获取
+        try {
+            const plan = await api.getPlanDetail(planId)
+
+            if (plan && plan.schedule && plan.schedule.length > 0) {
+                const currentDayData = this.processDayData(plan.schedule[0])
+                const currentWeather = this.getWeatherForDay(plan, 0)
+
+                this.setData({
+                    plan: plan,
+                    loading: false,
+                    currentDay: 0,
+                    currentDayData: currentDayData,
+                    currentWeather: currentWeather
+                })
+            } else {
+                this.setData({
+                    loading: false,
+                    plan: null
+                })
+                util.showError('行程数据不存在')
+            }
+        } catch (err) {
+            console.error('获取行程详情失败:', err)
             this.setData({
                 loading: false,
                 plan: null
             })
-            util.showError('行程数据不存在')
+            util.showError('获取行程失败')
         }
     },
 
@@ -149,14 +178,10 @@ Page({
         }
     },
 
-    // 返回
+    // 返回（直接跳转到列表页）
     onBack() {
-        wx.navigateBack({
-            fail: () => {
-                wx.switchTab({
-                    url: '/pages/plan/plan'
-                })
-            }
+        wx.switchTab({
+            url: '/pages/plan-list/plan-list'
         })
     },
 

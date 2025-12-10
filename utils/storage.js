@@ -184,6 +184,22 @@ function addPlan(plan) {
 }
 
 /**
+ * 保存行程列表（别名，用于从服务器同步后保存）
+ */
+function savePlanList(planList) {
+    return setPlanList(planList)
+}
+
+/**
+ * 删除单个行程
+ */
+function removePlan(planId) {
+    const planList = getPlanList()
+    const newList = planList.filter(plan => plan.id !== planId)
+    return setPlanList(newList)
+}
+
+/**
  * 保存足迹列表
  */
 function setTrackList(trackList) {
@@ -352,6 +368,8 @@ module.exports = {
     setPlanList,
     getPlanList,
     addPlan,
+    savePlanList,
+    removePlan,
     setTrackList,
     getTrackList,
     addTrack,
@@ -365,5 +383,10 @@ module.exports = {
     setHomeAttractions,
     getHomeAttractions,
     setHotDestinations,
-    getHotDestinations
+    getHotDestinations,
+    // 列表缓存
+    setPlanListCache: (data) => set('plan_list_cache', data),
+    getPlanListCache: () => get('plan_list_cache', null),
+    setPostcardListCache: (data) => set('postcard_list_cache', data),
+    getPostcardListCache: () => get('postcard_list_cache', null)
 }

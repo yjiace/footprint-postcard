@@ -420,6 +420,17 @@ Page({
         })
     },
 
+    // 返回
+    onBack() {
+        wx.navigateBack({
+            fail: () => {
+                wx.switchTab({
+                    url: '/pages/plan-list/plan-list'
+                })
+            }
+        })
+    },
+
     // 分享
     onShareAppMessage() {
         return util.shareToWeChat(

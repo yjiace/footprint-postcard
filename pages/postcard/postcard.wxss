@@ -89,6 +89,29 @@
   line-height: 1.6;
 }
 
+.empty-icon-text {
+  font-size: 120rpx;
+}
+
+.login-btn {
+  margin-top: 32rpx;
+  padding: 24rpx 64rpx;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 48rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
+}
+
+.login-btn:active {
+  transform: scale(0.95);
+  background-color: rgba(255, 255, 255, 1);
+}
+
+.login-btn text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #a78bfa;
+}
+
 .bottom-placeholder {
   height: 0;
 }
