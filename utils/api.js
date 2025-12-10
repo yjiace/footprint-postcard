@@ -261,6 +261,36 @@ function uploadImage(filePath) {
     })
 }
 
+/**
+ * 获取代理后的图片URL
+ * 将第三方图片URL转换为通过Worker代理的URL，解决微信小程序域名限制
+ * @param {String} imageUrl 原始图片URL
+ * @returns {String} 代理后的图片URL
+ */
+function getProxiedImageUrl(imageUrl) {
+    // 如果是空值或本地图片，直接返回
+    if (!imageUrl || imageUrl.startsWith('/')) {
+        return imageUrl
+    }
+
+    // 构建代理URL
+    const proxyBaseUrl = 'https://footprint-postcard-api.smallyoung.cn/api/proxy/image'
+    return `${proxyBaseUrl}?url=${encodeURIComponent(imageUrl)}`
+}
+
+/**
+ * 批量处理图片URL代理
+ * @param {Array} items 包含 image 字段的对象数组
+ * @returns {Array} 处理后的对象数组
+ */
+function proxyImageUrls(items) {
+    if (!Array.isArray(items)) return items
+    return items.map(item => ({
+        ...item,
+        image: getProxiedImageUrl(item.image)
+    }))
+}
+
 module.exports = {
     request,
     get,
@@ -281,5 +311,9 @@ module.exports = {
     getPostcardDetail,
     deletePostcard,
     generatePostcardFromPlan,
-    uploadImage
+    uploadImage,
+
+    // 图片代理工具
+    getProxiedImageUrl,
+    proxyImageUrls
 }

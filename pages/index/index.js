@@ -455,7 +455,7 @@ Page({
             }))
 
             this.setData({
-                hotDestinations: destinations
+                hotDestinations: api.proxyImageUrls(destinations)
             })
 
             // 缓存热门目的地数据
@@ -533,7 +533,7 @@ Page({
             }))
 
             this.setData({
-                nearbyAttractions: attractions
+                nearbyAttractions: api.proxyImageUrls(attractions)
             })
 
             // 缓存景点数据和位置信息

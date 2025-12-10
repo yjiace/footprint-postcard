@@ -58,7 +58,7 @@
     <view class="section">
       <view class="section-header">
         <text class="section-title">周边景点推荐</text>
-        <text class="section-more" bindtap="onMoreAttractions">查看更多</text>
+        <!-- <text class="section-more" bindtap="onMoreAttractions">查看更多</text> -->
       </view>
       
       <view class="attractions-list">

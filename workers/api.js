@@ -989,7 +989,62 @@ async function handleDeletePostcard(request, env) {
 }
 
 /**
- * 15. 上传图片
+ * 16. 图片代理 - 解决微信小程序域名白名单限制
+ * 通过 Worker 代理第三方图片，使小程序可以正常显示
+ */
+async function handleProxyImage(request, env) {
+    const url = new URL(request.url)
+    const imageUrl = url.searchParams.get('url')
+
+    if (!imageUrl) {
+        return errorResponse('缺少 url 参数', 400)
+    }
+
+    try {
+        // 验证 URL 格式
+        let targetUrl
+        try {
+            targetUrl = new URL(imageUrl)
+        } catch (e) {
+            return errorResponse('无效的图片 URL', 400)
+        }
+
+        // 请求远程图片
+        const imageResponse = await fetch(imageUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': targetUrl.origin,
+                'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8'
+            }
+        })
+
+        if (!imageResponse.ok) {
+            console.error('图片请求失败:', imageResponse.status, imageUrl)
+            return errorResponse('图片请求失败', imageResponse.status)
+        }
+
+        // 获取图片内容类型
+        const contentType = imageResponse.headers.get('Content-Type') || 'image/jpeg'
+
+        // 返回图片，添加缓存头
+        return new Response(imageResponse.body, {
+            status: 200,
+            headers: {
+                'Content-Type': contentType,
+                'Cache-Control': 'public, max-age=86400', // 缓存1天
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            }
+        })
+    } catch (err) {
+        console.error('图片代理失败:', err)
+        return errorResponse('图片代理失败: ' + err.message, 500)
+    }
+}
+
+/**
+ * 17. 上传图片
  */
 async function handleUploadImage(request, env) {
     const user = await getUserFromRequest(request, env)
@@ -1051,7 +1106,10 @@ const routes = {
     'DELETE /postcard/delete': handleDeletePostcard,
 
     // 文件上传
-    'POST /upload/image': handleUploadImage
+    'POST /upload/image': handleUploadImage,
+
+    // 图片代理（解决微信小程序域名限制）
+    'GET /proxy/image': handleProxyImage
 }
 
 /**
