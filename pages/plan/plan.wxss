@@ -77,15 +77,16 @@
 
 .picker-input {
   width: 100%;
-  padding: 16rpx 24rpx;
+  padding: 20rpx 24rpx;
   border-radius: 16rpx;
   background-color: rgba(255, 255, 255, 0.3);
   border: none;
   backdrop-filter: blur(10rpx);
-  line-height: 1.2;
-  min-height: 60rpx;
+  line-height: 1.5;
+  min-height: 48rpx;
   display: flex;
   align-items: center;
+  box-sizing: border-box;
 }
 
 .picker-placeholder {

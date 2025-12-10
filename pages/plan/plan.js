@@ -12,12 +12,23 @@ Page({
         city: '',
 
         // 日期
-        date: '',
+        startDate: '',
+        endDate: '',
         todayDate: '',
 
-        // 天数
-        dayOptions: ['1天', '2天', '3天', '4天', '5天', '6天', '7天', '8天以上'],
-        dayIndex: 2,
+        // 交通方式
+        transportTypes: [
+            { id: 'public', name: '公共交通', selected: true },
+            { id: 'drive', name: '自驾', selected: false },
+            { id: 'walk', name: '步行为主', selected: false }
+        ],
+
+        // 住宿偏好
+        accommodationTypes: [
+            { id: 'budget', name: '经济型酒店', selected: true },
+            { id: 'comfort', name: '舒适型酒店', selected: false },
+            { id: 'luxury', name: '豪华型酒店', selected: false }
+        ],
 
         // 景点类型
         poiTypes: [
@@ -166,17 +177,26 @@ Page({
         })
     },
 
-    // 选择日期
-    onDateChange(e) {
+    // 选择开始日期
+    onStartDateChange(e) {
+        const startDate = e.detail.value
+        let endDate = this.data.endDate
+
+        // 如果结束日期早于开始日期，清空结束日期
+        if (endDate && endDate < startDate) {
+            endDate = ''
+        }
+
         this.setData({
-            date: e.detail.value
+            startDate: startDate,
+            endDate: endDate
         })
     },
 
-    // 选择天数
-    onDayChange(e) {
+    // 选择结束日期
+    onEndDateChange(e) {
         this.setData({
-            dayIndex: e.detail.value
+            endDate: e.detail.value
         })
     },
 
@@ -208,6 +228,26 @@ Page({
         })
     },
 
+    // 切换交通方式
+    onTransportToggle(e) {
+        const index = e.currentTarget.dataset.index
+        const transportTypes = this.data.transportTypes
+        transportTypes.forEach((item, i) => {
+            item.selected = i === index
+        })
+        this.setData({ transportTypes })
+    },
+
+    // 切换住宿偏好
+    onAccommodationToggle(e) {
+        const index = e.currentTarget.dataset.index
+        const accommodationTypes = this.data.accommodationTypes
+        accommodationTypes.forEach((item, i) => {
+            item.selected = i === index
+        })
+        this.setData({ accommodationTypes })
+    },
+
     // 备注输入
     onNotesChange(e) {
         this.setData({
@@ -230,8 +270,23 @@ Page({
             return
         }
 
-        if (!this.data.date) {
-            util.showError('请选择出行日期')
+        if (!this.data.startDate) {
+            util.showError('请选择开始日期')
+            return
+        }
+
+        if (!this.data.endDate) {
+            util.showError('请选择结束日期')
+            return
+        }
+
+        // 计算天数
+        const startDate = new Date(this.data.startDate)
+        const endDate = new Date(this.data.endDate)
+        const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+
+        if (days < 1 || days > 30) {
+            util.showError('行程天数应在1-30天之间')
             return
         }
 
@@ -240,34 +295,46 @@ Page({
             .filter(item => item.selected)
             .map(item => item.id)
 
+        // 获取选中的交通方式
+        const transportMap = {
+            'public': '公共交通',
+            'drive': '自驾',
+            'walk': '步行为主'
+        }
+        const selectedTransport = this.data.transportTypes.find(item => item.selected)
+        const transportation = selectedTransport ? transportMap[selectedTransport.id] : '公共交通'
+
+        // 获取选中的住宿偏好
+        const accommodationMap = {
+            'budget': '经济型酒店',
+            'comfort': '舒适型酒店',
+            'luxury': '豪华型酒店'
+        }
+        const selectedAccommodation = this.data.accommodationTypes.find(item => item.selected)
+        const accommodation = selectedAccommodation ? accommodationMap[selectedAccommodation.id] : '经济型酒店'
+
         // 构建请求参数
         const params = {
             city: this.data.city,
-            date: this.data.date,
-            days: parseInt(this.data.dayOptions[this.data.dayIndex]),
+            date: this.data.startDate,
+            endDate: this.data.endDate,
+            days: days,
             poiTypes: selectedTypes,
-            notes: this.data.notes
+            notes: this.data.notes,
+            transportation: transportation,
+            accommodation: accommodation
         }
 
         try {
-            util.showLoading('正在生成行程...')
+            util.showLoading('AI正在生成行程，请稍等...')
 
             // 调用实际API生成行程
             const result = await api.generatePlan(params)
 
-            // 保存行程到本地存储
-            const plan = {
-                id: util.generateId(),
-                city: params.city,
-                date: params.date,
-                days: params.days,
-                poiTypes: params.poiTypes,
-                notes: params.notes,
-                schedule: result.data || [],
-                createdAt: Date.now()
-            }
+            // API已经保存并返回完整的行程数据
+            const plan = result
 
-            // 保存到本地存储
+            // 保存到本地存储（用于离线访问）
             storage.addPlan(plan)
 
             util.hideLoading()

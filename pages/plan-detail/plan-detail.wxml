@@ -1,3 +1,6 @@
+<!--pages/plan-detail/plan-detail.wxml-->
+<custom-navbar title="行程详情" background="transparent"></custom-navbar>
+
 <view class="page-container">
   <!-- Loading State -->
   <view wx:if="{{loading}}" class="loading-container">
@@ -5,73 +8,170 @@
     <text>加载中...</text>
   </view>
 
-  <block wx:else>
-    <!-- Header -->
-    <view class="header">
-      <view class="nav-bar">
-        <view class="nav-left" bindtap="onBack">
-          <image class="icon-24" src="/images/icons/arrow_back_ios_new.png" mode="aspectFit"></image>
-        </view>
-        <text class="nav-title">行程详情</text>
-        <view class="nav-right">
-          <!-- <button class="share-btn" open-type="share">
-            <image class="icon-24" src="/images/icons/share.png" mode="aspectFit"></image>
-          </button> -->
-        </view>
-      </view>
+  <block wx:elif="{{!plan}}">
+    <view class="empty-container">
+      <text>暂无行程数据</text>
+    </view>
+  </block>
 
-      <!-- Days Tabs -->
-      <view class="tabs-wrapper">
-        <scroll-view scroll-x class="tabs-scroll" enable-flex>
-          <block wx:for="{{plan.schedule}}" wx:key="day">
-            <view class="tab-item {{currentDay === index ? 'active' : ''}}" bindtap="onDayChange" data-index="{{index}}">
-              <text class="tab-text">第{{item.day}}天</text>
-            </view>
-          </block>
-        </scroll-view>
+  <block wx:else>
+    <!-- Header Info -->
+    <view class="header-info">
+      <view class="back-btn" bindtap="onBack">
+        <text class="back-icon">←</text>
+        <text class="back-text">返回</text>
       </view>
+      <view class="city-title">
+        <text class="city-name">{{plan.city}}</text>
+        <text class="date-range">{{plan.date}} 至 {{plan.endDate}}</text>
+      </view>
+      <view class="trip-meta">
+        <text class="meta-tag">{{plan.days}}天</text>
+        <text class="meta-tag">{{plan.transportation}}</text>
+        <text class="meta-tag">{{plan.accommodation}}</text>
+      </view>
+    </view>
+
+    <!-- Weather Card -->
+    <view class="weather-card" wx:if="{{currentWeather}}">
+      <view class="weather-header">
+        <text class="weather-emoji">{{currentWeather.emoji}}</text>
+        <text class="weather-text">{{currentWeather.day_weather}}</text>
+      </view>
+      <view class="weather-temps">
+        <text class="temp-high">{{currentWeather.day_temp}}°</text>
+        <text class="temp-sep">/</text>
+        <text class="temp-low">{{currentWeather.night_temp}}°</text>
+      </view>
+      <text class="weather-wind">{{currentWeather.wind_direction}} {{currentWeather.wind_power}}</text>
+    </view>
+
+    <!-- Days Tabs -->
+    <view class="tabs-wrapper">
+      <scroll-view scroll-x class="tabs-scroll" enable-flex>
+        <block wx:for="{{plan.schedule}}" wx:key="day_index">
+          <view class="tab-item {{currentDay === index ? 'active' : ''}}" bindtap="onDayChange" data-index="{{index}}">
+            <text class="tab-text">第{{item.day_index}}天</text>
+            <text class="tab-date">{{item.date}}</text>
+          </view>
+        </block>
+      </scroll-view>
     </view>
 
     <!-- Content -->
     <scroll-view scroll-y class="content-scroll">
       <view class="content-wrapper">
-        <view class="card">
-          <view class="card-header">
-            <text class="card-title">第{{plan.schedule[currentDay].day}}天 {{plan.schedule[currentDay].date}}</text>
+        <!-- Day Description -->
+        <view class="day-desc-card" wx:if="{{currentDayData.description}}">
+          <text class="day-desc">{{currentDayData.description}}</text>
+        </view>
+
+        <!-- Hotel Card -->
+        <view class="hotel-card" wx:if="{{currentDayData.hotel}}">
+          <view class="section-header">
+            <text class="section-emoji">🏨</text>
+            <text class="section-title">住宿推荐</text>
           </view>
-          
+          <view class="hotel-info">
+            <text class="hotel-name">{{currentDayData.hotel.name}}</text>
+            <text class="hotel-address">{{currentDayData.hotel.address}}</text>
+            <view class="hotel-meta">
+              <text class="hotel-price">{{currentDayData.hotel.price_range}}</text>
+              <text class="hotel-cost" wx:if="{{currentDayData.hotel.estimated_cost}}">预估 ¥{{currentDayData.hotel.estimated_cost}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Attractions Timeline -->
+        <view class="attractions-card">
+          <view class="section-header">
+            <text class="section-emoji">🗺️</text>
+            <text class="section-title">今日景点</text>
+          </view>
           <view class="timeline">
-            <block wx:for="{{plan.schedule[currentDay].items}}" wx:key="name">
+            <block wx:for="{{currentDayData.attractions}}" wx:key="name">
               <view class="timeline-item">
                 <view class="timeline-left">
-                  <view class="icon-circle bg-orange-100 text-orange-500">
-                    <!-- Assuming generic attraction icon for now as data only has 'attraction' type -->
-                    <image class="icon-20" src="/images/icons/museum.png" mode="aspectFit"></image> 
-                  </view>
-                  <view class="timeline-line" wx:if="{{index < plan.schedule[currentDay].items.length - 1}}"></view>
+                  <view class="timeline-dot"></view>
+                  <view class="timeline-line" wx:if="{{index < currentDayData.attractions.length - 1}}"></view>
                 </view>
-                
                 <view class="timeline-content">
-                  <text class="item-name">{{item.name}}</text>
-                  <text class="item-time">{{item.time}}</text>
-                  <view class="tags">
-                    <text class="tag bg-orange-100 text-orange-600" wx:if="{{item.tips}}">{{item.tips}}</text>
-                    <text class="tag bg-gray-100 text-gray-600">{{item.duration}}</text>
+                  <text class="attraction-name">{{item.name}}</text>
+                  <text class="attraction-address">{{item.address}}</text>
+                  <view class="attraction-meta">
+                    <text class="meta-item duration">{{item.visit_duration}}分钟</text>
+                    <text class="meta-item ticket" wx:if="{{item.ticket_price > 0}}">门票 ¥{{item.ticket_price}}</text>
+                    <text class="meta-item ticket" wx:else>免费</text>
                   </view>
+                  <text class="attraction-desc" wx:if="{{item.description}}">{{item.description}}</text>
                 </view>
               </view>
             </block>
           </view>
         </view>
+
+        <!-- Meals Card -->
+        <view class="meals-card" wx:if="{{currentDayData.meals && currentDayData.meals.length > 0}}">
+          <view class="section-header">
+            <text class="section-emoji">🍽️</text>
+            <text class="section-title">餐饮推荐</text>
+          </view>
+          <view class="meals-list">
+            <block wx:for="{{currentDayData.meals}}" wx:key="type">
+              <view class="meal-item">
+                <text class="meal-type">{{item.typeLabel}}</text>
+                <view class="meal-info">
+                  <text class="meal-name">{{item.name}}</text>
+                  <text class="meal-desc">{{item.description}}</text>
+                </view>
+                <text class="meal-cost">¥{{item.estimated_cost}}</text>
+              </view>
+            </block>
+          </view>
+        </view>
+
+        <!-- Budget Card -->
+        <view class="budget-card" wx:if="{{plan.budget && plan.budget.total}}">
+          <view class="section-header">
+            <text class="section-emoji">💰</text>
+            <text class="section-title">预算估算</text>
+          </view>
+          <view class="budget-list">
+            <view class="budget-item">
+              <text class="budget-label">住宿费用</text>
+              <text class="budget-value">¥{{plan.budget.total_hotels}}</text>
+            </view>
+            <view class="budget-item">
+              <text class="budget-label">景点门票</text>
+              <text class="budget-value">¥{{plan.budget.total_attractions}}</text>
+            </view>
+            <view class="budget-item">
+              <text class="budget-label">餐饮费用</text>
+              <text class="budget-value">¥{{plan.budget.total_meals}}</text>
+            </view>
+            <view class="budget-item">
+              <text class="budget-label">交通费用</text>
+              <text class="budget-value">¥{{plan.budget.total_transportation}}</text>
+            </view>
+            <view class="budget-item total">
+              <text class="budget-label">总计</text>
+              <text class="budget-value">¥{{plan.budget.total}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Suggestions Card -->
+        <view class="suggestions-card" wx:if="{{plan.overallSuggestions}}">
+          <view class="section-header">
+            <text class="section-emoji">💡</text>
+            <text class="section-title">出行建议</text>
+          </view>
+          <text class="suggestions-text">{{plan.overallSuggestions}}</text>
+        </view>
+
+        <!-- Bottom Placeholder -->
+        <view class="bottom-placeholder"></view>
       </view>
     </scroll-view>
-
-    <!-- Footer -->
-    <view class="footer">
-      <button class="add-btn" bindtap="onAddActivity">
-        <image class="icon-24" src="/images/icons/add_circle.png" mode="aspectFit"></image>
-        <text>添加活动到行程</text>
-      </button>
-    </view>
   </block>
 </view>

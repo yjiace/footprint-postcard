@@ -24,12 +24,13 @@ try {
  * @param {Object} data 请求参数
  * @param {String} method 请求方法
  * @param {Object} header 请求头
+ * @param {Number} timeout 超时时间（毫秒），默认60000，最大180000
  */
-function request(url, data = {}, method = 'GET', header = {}) {
+function request(url, data = {}, method = 'GET', header = {}, timeout = 60000) {
     return new Promise((resolve, reject) => {
         // 开发环境使用完整URL
         let requestUrl = BASE_URL + url
-        
+
         // 如果是开发环境且BASE_URL是相对路径，使用完整URL
         try {
             const accountInfo = wx.getAccountInfoSync()
@@ -39,17 +40,18 @@ function request(url, data = {}, method = 'GET', header = {}) {
         } catch (error) {
             // 保持默认配置
         }
-        
+
         // 获取token并添加到请求头
         const storage = require('./storage.js')
         const token = storage.getToken()
-        
-        console.log('API请求:', requestUrl, data)
-        
+
+        console.log('API请求:', requestUrl, data, '超时:', timeout)
+
         wx.request({
             url: requestUrl,
             data,
             method,
+            timeout: timeout,  // 设置超时时间
             header: {
                 'content-type': 'application/json',
                 'Authorization': token ? `Bearer ${token}` : '',
@@ -71,12 +73,12 @@ function request(url, data = {}, method = 'GET', header = {}) {
                 } else if (res.statusCode === 401) {
                     // 401错误：未登录，触发登录引导
                     console.error('用户未登录，需要重新登录')
-                    
+
                     // 获取当前页面路径，用于登录后跳转
                     const pages = getCurrentPages()
                     const currentPage = pages[pages.length - 1]
                     const currentRoute = currentPage.route
-                    
+
                     wx.showModal({
                         title: '登录提示',
                         content: '您需要登录后才能继续操作',
@@ -172,10 +174,11 @@ function getCityByLocation(latitude, longitude) {
 }
 
 /**
- * 生成行程
+ * 生成行程（使用180秒超时，等待AI生成）
  */
 function generatePlan(params) {
-    return post('/plan/generate', params)
+    // 使用180秒超时（微信小程序最大允许值），因为AI生成行程需要较长时间
+    return request('/plan/generate', params, 'POST', {}, 180000)
 }
 
 /**

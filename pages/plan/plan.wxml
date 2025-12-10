@@ -26,26 +26,60 @@
         </picker>
       </view>
 
-      <!-- 选择日期 -->
+      <!-- 开始日期 -->
       <view class="form-item">
-        <text class="form-label">选择日期</text>
-        <picker mode="date" value="{{date}}" start="{{todayDate}}" bindchange="onDateChange">
+        <text class="form-label">开始日期</text>
+        <picker mode="date" value="{{startDate}}" start="{{todayDate}}" bindchange="onStartDateChange">
           <view class="picker-input">
-            <text class="{{date ? 'picker-value' : 'picker-placeholder'}}">
-              {{date || '请选择出行日期'}}
+            <text class="{{startDate ? 'picker-value' : 'picker-placeholder'}}">
+              {{startDate || '请选择出行日期'}}
             </text>
           </view>
         </picker>
       </view>
 
-      <!-- 天数设置 -->
+      <!-- 结束日期 -->
       <view class="form-item">
-        <text class="form-label">天数设置</text>
-        <picker mode="selector" range="{{dayOptions}}" value="{{dayIndex}}" bindchange="onDayChange">
+        <text class="form-label">结束日期</text>
+        <picker mode="date" value="{{endDate}}" start="{{startDate || todayDate}}" bindchange="onEndDateChange">
           <view class="picker-input">
-            <text class="picker-value">{{dayOptions[dayIndex]}}</text>
+            <text class="{{endDate ? 'picker-value' : 'picker-placeholder'}}">
+              {{endDate || '请选择返程日期'}}
+            </text>
           </view>
         </picker>
+      </view>
+
+      <!-- 交通方式 -->
+      <view class="form-item">
+        <text class="form-label">交通方式</text>
+        <view class="type-tags">
+          <view 
+            class="type-tag {{item.selected ? 'type-tag-active' : ''}}" 
+            wx:for="{{transportTypes}}" 
+            wx:key="id"
+            bindtap="onTransportToggle"
+            data-index="{{index}}"
+          >
+            <text>{{item.name}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 住宿偏好 -->
+      <view class="form-item">
+        <text class="form-label">住宿偏好</text>
+        <view class="type-tags">
+          <view 
+            class="type-tag {{item.selected ? 'type-tag-active' : ''}}" 
+            wx:for="{{accommodationTypes}}" 
+            wx:key="id"
+            bindtap="onAccommodationToggle"
+            data-index="{{index}}"
+          >
+            <text>{{item.name}}</text>
+          </view>
+        </view>
       </view>
 
       <!-- 景点类型偏好 -->
