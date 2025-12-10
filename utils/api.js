@@ -203,27 +203,6 @@ function getPlanDetail(id) {
 }
 
 /**
- * 保存足迹
- */
-function saveTrack(track) {
-    return post('/track/save', track)
-}
-
-/**
- * 获取足迹列表
- */
-function getTrackList() {
-    return get('/track/list')
-}
-
-/**
- * 获取足迹详情
- */
-function getTrackDetail(id) {
-    return get('/track/detail', { id })
-}
-
-/**
  * 生成明信片
  */
 function generatePostcard(params) {
@@ -282,9 +261,7 @@ module.exports = {
     savePlan,
     getPlanList,
     getPlanDetail,
-    saveTrack,
-    getTrackList,
-    getTrackDetail,
+
     generatePostcard,
     getPostcardList,
     getPostcardDetail,
