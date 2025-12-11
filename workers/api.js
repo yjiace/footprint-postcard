@@ -679,7 +679,17 @@ async function handleDeletePlan(request, env) {
 /**
  * 12. AI生成明信片 - 使用 kuai.host Nano Banana Pro API
  * 支持异步后台生成缩略图
+ * 限制：同一用户每天最多生成3次（白名单用户不受限制）
  */
+// 白名单用户列表（这些用户不受每日生成次数限制）
+const POSTCARD_WHITELIST = [
+    'orBRy14EIyMRaE6VgyAsGd3nYmMY',  // 示例白名单用户2
+    // 添加更多白名单 openid...
+]
+
+// 每日生成次数限制
+const DAILY_POSTCARD_LIMIT = 3
+
 async function handleGeneratePostcard(request, env, ctx) {
     const user = await getUserFromRequest(request, env)
     if (!user) {
@@ -691,6 +701,26 @@ async function handleGeneratePostcard(request, env, ctx) {
 
     if (!planId) {
         return errorResponse('缺少行程ID参数', 400)
+    }
+
+    // 检查是否为白名单用户
+    const isWhitelisted = POSTCARD_WHITELIST.includes(user.openid)
+
+    // 非白名单用户需要检查每日生成次数
+    if (!isWhitelisted) {
+        const today = new Date().toISOString().split('T')[0]  // 格式: 2025-12-11
+        const countKey = `postcard_count:${user.openid}:${today}`
+
+        // 获取今日已生成次数
+        const countStr = await env.KV.get(countKey)
+        const currentCount = countStr ? parseInt(countStr, 10) : 0
+
+        if (currentCount >= DAILY_POSTCARD_LIMIT) {
+            return errorResponse(`今日生成次数已达上限（每天最多${DAILY_POSTCARD_LIMIT}次），请明天再试`, 429)
+        }
+
+        // 增加计数（设置过期时间为24小时，确保次日自动重置）
+        await env.KV.put(countKey, String(currentCount + 1), { expirationTtl: 86400 })
     }
 
     // 检查环境变量配置
