@@ -1,11 +1,10 @@
 <!--pages/profile/profile.wxml-->
-<custom-navbar title="我的" background="transparent"></custom-navbar>
-
 <view class="page-container">
-  <!-- 顶部标题 -->
-  <view class="header">
-    <text class="page-title">个人中心</text>
-  </view>
+  <!-- 固定渐变背景层 -->
+  <view class="bg-gradient"></view>
+
+  <!-- 固定导航栏 -->
+  <custom-navbar title="个人中心"></custom-navbar>
 
   <scroll-view class="content-scroll" scroll-y>
     <!-- 用户信息卡片 -->

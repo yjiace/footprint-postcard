@@ -1,54 +1,22 @@
 /* pages/login/login.wxss */
-page {
-  height: 100%;
+
+/* 固定背景层 - 覆盖整个屏幕，不随滚动移动 */
+.bg-gradient {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: linear-gradient(135deg, #fbbf24 0%, #8b5cf6 50%, #60a5fa 100%);
+  z-index: -1;
 }
 
 .login-container {
   width: 100%;
   min-height: 100vh;
-  background: linear-gradient(135deg, #fbbf24 0%, #8b5cf6 50%, #60a5fa 100%);
   color: white;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-}
-
-/* 返回按钮 */
-.back-section {
-  width: 100%;
-  padding: 32rpx 48rpx;
-  padding-top: calc(32rpx + env(safe-area-inset-top));
-  position: relative;
-  z-index: 100;
-}
-
-.back-btn {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  padding: 16rpx 24rpx;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 48rpx;
-  backdrop-filter: blur(20rpx);
-  width: fit-content;
-  transition: all 0.3s;
-  margin-top: env(safe-area-inset-top);
-}
-
-.back-btn:active {
-  transform: scale(0.95);
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.back-icon {
-  font-size: 32rpx;
-  font-weight: bold;
-}
-
-.back-text {
-  font-size: 28rpx;
-  color: white;
 }
 
 .login-content {
@@ -59,7 +27,8 @@ page {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 100rpx 0 0 0;
+  padding: 0 60rpx;
+  box-sizing: border-box;
 }
 
 /* 头像 */
@@ -85,16 +54,10 @@ page {
   object-fit: cover;
 }
 
-.avatar-icon {
-  font-size: 120rpx;
-}
-
 /* 标题 */
 .title-section {
   margin-bottom: 96rpx;
-  padding: 0 60rpx;
   width: 100%;
-  box-sizing: border-box;
 }
 
 .title {
@@ -109,14 +72,11 @@ page {
   color: rgba(255, 255, 255, 0.9);
   line-height: 1.6;
   display: block;
-  padding: 0 20rpx;
 }
 
 /* 按钮 */
 .button-section {
   width: 100%;
-  padding: 0 60rpx;
-  box-sizing: border-box;
 }
 
 .login-btn {

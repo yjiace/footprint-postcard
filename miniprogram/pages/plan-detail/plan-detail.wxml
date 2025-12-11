@@ -1,7 +1,11 @@
 <!--pages/plan-detail/plan-detail.wxml-->
-<custom-navbar title="行程详情" background="transparent"></custom-navbar>
-
 <view class="page-container">
+  <!-- 固定渐变背景层 -->
+  <view class="bg-gradient"></view>
+
+  <!-- 固定导航栏 -->
+  <custom-navbar title="行程详情" showBack="{{true}}"></custom-navbar>
+
   <!-- Loading State -->
   <view wx:if="{{loading}}" class="loading-container">
     <view class="loading-spinner"></view>
@@ -15,51 +19,47 @@
   </block>
 
   <block wx:else>
-    <!-- Header Info -->
-    <view class="header-info">
-      <view class="back-btn" bindtap="onBack">
-        <text class="back-icon">←</text>
-        <text class="back-text">返回</text>
-      </view>
-      <view class="city-title">
-        <text class="city-name">{{plan.city}}</text>
-        <text class="date-range">{{plan.date}} 至 {{plan.endDate}}</text>
-      </view>
-      <view class="trip-meta">
-        <text class="meta-tag">{{plan.days}}天</text>
-        <text class="meta-tag">{{plan.transportation}}</text>
-        <text class="meta-tag">{{plan.accommodation}}</text>
-      </view>
-    </view>
-
-    <!-- Weather Card -->
-    <view class="weather-card" wx:if="{{currentWeather}}">
-      <view class="weather-header">
-        <text class="weather-emoji">{{currentWeather.emoji}}</text>
-        <text class="weather-text">{{currentWeather.day_weather}}</text>
-      </view>
-      <view class="weather-temps">
-        <text class="temp-high">{{currentWeather.day_temp}}°</text>
-        <text class="temp-sep">/</text>
-        <text class="temp-low">{{currentWeather.night_temp}}°</text>
-      </view>
-      <text class="weather-wind">{{currentWeather.wind_direction}} {{currentWeather.wind_power}}</text>
-    </view>
-
-    <!-- Days Tabs -->
-    <view class="tabs-wrapper">
-      <scroll-view scroll-x class="tabs-scroll" enable-flex>
-        <block wx:for="{{plan.schedule}}" wx:key="day_index">
-          <view class="tab-item {{currentDay === index ? 'active' : ''}}" bindtap="onDayChange" data-index="{{index}}">
-            <text class="tab-text">第{{item.day_index}}天</text>
-            <text class="tab-date">{{item.date}}</text>
-          </view>
-        </block>
-      </scroll-view>
-    </view>
-
-    <!-- Content -->
     <scroll-view scroll-y class="content-scroll">
+      <!-- Header Info -->
+      <view class="header-info">
+        <view class="city-title">
+          <text class="city-name">{{plan.city}}</text>
+          <text class="date-range">{{plan.date}} 至 {{plan.endDate}}</text>
+        </view>
+        <view class="trip-meta">
+          <text class="meta-tag">{{plan.days}}天</text>
+          <text class="meta-tag">{{plan.transportation}}</text>
+          <text class="meta-tag">{{plan.accommodation}}</text>
+        </view>
+      </view>
+
+      <!-- Weather Card -->
+      <view class="weather-card" wx:if="{{currentWeather}}">
+        <view class="weather-header">
+          <text class="weather-emoji">{{currentWeather.emoji}}</text>
+          <text class="weather-text">{{currentWeather.day_weather}}</text>
+        </view>
+        <view class="weather-temps">
+          <text class="temp-high">{{currentWeather.day_temp}}°</text>
+          <text class="temp-sep">/</text>
+          <text class="temp-low">{{currentWeather.night_temp}}°</text>
+        </view>
+        <text class="weather-wind">{{currentWeather.wind_direction}} {{currentWeather.wind_power}}</text>
+      </view>
+
+      <!-- Days Tabs -->
+      <view class="tabs-wrapper">
+        <scroll-view scroll-x class="tabs-scroll" enable-flex>
+          <block wx:for="{{plan.schedule}}" wx:key="day_index">
+            <view class="tab-item {{currentDay === index ? 'active' : ''}}" bindtap="onDayChange" data-index="{{index}}">
+              <text class="tab-text">第{{item.day_index}}天</text>
+              <text class="tab-date">{{item.date}}</text>
+            </view>
+          </block>
+        </scroll-view>
+      </view>
+
+      <!-- Content -->
       <view class="content-wrapper">
         <!-- Day Description -->
         <view class="day-desc-card" wx:if="{{currentDayData.description}}">

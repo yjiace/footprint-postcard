@@ -1,11 +1,21 @@
 /* pages/plan-detail/plan-detail.wxss */
+
+/* 固定背景层 - 覆盖整个屏幕，不随滚动移动 */
+.bg-gradient {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #fde68a 0%, #a78bfa 50%, #60a5fa 100%);
+  z-index: -1;
+}
+
 .page-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #fde68a 0%, #a78bfa 50%, #60a5fa 100%);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding-top: 88rpx;
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -35,38 +45,13 @@
   100% { transform: rotate(360deg); }
 }
 
+.content-scroll {
+  flex: 1;
+}
+
 /* Header Info */
 .header-info {
-  padding: 24rpx 32rpx;
-}
-
-/* 统一返回按钮样式 */
-.back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 12rpx;
-  padding: 16rpx 24rpx;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 48rpx;
-  backdrop-filter: blur(20rpx);
-  margin-bottom: 16rpx;
-  transition: all 0.3s;
-}
-
-.back-btn:active {
-  transform: scale(0.95);
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.back-icon {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #FFFFFF;
-}
-
-.back-text {
-  font-size: 28rpx;
-  color: #FFFFFF;
+  padding: 50rpx 32rpx 24rpx;
 }
 
 .city-title {
@@ -197,11 +182,6 @@
 }
 
 /* Content */
-.content-scroll {
-  flex: 1;
-  box-sizing: border-box;
-}
-
 .content-wrapper {
   padding: 0 32rpx 32rpx;
   display: flex;
@@ -240,7 +220,6 @@
   color: #1C1C1E;
 }
 
-/* Day Description */
 .day-desc {
   font-size: 28rpx;
   color: #374151;

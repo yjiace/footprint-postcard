@@ -1,10 +1,10 @@
 <!--pages/plan-list/plan-list.wxml-->
-<custom-navbar title="行程规划" background="transparent"></custom-navbar>
-
 <view class="page-container">
-  <view class="header">
-    <text class="page-title">我的行程</text>
-  </view>
+  <!-- 固定渐变背景层 -->
+  <view class="bg-gradient"></view>
+
+  <!-- 固定导航栏 -->
+  <custom-navbar title="我的行程"></custom-navbar>
 
   <scroll-view class="content-scroll" scroll-y refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" bindrefresherrefresh="onRefresh" bindtap="onPageTap">
     <!-- 加载中 -->

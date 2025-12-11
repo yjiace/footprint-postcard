@@ -1,14 +1,15 @@
 <!--pages/index/index.wxml-->
-<custom-navbar title="足迹明信片" background="transparent"></custom-navbar>
-
 <view class="page-container">
-  <!-- 顶部定位区 -->
-  <view class="top-bar">
-    <view class="location-badge">
+  <!-- 固定渐变背景层 -->
+  <view class="bg-gradient"></view>
+  
+  <!-- 固定导航栏：使用插槽放置定位按钮 -->
+  <custom-navbar title="足迹明信片">
+    <view slot="left" class="location-badge">
       <view class="icon icon-location location-icon"></view>
       <text class="location-text">{{currentCity}}</text>
     </view>
-  </view>
+  </custom-navbar>
 
   <scroll-view class="content-scroll" scroll-y>
     <!-- 热门目的地 -->
@@ -58,7 +59,6 @@
     <view class="section">
       <view class="section-header">
         <text class="section-title">周边景点推荐</text>
-        <!-- <text class="section-more" bindtap="onMoreAttractions">查看更多</text> -->
       </view>
       
       <view class="attractions-list">
@@ -76,5 +76,4 @@
     <!-- 底部占位 -->
     <view class="bottom-placeholder"></view>
   </scroll-view>
-
 </view>

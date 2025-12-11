@@ -88,7 +88,7 @@ page {
   font-size: 28rpx;
   line-height: 1.6;
   color: var(--text-primary);
-  background-color: var(--bg-light);
+  /* 不设置背景色，由各页面自己控制 */
 }
 
 /* 通用布局类 */

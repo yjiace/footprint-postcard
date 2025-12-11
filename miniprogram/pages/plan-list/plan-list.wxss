@@ -1,94 +1,88 @@
 /* pages/plan-list/plan-list.wxss */
-/* 复用规划页面的渐变背景风格 */
 
-/* ============================================
-   页面容器
-   ============================================ */
+/* 固定背景层 - 覆盖整个屏幕，不随滚动移动 */
+.bg-gradient {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #fde68a 0%, #a78bfa 50%, #60a5fa 100%);
+  z-index: -1;
+}
+
 .page-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #fde68a 0%, #a78bfa 50%, #60a5fa 100%);
   display: flex;
   flex-direction: column;
-  padding-top: 88rpx;
   position: relative;
-}
-
-.header {
-  padding: 32rpx;
-}
-
-.page-title {
-  font-size: 60rpx;
-  font-weight: 700;
-  color: #FFFFFF;
 }
 
 .content-scroll {
   flex: 1;
-  padding: 0 32rpx;
+  padding: 50rpx 32rpx 0;
 }
 
-/* ============================================
-   加载状态
-   ============================================ */
+/* 加载状态 */
 .loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 120rpx 0;
+  height: 60vh;
+  color: #FFFFFF;
+  font-size: 28rpx;
 }
 
 .loading-spinner {
   width: 60rpx;
   height: 60rpx;
-  border: 4rpx solid rgba(255, 255, 255, 0.3);
-  border-top-color: #FFFFFF;
+  border: 6rpx solid rgba(255, 255, 255, 0.3);
+  border-top: 6rpx solid #FFFFFF;
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  margin-bottom: 20rpx;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .loading-text {
-  margin-top: 24rpx;
-  font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.9);
+  color: #FFFFFF;
 }
 
-/* ============================================
-   空状态
-   ============================================ */
+/* 空状态 */
 .empty-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 120rpx 32rpx;
+  gap: 24rpx;
+  height: 60vh;
+  color: #FFFFFF;
 }
 
 .empty-icon {
   font-size: 120rpx;
-  margin-bottom: 32rpx;
 }
 
 .empty-title {
-  font-size: 36rpx;
-  font-weight: 600;
+  font-size: 32rpx;
+  font-weight: 700;
   color: #FFFFFF;
-  margin-bottom: 16rpx;
 }
 
 .empty-desc {
   font-size: 28rpx;
   color: rgba(255, 255, 255, 0.8);
   text-align: center;
+  max-width: 400rpx;
 }
 
 .login-btn {
-  margin-top: 48rpx;
+  margin-top: 32rpx;
   padding: 24rpx 64rpx;
   background-color: rgba(255, 255, 255, 0.9);
   border-radius: 48rpx;
@@ -97,7 +91,6 @@
 
 .login-btn:active {
   transform: scale(0.95);
-  background-color: rgba(255, 255, 255, 1);
 }
 
 .login-btn text {
@@ -106,66 +99,55 @@
   color: #a78bfa;
 }
 
-/* ============================================
-   列表样式 - 滑动删除
-   ============================================ */
+/* 列表 */
 .plan-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 24rpx;
 }
 
 .plan-card-wrapper {
   position: relative;
   overflow: hidden;
-  border-radius: 24rpx;
+  border-radius: 20rpx;
 }
 
 .plan-card {
-  position: relative;
-  background: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10rpx);
-  border-radius: 24rpx;
-  padding: 28rpx 32rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease;
-  z-index: 2;
 }
 
 .plan-card.swiped {
-  transform: translateX(-280rpx);
-  border-radius: 24rpx 0 0 24rpx;
-}
-
-.plan-card:active {
-  background: rgba(255, 255, 255, 0.4);
+  transform: translateX(-200rpx);
 }
 
 .plan-card-main {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10rpx);
+  border-radius: 20rpx;
+  padding: 28rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
 }
 
 .plan-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12rpx;
 }
 
 .city-name {
   font-size: 34rpx;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #1C1C1E;
 }
 
 .plan-days-tag {
-  font-size: 24rpx;
-  font-weight: 600;
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.3);
   padding: 8rpx 20rpx;
   border-radius: 20rpx;
+  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #FFFFFF;
 }
 
 .plan-meta {
@@ -175,22 +157,20 @@
 
 .plan-date {
   font-size: 26rpx;
-  color: rgba(255, 255, 255, 0.9);
+  color: #6b7280;
 }
 
-/* 滑动删除按钮 */
+/* 删除和明信片按钮 */
 .delete-action {
   position: absolute;
-  right: 0;
   top: 0;
-  bottom: 0;
-  width: 160rpx;
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  right: 0;
+  width: 100rpx;
+  height: 100%;
+  background-color: #ef4444;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0 24rpx 24rpx 0;
-  z-index: 1;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -200,23 +180,21 @@
 }
 
 .delete-text {
-  font-size: 28rpx;
-  font-weight: 600;
   color: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 500;
 }
 
-/* 明信片按钮 */
 .postcard-action {
   position: absolute;
-  right: 140rpx;
   top: 0;
-  bottom: 0;
-  width: 140rpx;
-  background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+  right: 100rpx;
+  width: 100rpx;
+  height: 100%;
+  background-color: #a78bfa;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -226,50 +204,45 @@
 }
 
 .postcard-action-text {
-  font-size: 26rpx;
-  font-weight: 600;
   color: #FFFFFF;
+  font-size: 24rpx;
+  font-weight: 500;
 }
 
-/* ============================================
-   加载更多
-   ============================================ */
+/* 加载更多 */
 .load-more-container {
   padding: 32rpx 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  text-align: center;
 }
 
 .load-more-loading {
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  color: rgba(255, 255, 255, 0.9);
+  justify-content: center;
+  gap: 16rpx;
+  color: rgba(255, 255, 255, 0.8);
   font-size: 26rpx;
 }
 
 .loading-spinner-small {
   width: 32rpx;
   height: 32rpx;
-  border: 3rpx solid rgba(255, 255, 255, 0.3);
-  border-top-color: #FFFFFF;
+  border: 4rpx solid rgba(255, 255, 255, 0.3);
+  border-top: 4rpx solid #FFFFFF;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
 .load-more-end {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 26rpx;
 }
 
-/* ============================================
-   悬浮添加按钮
-   ============================================ */
+/* 悬浮按钮 */
 .fab-container {
   position: fixed;
   right: 48rpx;
-  bottom: calc(48rpx + env(safe-area-inset-bottom));
+  bottom: calc(180rpx + env(safe-area-inset-bottom));
   z-index: 100;
 }
 
@@ -277,30 +250,26 @@
   width: 112rpx;
   height: 112rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #FFFFFF 0%, #f0f0f0 100%);
+  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
+  box-shadow: 0 12rpx 32rpx rgba(167, 139, 250, 0.4);
+  transition: all 0.3s;
 }
 
 .fab-btn:active {
   transform: scale(0.9);
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8rpx 24rpx rgba(167, 139, 250, 0.3);
 }
 
 .fab-icon {
-  font-size: 64rpx;
+  font-size: 56rpx;
+  color: #FFFFFF;
   font-weight: 300;
-  color: #a78bfa;
-  line-height: 1;
-  margin-top: -15rpx;
 }
 
-/* ============================================
-   底部占位
-   ============================================ */
+/* 底部占位 */
 .bottom-placeholder {
-  height: 180rpx;
+  height: 120rpx;
 }

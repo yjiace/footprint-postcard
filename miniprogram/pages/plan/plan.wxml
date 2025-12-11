@@ -1,16 +1,10 @@
 <!--pages/plan/plan.wxml-->
-<custom-navbar title="行程规划" background="transparent"></custom-navbar>
-
 <view class="page-container">
-  <view class="header">
-    <view class="header-top">
-      <view class="back-btn" bindtap="onBack">
-        <text class="back-icon">←</text>
-        <text class="back-text">返回</text>
-      </view>
-    </view>
-    <text class="page-title">新增规划</text>
-  </view>
+  <!-- 固定渐变背景层 -->
+  <view class="bg-gradient"></view>
+
+  <!-- 导航栏带返回按钮和标题 -->
+  <custom-navbar title="新增规划" showBack="{{true}}"></custom-navbar>
 
   <scroll-view class="content-scroll" scroll-y>
     <view class="form-container">

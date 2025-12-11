@@ -1,12 +1,10 @@
 <!--pages/login/login.wxml-->
 <view class="login-container">
-    <!-- 返回按钮 -->
-    <view class="back-section" wx:if="{{showBackButton}}">
-        <view class="back-btn" bindtap="onBack">
-            <text class="back-icon">←</text>
-            <text class="back-text">返回</text>
-        </view>
-    </view>
+    <!-- 固定渐变背景层 -->
+    <view class="bg-gradient"></view>
+
+    <!-- 固定导航栏 -->
+    <custom-navbar title="登录" showBack="{{showBackButton}}" bgColor="transparent"></custom-navbar>
 
     <view class="login-content">
         <!-- 头像 -->

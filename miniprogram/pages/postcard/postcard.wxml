@@ -1,13 +1,12 @@
 <!--pages/postcard/postcard.wxml-->
-<custom-navbar title="明信片" background="transparent"></custom-navbar>
-
 <view class="page-container">
-  <scroll-view class="content-scroll" scroll-y>
-    <!-- 顶部导航 -->
-    <view class="top-nav">
-      <text class="nav-title">明信片列表</text>
-    </view>
+  <!-- 固定渐变背景层 -->
+  <view class="bg-gradient"></view>
 
+  <!-- 固定导航栏 -->
+  <custom-navbar title="明信片"></custom-navbar>
+
+  <scroll-view class="content-scroll" scroll-y>
     <!-- 未登录状态 -->
     <view class="empty-state" wx:if="{{!isLoggedIn}}">
       <view class="empty-icon-text">🔐</view>
@@ -29,7 +28,9 @@
         data-item="{{item}}"
         data-index="{{index}}"
       >
-        <image class="postcard-image" src="{{item.thumbnail || item.image}}" mode="aspectFill" lazy-load></image>
+        <view class="postcard-image-wrapper">
+          <image class="postcard-image" src="{{item.thumbnail || item.image}}" mode="aspectFill" lazy-load></image>
+        </view>
         <text class="postcard-title">{{item.title}}</text>
       </view>
     </view>

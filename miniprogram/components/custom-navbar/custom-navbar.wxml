@@ -1,6 +1,30 @@
 <!--components/custom-navbar/custom-navbar.wxml-->
-<view class="custom-navbar" style="background: {{background}};">
-  <view class="navbar-content">
-    <view class="navbar-title">{{title}}</view>
+<!-- 固定定位的导航栏 -->
+<view 
+  class="navbar-fixed" 
+  style="height: {{totalNavBarHeight}}px; padding-top: {{statusBarHeight}}px; {{bgColor ? 'background:' + bgColor + ';' : ''}}"
+>
+  <view class="navbar-content" style="height: {{navBarContentHeight}}px;">
+    <!-- 左侧区域 -->
+    <view class="navbar-left">
+      <!-- 返回按钮 -->
+      <view class="back-btn" wx:if="{{showBack}}" bindtap="onBack">
+        <text class="back-icon">←</text>
+        <text class="back-text">返回</text>
+      </view>
+      <!-- 自定义左侧内容插槽（如首页的定位） -->
+      <slot name="left" wx:else></slot>
+    </view>
+    
+    <!-- 中间标题区 -->
+    <view class="navbar-center">
+      <text class="navbar-title" wx:if="{{title}}">{{title}}</text>
+    </view>
+    
+    <!-- 右侧占位（与胶囊按钮对应） -->
+    <view class="navbar-right"></view>
   </view>
 </view>
+
+<!-- 占位元素，防止内容被固定导航栏遮挡 -->
+<view class="navbar-placeholder" style="height: {{totalNavBarHeight}}px;"></view>
