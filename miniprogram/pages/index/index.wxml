@@ -51,7 +51,7 @@
             <text class="plan-action-desc">AI智能规划您的旅行路线</text>
           </view>
         </view>
-        <text class="plan-action-arrow">→</text>
+        <!-- <text class="plan-action-arrow">→</text> -->
       </view>
     </view>
 

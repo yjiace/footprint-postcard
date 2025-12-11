@@ -120,12 +120,19 @@
   transform: translateX(-200rpx);
 }
 
+/* 左滑时取消右侧圆角 */
+.plan-card.swiped .plan-card-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 .plan-card-main {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10rpx);
   border-radius: 20rpx;
   padding: 28rpx;
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+  transition: border-radius 0.3s ease;
 }
 
 .plan-header {
@@ -172,11 +179,13 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
+  pointer-events: none; /* 隐藏时禁用点击 */
   transition: opacity 0.3s ease;
 }
 
 .delete-action.show {
   opacity: 1;
+  pointer-events: auto; /* 显示时启用点击 */
 }
 
 .delete-text {
@@ -196,11 +205,13 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
+  pointer-events: none; /* 隐藏时禁用点击 */
   transition: opacity 0.3s ease;
 }
 
 .postcard-action.show {
   opacity: 1;
+  pointer-events: auto; /* 显示时启用点击 */
 }
 
 .postcard-action-text {
@@ -242,7 +253,7 @@
 .fab-container {
   position: fixed;
   right: 48rpx;
-  bottom: calc(180rpx + env(safe-area-inset-bottom));
+  bottom: calc(40rpx + env(safe-area-inset-bottom));
   z-index: 100;
 }
 
@@ -250,7 +261,7 @@
   width: 112rpx;
   height: 112rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+  background: #a78bfa;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -264,9 +275,10 @@
 }
 
 .fab-icon {
-  font-size: 56rpx;
+  font-size: 75rpx;
   color: #FFFFFF;
   font-weight: 300;
+  height: 140rpx;
 }
 
 /* 底部占位 */
