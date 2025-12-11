@@ -366,26 +366,42 @@ Page({
         }
 
         try {
-            util.showLoading('正在规划行程，请稍等...')
+            util.showLoading('正在提交规划请求...')
 
-            // 调用实际API规划行程
+            // 调用实际API规划行程（异步模式，立即返回生成中状态）
             const result = await api.generatePlan(params)
 
-            // API已经保存并返回完整的行程数据
+            // API返回的是"生成中"状态的行程
             const plan = result
 
-            // 保存到本地存储（用于离线访问）
+            // 保存到本地存储（带状态）
             storage.addPlan(plan)
 
             util.hideLoading()
-            util.showSuccess('行程规划成功')
 
-            // 跳转到行程详情页
-            setTimeout(() => {
-                wx.navigateTo({
-                    url: `/pages/plan-detail/plan-detail?id=${plan.id}`
+            // 根据状态显示不同的提示
+            if (plan.status === 'generating') {
+                wx.showModal({
+                    title: '规划已提交',
+                    content: '行程正在后台生成中，通常需要1-2分钟，请稍后在列表中刷新查看。',
+                    confirmText: '查看列表',
+                    showCancel: false,
+                    success: () => {
+                        // 跳转到行程列表页
+                        wx.switchTab({
+                            url: '/pages/plan-list/plan-list'
+                        })
+                    }
                 })
-            }, 1000)
+            } else {
+                // 已完成状态（向后兼容）
+                util.showSuccess('行程规划成功')
+                setTimeout(() => {
+                    wx.navigateTo({
+                        url: `/pages/plan-detail/plan-detail?id=${plan.id}`
+                    })
+                }, 1000)
+            }
 
         } catch (err) {
             console.error('行程规划失败', err)

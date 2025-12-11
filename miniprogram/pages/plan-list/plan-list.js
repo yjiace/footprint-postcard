@@ -128,9 +128,54 @@ Page({
         }
 
         const id = e.currentTarget.dataset.id
+        const status = e.currentTarget.dataset.status
+
+        // 根据状态处理
+        if (status === 'generating') {
+            wx.showToast({
+                title: '行程正在生成中，请稍后刷新',
+                icon: 'none',
+                duration: 2000
+            })
+            return
+        }
+
+        if (status === 'failed') {
+            wx.showModal({
+                title: '生成失败',
+                content: '该行程生成失败，是否删除并重新规划？',
+                confirmText: '重新规划',
+                cancelText: '取消',
+                success: (res) => {
+                    if (res.confirm) {
+                        // 删除失败的行程并跳转到规划页
+                        this.deletePlanById(id)
+                        wx.navigateTo({
+                            url: '/pages/plan/plan'
+                        })
+                    }
+                }
+            })
+            return
+        }
+
         wx.navigateTo({
             url: `/pages/plan-detail/plan-detail?id=${id}`
         })
+    },
+
+    // 根据ID删除行程（辅助函数）
+    async deletePlanById(id) {
+        try {
+            if (storage.isLoggedIn()) {
+                await api.deletePlan(id)
+            }
+            storage.removePlan(id)
+            const newList = this.data.planList.filter(item => item.id !== id)
+            this.setData({ planList: newList })
+        } catch (err) {
+            console.error('删除行程失败:', err)
+        }
     },
 
     // 触摸开始

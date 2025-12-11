@@ -175,10 +175,17 @@ function getCityByLocation(latitude, longitude) {
 
 /**
  * 生成行程（使用180秒超时，等待AI生成）
+ * @param {Object} params 行程参数
+ * @param {String} params.apiVersion API版本，可选，如 'v2'，默认 'v2'
  */
 function generatePlan(params) {
+    // 默认使用v2版本API
+    const requestParams = {
+        ...params,
+        apiVersion: params.apiVersion || 'v2'
+    }
     // 使用180秒超时（微信小程序最大允许值），因为AI生成行程需要较长时间
-    return request('/plan/generate', params, 'POST', {}, 180000)
+    return request('/plan/generate', requestParams, 'POST', {}, 180000)
 }
 
 /**

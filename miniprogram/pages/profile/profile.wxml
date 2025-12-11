@@ -62,7 +62,7 @@
       <view class="about-header">
         <image class="about-logo" src="/images/logo.png" mode="aspectFit"></image>
         <text class="about-title">足迹明信片</text>
-        <text class="about-version">v1.1.1</text>
+        <!-- <text class="about-version">v1.1.1</text> -->
       </view>
       
       <!-- 功能介绍 -->

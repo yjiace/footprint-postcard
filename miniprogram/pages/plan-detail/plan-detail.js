@@ -2,13 +2,39 @@
 const util = require('../../utils/util.js')
 const storage = require('../../utils/storage.js')
 
+// 类型映射配置
+const TYPE_CONFIG = {
+    'breakfast': { label: '早餐', emoji: '🌅', category: 'meal', color: '#f97316' },
+    'lunch': { label: '午餐', emoji: '☀️', category: 'meal', color: '#eab308' },
+    'dinner': { label: '晚餐', emoji: '🌙', category: 'meal', color: '#8b5cf6' },
+    'attraction': { label: '景点', emoji: '🗺️', category: 'attraction', color: '#3b82f6' },
+    'hotel': { label: '住宿', emoji: '🏨', category: 'hotel', color: '#ec4899' }
+}
+
+// 交通方式图标映射
+const TRANSPORT_ICONS = {
+    '左转': '↰',
+    '右转': '↱',
+    '直行': '↑',
+    '靠左': '↖',
+    '靠右': '↗',
+    '调头': '↩',
+    '左转调头': '↩',
+    '向左前方行驶': '↖',
+    '向右前方行驶': '↗',
+    '向左后方行驶': '↙',
+    '向右后方行驶': '↘'
+}
+
 Page({
     data: {
         currentDay: 0,
         plan: null,
         loading: true,
         currentDayData: null,
-        currentWeather: null
+        currentWeather: null,
+        currentRouteInfo: null,  // 当天路径信息
+        expandedRoutes: {}       // 展开的路径段索引
     },
 
     onLoad(options) {
@@ -35,15 +61,18 @@ Page({
         const plan = plans.find(p => p.id === planId)
 
         if (plan && plan.schedule && plan.schedule.length > 0) {
-            const currentDayData = this.processDayData(plan.schedule[0])
+            const currentDayData = this.processDayData(plan.schedule[0], 0)
             const currentWeather = this.getWeatherForDay(plan, 0)
+            const currentRouteInfo = this.getRouteInfoForDay(plan, 0)
 
             this.setData({
                 plan: plan,
                 loading: false,
                 currentDay: 0,
                 currentDayData: currentDayData,
-                currentWeather: currentWeather
+                currentWeather: currentWeather,
+                currentRouteInfo: currentRouteInfo,
+                expandedRoutes: {}
             })
         } else {
             this.setData({
@@ -63,15 +92,18 @@ Page({
 
         // 如果本地有完整数据（包含schedule），直接使用
         if (localPlan && localPlan.schedule && localPlan.schedule.length > 0) {
-            const currentDayData = this.processDayData(localPlan.schedule[0])
+            const currentDayData = this.processDayData(localPlan.schedule[0], 0)
             const currentWeather = this.getWeatherForDay(localPlan, 0)
+            const currentRouteInfo = this.getRouteInfoForDay(localPlan, 0)
 
             this.setData({
                 plan: localPlan,
                 loading: false,
                 currentDay: 0,
                 currentDayData: currentDayData,
-                currentWeather: currentWeather
+                currentWeather: currentWeather,
+                currentRouteInfo: currentRouteInfo,
+                expandedRoutes: {}
             })
             return
         }
@@ -81,15 +113,18 @@ Page({
             const plan = await api.getPlanDetail(planId)
 
             if (plan && plan.schedule && plan.schedule.length > 0) {
-                const currentDayData = this.processDayData(plan.schedule[0])
+                const currentDayData = this.processDayData(plan.schedule[0], 0)
                 const currentWeather = this.getWeatherForDay(plan, 0)
+                const currentRouteInfo = this.getRouteInfoForDay(plan, 0)
 
                 this.setData({
                     plan: plan,
                     loading: false,
                     currentDay: 0,
                     currentDayData: currentDayData,
-                    currentWeather: currentWeather
+                    currentWeather: currentWeather,
+                    currentRouteInfo: currentRouteInfo,
+                    expandedRoutes: {}
                 })
             } else {
                 this.setData({
@@ -109,9 +144,37 @@ Page({
     },
 
     // 处理单日数据，添加必要的展示字段
-    processDayData(dayData) {
+    // 支持V2的 planning 数组结构，也兼容原有的 attractions/meals/hotel 分离结构
+    processDayData(dayData, dayIndex) {
         if (!dayData) return null
 
+        // 检查是否为V2结构（有planning数组）
+        if (dayData.planning && Array.isArray(dayData.planning)) {
+            // V2新结构：planning数组，按时间顺序包含所有类型
+            const processedPlanning = dayData.planning.map((item, index) => {
+                const typeConfig = TYPE_CONFIG[item.type] || { label: item.type, emoji: '📍', category: 'other', color: '#6b7280' }
+                return {
+                    ...item,
+                    index: index,
+                    typeLabel: typeConfig.label,
+                    typeEmoji: typeConfig.emoji,
+                    typeCategory: typeConfig.category,
+                    typeColor: typeConfig.color,
+                    // 格式化时长
+                    durationText: item.visit_duration ? `${item.visit_duration}分钟` : '',
+                    // 格式化价格
+                    priceText: this.formatPrice(item.ticket_price, item.type)
+                }
+            })
+
+            return {
+                ...dayData,
+                planning: processedPlanning,
+                isV2: true
+            }
+        }
+
+        // 原有结构：attractions, meals, hotel 分离
         // 处理餐饮数据，添加类型标签
         const mealTypeMap = {
             'breakfast': '早餐',
@@ -126,8 +189,21 @@ Page({
 
         return {
             ...dayData,
-            meals: processedMeals
+            meals: processedMeals,
+            isV2: false
         }
+    },
+
+    // 格式化价格显示
+    formatPrice(price, type) {
+        if (price === undefined || price === null) return ''
+        if (price === 0) {
+            if (type === 'attraction') return '免费'
+            return ''
+        }
+        if (type === 'hotel') return `¥${price}/晚`
+        if (['breakfast', 'lunch', 'dinner'].includes(type)) return `人均¥${price}`
+        return `¥${price}`
     },
 
     // 获取指定天的天气信息
@@ -161,21 +237,65 @@ Page({
         }
     },
 
+    // 获取指定天的路径信息
+    getRouteInfoForDay(plan, dayIndex) {
+        if (!plan || !plan.routeInfo) return null
+
+        // routeInfo 是数组，按 day_index 查找
+        const routeInfo = plan.routeInfo.find(r => r.day_index === dayIndex)
+        if (!routeInfo) return null
+
+        // 处理路径段，添加图标
+        const processedSegments = (routeInfo.segments || []).map((segment, index) => ({
+            ...segment,
+            actionIcon: TRANSPORT_ICONS[segment.action] || '→',
+            distanceText: this.formatDistance(segment.distance),
+            durationText: segment.duration > 0 ? `${segment.duration}分钟` : ''
+        }))
+
+        return {
+            ...routeInfo,
+            segments: processedSegments,
+            totalDistanceText: this.formatDistance(routeInfo.total_distance),
+            totalDurationText: routeInfo.total_duration > 0 ? `约${routeInfo.total_duration}分钟` : ''
+        }
+    },
+
+    // 格式化距离
+    formatDistance(meters) {
+        if (!meters) return ''
+        if (meters < 1000) return `${meters}米`
+        return `${(meters / 1000).toFixed(1)}公里`
+    },
+
     // 切换天数
     onDayChange(e) {
         const index = e.currentTarget.dataset.index
         const plan = this.data.plan
 
         if (plan && plan.schedule && plan.schedule[index]) {
-            const currentDayData = this.processDayData(plan.schedule[index])
+            const currentDayData = this.processDayData(plan.schedule[index], index)
             const currentWeather = this.getWeatherForDay(plan, index)
+            const currentRouteInfo = this.getRouteInfoForDay(plan, index)
 
             this.setData({
                 currentDay: index,
                 currentDayData: currentDayData,
-                currentWeather: currentWeather
+                currentWeather: currentWeather,
+                currentRouteInfo: currentRouteInfo,
+                expandedRoutes: {}  // 切换天数时重置展开状态
             })
         }
+    },
+
+    // 切换路径详情展开/折叠
+    toggleRouteDetail(e) {
+        const index = e.currentTarget.dataset.index
+        const key = `expandedRoutes.${index}`
+        const currentValue = this.data.expandedRoutes[index] || false
+        this.setData({
+            [key]: !currentValue
+        })
     },
 
     // 返回（直接跳转到列表页）

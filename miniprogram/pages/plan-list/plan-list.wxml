@@ -38,13 +38,14 @@
         wx:key="id"
       >
         <view 
-          class="plan-card {{item.swiped ? 'swiped' : ''}}"
-          bindtouchstart="onTouchStart"
-          bindtouchmove="onTouchMove"
-          bindtouchend="onTouchEnd"
+          class="plan-card {{item.swiped ? 'swiped' : ''}} {{item.status === 'generating' ? 'generating' : ''}} {{item.status === 'failed' ? 'failed' : ''}}"
+          bindtouchstart="{{item.status !== 'generating' ? 'onTouchStart' : ''}}"
+          bindtouchmove="{{item.status !== 'generating' ? 'onTouchMove' : ''}}"
+          bindtouchend="{{item.status !== 'generating' ? 'onTouchEnd' : ''}}"
           data-index="{{index}}"
           bindtap="onViewDetail"
           data-id="{{item.id}}"
+          data-status="{{item.status}}"
         >
           <view class="plan-card-main">
             <view class="plan-header">
@@ -53,6 +54,14 @@
             </view>
             <view class="plan-meta">
               <text class="plan-date">📅 {{item.date}} 至 {{item.endDate}}</text>
+              <!-- 状态标签 -->
+              <view wx:if="{{item.status === 'generating'}}" class="status-tag generating">
+                <view class="status-spinner"></view>
+                <text>生成中</text>
+              </view>
+              <view wx:elif="{{item.status === 'failed'}}" class="status-tag failed">
+                <text>生成失败</text>
+              </view>
             </view>
           </view>
         </view>

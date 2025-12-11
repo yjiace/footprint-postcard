@@ -141,6 +141,55 @@
   margin-left: auto;
 }
 
+/* Route Summary Card (V2新增) */
+.route-summary-card {
+  margin: 0 32rpx 24rpx;
+  padding: 24rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10rpx);
+}
+
+.route-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.route-summary-emoji {
+  font-size: 32rpx;
+}
+
+.route-summary-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.route-summary-stats {
+  display: flex;
+  justify-content: space-around;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.stat-value {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.stat-label {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 /* Tabs */
 .tabs-wrapper {
   padding: 0 32rpx 16rpx;
@@ -191,6 +240,7 @@
 
 /* Cards Common */
 .day-desc-card,
+.planning-card,
 .hotel-card,
 .attractions-card,
 .meals-card,
@@ -220,13 +270,256 @@
   color: #1C1C1E;
 }
 
+.section-count {
+  margin-left: auto;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
 .day-desc {
   font-size: 28rpx;
   color: #374151;
   line-height: 1.6;
 }
 
-/* Hotel */
+/* ====== V2 Planning Timeline 统一时间轴 ====== */
+.planning-timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 路程信息段 */
+.route-segment {
+  margin: 16rpx 0 16rpx 36rpx;
+  padding: 16rpx 20rpx;
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  border-radius: 16rpx;
+  border-left: 6rpx solid #3b82f6;
+}
+
+.route-segment-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.route-icon {
+  font-size: 28rpx;
+}
+
+.route-summary-inline {
+  flex: 1;
+}
+
+.route-distance {
+  font-size: 24rpx;
+  color: #1e40af;
+  font-weight: 500;
+}
+
+.route-expand-icon {
+  font-size: 20rpx;
+  color: #3b82f6;
+  padding: 8rpx;
+}
+
+/* 展开的路径详情 */
+.route-detail-list {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx dashed rgba(59, 130, 246, 0.3);
+  max-height: 400rpx;
+  overflow-y: auto;
+}
+
+.route-detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 8rpx 0;
+  font-size: 22rpx;
+  color: #374151;
+}
+
+.route-action-icon {
+  font-size: 24rpx;
+  color: #3b82f6;
+  flex-shrink: 0;
+  width: 32rpx;
+  text-align: center;
+}
+
+.route-instruction {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.route-segment-distance {
+  font-size: 20rpx;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+/* Timeline Item (通用) */
+.timeline-item {
+  display: flex;
+  flex-direction: row;
+}
+
+.timeline-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 20rpx;
+  width: 48rpx;
+  flex-shrink: 0;
+}
+
+.timeline-dot {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8rpx;
+  box-shadow: 0 4rpx 12rpx rgba(167, 139, 250, 0.3);
+}
+
+.dot-emoji {
+  font-size: 24rpx;
+}
+
+.timeline-line {
+  width: 4rpx;
+  background: linear-gradient(180deg, #a78bfa 0%, #60a5fa 100%);
+  flex-grow: 1;
+  min-height: 32rpx;
+  border-radius: 2rpx;
+}
+
+.timeline-content {
+  flex: 1;
+  padding-bottom: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.timeline-item:last-child .timeline-content {
+  padding-bottom: 0;
+}
+
+/* Item Header with Type Tag */
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.type-tag {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+  padding: 6rpx 16rpx;
+  border-radius: 10rpx;
+  flex-shrink: 0;
+}
+
+.item-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1C1C1E;
+}
+
+.item-address {
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 4rpx;
+}
+
+.item-meta .meta-item {
+  font-size: 22rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.item-meta .meta-item.duration {
+  background-color: #ede9fe;
+  color: #7c3aed;
+}
+
+.item-meta .meta-item.price {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.item-desc {
+  font-size: 26rpx;
+  color: #4b5563;
+  line-height: 1.5;
+  margin-top: 8rpx;
+}
+
+/* ====== 原有结构样式（兼容） ====== */
+
+/* Attractions Timeline (原有) */
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.attraction-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1C1C1E;
+}
+
+.attraction-address {
+  font-size: 26rpx;
+  color: #6b7280;
+}
+
+.attraction-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 4rpx;
+}
+
+.attraction-meta .meta-item {
+  font-size: 24rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 12rpx;
+}
+
+.attraction-meta .meta-item.duration {
+  background-color: #ede9fe;
+  color: #7c3aed;
+}
+
+.attraction-meta .meta-item.ticket {
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+.attraction-desc {
+  font-size: 26rpx;
+  color: #4b5563;
+  line-height: 1.5;
+  margin-top: 8rpx;
+}
+
+/* Hotel (原有) */
 .hotel-info {
   display: flex;
   flex-direction: column;
@@ -262,96 +555,7 @@
   font-weight: 600;
 }
 
-/* Timeline */
-.timeline {
-  display: flex;
-  flex-direction: column;
-}
-
-.timeline-item {
-  display: flex;
-  flex-direction: row;
-}
-
-.timeline-left {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-right: 24rpx;
-  width: 24rpx;
-  flex-shrink: 0;
-}
-
-.timeline-dot {
-  width: 24rpx;
-  height: 24rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
-  margin-bottom: 8rpx;
-}
-
-.timeline-line {
-  width: 4rpx;
-  background: linear-gradient(180deg, #a78bfa 0%, #60a5fa 100%);
-  flex-grow: 1;
-  min-height: 32rpx;
-  border-radius: 2rpx;
-}
-
-.timeline-content {
-  flex: 1;
-  padding-bottom: 32rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-
-.timeline-item:last-child .timeline-content {
-  padding-bottom: 0;
-}
-
-.attraction-name {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #1C1C1E;
-}
-
-.attraction-address {
-  font-size: 26rpx;
-  color: #6b7280;
-}
-
-.attraction-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  margin-top: 4rpx;
-}
-
-.meta-item {
-  font-size: 24rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 12rpx;
-}
-
-.meta-item.duration {
-  background-color: #ede9fe;
-  color: #7c3aed;
-}
-
-.meta-item.ticket {
-  background-color: #fef3c7;
-  color: #d97706;
-}
-
-.attraction-desc {
-  font-size: 26rpx;
-  color: #4b5563;
-  line-height: 1.5;
-  margin-top: 8rpx;
-}
-
-/* Meals */
+/* Meals (原有) */
 .meals-list {
   display: flex;
   flex-direction: column;

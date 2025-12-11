@@ -446,15 +446,19 @@ async function handleGetNearbyAttractions(request, env) {
 
 /**
  * 5. AI生成行程 - 调用N8N智能旅行规划工作流
+ * 支持版本参数：apiVersion 可选值如 'v2'，将拼接到工作流URL后
+ * 
+ * 回调模式：发送请求后立即返回，N8N完成后回调Worker更新状态
+ * 状态值：generating(生成中), completed(已完成), failed(失败)
  */
-async function handleGeneratePlan(request, env) {
+async function handleGeneratePlan(request, env, ctx) {
     const user = await getUserFromRequest(request, env)
     if (!user) {
         return errorResponse('未登录', 401)
     }
 
     const body = await request.json()
-    const { city, date, days, poiTypes, notes, transportation, accommodation } = body
+    const { city, date, days, poiTypes, notes, transportation, accommodation, apiVersion } = body
 
     if (!city || !date || !days) {
         return errorResponse('缺少必要参数', 400)
@@ -465,13 +469,203 @@ async function handleGeneratePlan(request, env) {
         return errorResponse('服务配置错误：未配置N8N工作流地址', 500)
     }
 
-    try {
-        // 计算结束日期
-        const startDate = new Date(date)
-        const endDate = new Date(startDate)
-        endDate.setDate(endDate.getDate() + days - 1)
-        const endDateStr = endDate.toISOString().split('T')[0]
+    // 计算结束日期
+    const startDate = new Date(date)
+    const endDate = new Date(startDate)
+    endDate.setDate(endDate.getDate() + days - 1)
+    const endDateStr = endDate.toISOString().split('T')[0]
 
+    // 生成行程ID
+    const planId = generateId('plan_')
+
+    // 创建"生成中"状态的行程记录
+    const pendingPlan = {
+        id: planId,
+        openid: user.openid,  // 用于回调时识别用户
+        city: city,
+        date: date,
+        endDate: endDateStr,
+        days: days,
+        transportation: transportation || '公共交通',
+        accommodation: accommodation || '经济型酒店',
+        poiTypes: poiTypes,
+        notes: notes,
+        apiVersion: apiVersion || null,
+        // 状态字段
+        status: 'generating',  // generating | completed | failed
+        statusMessage: '正在生成行程，请稍候...',
+        // 空的详情数据
+        schedule: [],
+        weatherInfo: [],
+        budget: {},
+        overallSuggestions: '',
+        routeInfo: [],
+        routeSummary: null,
+        createdAt: Date.now()
+    }
+
+    try {
+        // 立即保存"生成中"状态的记录
+        await env.KV.put(`plan:${user.openid}:${planId}`, JSON.stringify(pendingPlan))
+
+        // 更新用户的行程列表（带状态）
+        const listKey = `plan_list:${user.openid}`
+        const existingList = await env.KV.get(listKey)
+        const planList = existingList ? JSON.parse(existingList) : []
+        planList.unshift({
+            id: planId,
+            city: pendingPlan.city,
+            date: pendingPlan.date,
+            endDate: pendingPlan.endDate,
+            days: pendingPlan.days,
+            status: 'generating',
+            createdAt: pendingPlan.createdAt
+        })
+        await env.KV.put(listKey, JSON.stringify(planList))
+
+        // 转换偏好类型名称
+        const preferenceMap = {
+            'any': '不限',
+            'nature': '自然风光',
+            'history': '历史古迹',
+            'museum': '博物馆',
+            'amusement': '游乐园',
+            'food': '美食探店'
+        }
+        const preferences = (poiTypes || [])
+            .filter(type => type !== 'any')
+            .map(type => preferenceMap[type] || type)
+
+        // 构建回调URL（N8N完成后调用此接口更新状态）
+        const callbackUrl = new URL(request.url)
+        callbackUrl.pathname = '/api/plan/callback'
+
+        // 构建N8N工作流请求参数（包含回调信息）
+        const n8nRequest = {
+            city: city,
+            start_date: date,
+            end_date: endDateStr,
+            travel_days: days,
+            transportation: transportation || '公共交通',
+            accommodation: accommodation || '经济型酒店',
+            preferences: preferences.length > 0 ? preferences : ['休闲'],
+            free_text_input: notes || '',
+            // 回调信息
+            callback: {
+                url: callbackUrl.toString(),
+                planId: planId,
+                openid: user.openid
+            }
+        }
+
+        // 根据版本参数构建N8N工作流URL
+        let n8nWorkflowUrl = env.N8N_WORKFLOW_URL
+        if (apiVersion) {
+            n8nWorkflowUrl = n8nWorkflowUrl.replace(/\/$/, '') + '/' + apiVersion
+        }
+        console.log('发送N8N请求，回调模式，URL:', n8nWorkflowUrl)
+
+        // 发送请求到N8N（使用 ctx.waitUntil 确保请求在 Worker 返回后继续执行）
+        // N8N 工作流配置为：接收请求后处理完成，然后调用回调接口
+        ctx.waitUntil(
+            fetch(n8nWorkflowUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Cloudflare-Worker/1.0'
+                },
+                body: JSON.stringify(n8nRequest)
+            }).then(response => {
+                console.log('N8N请求已发送，状态码:', response.status)
+                return response.text().then(text => {
+                    console.log('N8N响应:', text.substring(0, 200))
+                })
+            }).catch(err => {
+                console.error('发送N8N请求失败:', err)
+            })
+        )
+
+        // 立即返回"生成中"的行程
+        return jsonResponse(pendingPlan)
+
+    } catch (err) {
+        console.error('创建行程记录失败:', err)
+        return errorResponse('创建行程失败: ' + err.message, 500)
+    }
+}
+
+/**
+ * 5.1 N8N回调接口 - 接收N8N工作流完成后的回调
+ */
+async function handlePlanCallback(request, env) {
+    try {
+        const body = await request.json()
+        const { planId, openid, success, data, message } = body
+
+        if (!planId || !openid) {
+            return errorResponse('缺少必要参数', 400)
+        }
+
+        console.log('收到N8N回调, planId:', planId, 'success:', success)
+
+        if (!success) {
+            // 生成失败
+            await updatePlanStatus(env, openid, planId, 'failed', message || 'AI生成失败')
+            return jsonResponse({ received: true, status: 'failed' })
+        }
+
+        // 生成成功，更新行程数据
+        const planKey = `plan:${openid}:${planId}`
+        const existingData = await env.KV.get(planKey)
+
+        if (!existingData) {
+            return errorResponse('行程不存在', 404)
+        }
+
+        const existingPlan = JSON.parse(existingData)
+        const tripPlan = data
+
+        // 更新行程记录为完成状态
+        const completedPlan = {
+            ...existingPlan,
+            city: tripPlan.city || existingPlan.city,
+            date: tripPlan.start_date || existingPlan.date,
+            endDate: tripPlan.end_date || existingPlan.endDate,
+            // 状态更新为已完成
+            status: 'completed',
+            statusMessage: '',
+            // N8N返回的详细数据
+            schedule: tripPlan.days || [],
+            weatherInfo: tripPlan.weather_info || [],
+            budget: tripPlan.budget || {},
+            overallSuggestions: tripPlan.overall_suggestions || '',
+            routeInfo: tripPlan.route_info || body.route_info || [],
+            routeSummary: tripPlan.route_summary || body.summary || null,
+            completedAt: Date.now()
+        }
+
+        // 保存完成的行程
+        await env.KV.put(planKey, JSON.stringify(completedPlan))
+
+        // 更新列表中的状态
+        await updatePlanListStatus(env, openid, planId, 'completed')
+
+        console.log('行程生成完成(回调):', planId)
+        return jsonResponse({ received: true, status: 'completed' })
+
+    } catch (err) {
+        console.error('处理N8N回调失败:', err)
+        return errorResponse('回调处理失败: ' + err.message, 500)
+    }
+}
+
+/**
+ * 后台处理 N8N 请求（异步）
+ */
+async function processN8NRequest(env, openid, planId, params) {
+    const { city, date, endDateStr, days, poiTypes, notes, transportation, accommodation, apiVersion } = params
+
+    try {
         // 转换偏好类型名称
         const preferenceMap = {
             'any': '不限',
@@ -497,8 +691,15 @@ async function handleGeneratePlan(request, env) {
             free_text_input: notes || ''
         }
 
+        // 根据版本参数构建N8N工作流URL
+        let n8nWorkflowUrl = env.N8N_WORKFLOW_URL
+        if (apiVersion) {
+            n8nWorkflowUrl = n8nWorkflowUrl.replace(/\/$/, '') + '/' + apiVersion
+        }
+        console.log('后台调用N8N工作流URL:', n8nWorkflowUrl)
+
         // 调用N8N工作流
-        const n8nResponse = await fetch(env.N8N_WORKFLOW_URL, {
+        const n8nResponse = await fetch(n8nWorkflowUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -509,29 +710,27 @@ async function handleGeneratePlan(request, env) {
 
         if (!n8nResponse.ok) {
             console.error('N8N工作流返回错误:', n8nResponse.status)
-            return errorResponse('AI生成行程失败，请稍后重试', 500)
+            await updatePlanStatus(env, openid, planId, 'failed', 'AI生成失败，请重试')
+            return
         }
 
         const n8nResult = await n8nResponse.json()
         console.log('N8N工作流响应:', JSON.stringify(n8nResult).substring(0, 500))
 
-        // 处理N8N返回的数据（可能是数组或对象）
+        // 处理N8N返回的数据
         let planData = Array.isArray(n8nResult) ? n8nResult[0] : n8nResult
 
-        // 检查是否生成成功
         if (!planData.success) {
             console.error('N8N工作流生成失败:', planData.message)
-            return errorResponse(planData.message || 'AI生成行程失败', 500)
+            await updatePlanStatus(env, openid, planId, 'failed', planData.message || 'AI生成失败')
+            return
         }
 
         // 提取行程数据
         const tripPlan = planData.data
 
-        // 生成行程ID
-        const planId = generateId('plan_')
-
-        // 构建最终返回的行程对象
-        const plan = {
+        // 更新行程记录为完成状态
+        const completedPlan = {
             id: planId,
             city: tripPlan.city || city,
             date: tripPlan.start_date || date,
@@ -541,37 +740,74 @@ async function handleGeneratePlan(request, env) {
             accommodation: accommodation || '经济型酒店',
             poiTypes: poiTypes,
             notes: notes,
+            apiVersion: apiVersion || null,
+            // 状态更新为已完成
+            status: 'completed',
+            statusMessage: '',
             // N8N返回的详细数据
             schedule: tripPlan.days || [],
             weatherInfo: tripPlan.weather_info || [],
             budget: tripPlan.budget || {},
             overallSuggestions: tripPlan.overall_suggestions || '',
+            routeInfo: tripPlan.route_info || planData.route_info || [],
+            routeSummary: tripPlan.route_summary || planData.summary || null,
             createdAt: Date.now()
         }
 
-        // 保存到KV
-        await env.KV.put(`plan:${user.openid}:${planId}`, JSON.stringify(plan))
+        // 保存完成的行程
+        await env.KV.put(`plan:${openid}:${planId}`, JSON.stringify(completedPlan))
 
-        // 更新用户的行程列表
-        const listKey = `plan_list:${user.openid}`
-        const existingList = await env.KV.get(listKey)
-        const planList = existingList ? JSON.parse(existingList) : []
-        planList.unshift({
-            id: planId,
-            city: plan.city,
-            date: plan.date,
-            endDate: plan.endDate,
-            days: plan.days,
-            createdAt: plan.createdAt
-        })
-        await env.KV.put(listKey, JSON.stringify(planList))
+        // 更新列表中的状态
+        await updatePlanListStatus(env, openid, planId, 'completed')
 
-        return jsonResponse(plan)
+        console.log('行程生成完成:', planId)
+
     } catch (err) {
-        console.error('生成行程失败:', err)
-        return errorResponse('生成行程失败: ' + err.message, 500)
+        console.error('后台处理N8N请求失败:', err)
+        await updatePlanStatus(env, openid, planId, 'failed', '生成失败: ' + err.message)
     }
 }
+
+/**
+ * 更新行程状态
+ */
+async function updatePlanStatus(env, openid, planId, status, message) {
+    try {
+        const planKey = `plan:${openid}:${planId}`
+        const planData = await env.KV.get(planKey)
+        if (planData) {
+            const plan = JSON.parse(planData)
+            plan.status = status
+            plan.statusMessage = message || ''
+            await env.KV.put(planKey, JSON.stringify(plan))
+        }
+        // 同时更新列表状态
+        await updatePlanListStatus(env, openid, planId, status)
+    } catch (err) {
+        console.error('更新行程状态失败:', err)
+    }
+}
+
+/**
+ * 更新行程列表中的状态
+ */
+async function updatePlanListStatus(env, openid, planId, status) {
+    try {
+        const listKey = `plan_list:${openid}`
+        const listData = await env.KV.get(listKey)
+        if (listData) {
+            const planList = JSON.parse(listData)
+            const item = planList.find(p => p.id === planId)
+            if (item) {
+                item.status = status
+                await env.KV.put(listKey, JSON.stringify(planList))
+            }
+        }
+    } catch (err) {
+        console.error('更新行程列表状态失败:', err)
+    }
+}
+
 
 /**
  * 6. 获取行程列表（支持分页）
@@ -1439,6 +1675,7 @@ const routes = {
 
     // 行程相关
     'POST /plan/generate': handleGeneratePlan,
+    'POST /plan/callback': handlePlanCallback,  // N8N回调接口
     'GET /plan/list': handleGetPlanList,
     'GET /plan/detail': handleGetPlanDetail,
     'DELETE /plan/delete': handleDeletePlan,
@@ -1478,12 +1715,15 @@ export default {
             const method = request.method
             const routeKey = `${method} ${path}`
 
+            console.log(`[Route Debug] ${method} ${url.pathname} -> routeKey: "${routeKey}"`)
+
             const handler = routes[routeKey]
 
             if (handler) {
                 return await handler(request, env, ctx)
             }
 
+            console.log(`[Route Debug] No handler found for: "${routeKey}"`)
             return errorResponse('接口不存在', 404)
         } catch (err) {
             console.error('Worker错误:', err)
