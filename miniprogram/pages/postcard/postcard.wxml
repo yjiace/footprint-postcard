@@ -8,8 +8,8 @@
 
   <scroll-view class="content-scroll" scroll-y>
     <!-- 未登录状态 -->
-    <view class="empty-state" wx:if="{{!isLoggedIn}}">
-      <view class="empty-icon-text">🔐</view>
+    <view class="empty-container" wx:if="{{!isLoggedIn}}">
+      <view class="empty-icon">🔐</view>
       <text class="empty-title">请先登录</text>
       <text class="empty-desc">登录后查看和制作您的明信片</text>
       <view class="login-btn" bindtap="goLogin">

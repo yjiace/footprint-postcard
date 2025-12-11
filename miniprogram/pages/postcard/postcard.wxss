@@ -72,6 +72,22 @@
   white-space: nowrap;
 }
 
+/* 未登录状态容器 - 与行程页面保持一致 */
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  height: 60vh;
+  color: #FFFFFF;
+}
+
+.empty-icon {
+  font-size: 120rpx;
+}
+
+/* 空状态（已登录但无数据）*/
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -79,12 +95,6 @@
   justify-content: center;
   gap: 24rpx;
   padding: 128rpx 32rpx;
-}
-
-.empty-icon {
-  font-size: 200rpx;
-  color: #FFFFFF;
-  opacity: 0.6;
 }
 
 .empty-title {
@@ -98,10 +108,6 @@
   color: rgba(255, 255, 255, 0.8);
   text-align: center;
   line-height: 1.6;
-}
-
-.empty-icon-text {
-  font-size: 120rpx;
 }
 
 .login-btn {
