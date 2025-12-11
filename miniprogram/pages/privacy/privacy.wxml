@@ -1,0 +1,260 @@
+<!--pages/privacy/privacy.wxml-->
+<view class="privacy-container">
+    <!-- 固定渐变背景层 -->
+    <view class="bg-gradient"></view>
+
+    <!-- 固定导航栏 -->
+    <custom-navbar title="隐私政策" showBack="{{true}}" bgColor="transparent"></custom-navbar>
+
+    <!-- 内容区域 -->
+    <scroll-view class="content-scroll" scroll-y="true" enhanced="true" show-scrollbar="false">
+        <view class="content-card">
+            <!-- 标题区 -->
+            <view class="header-section">
+                <text class="main-title">足迹明信片隐私政策</text>
+                <text class="update-date">更新日期：{{updateDate}}</text>
+            </view>
+
+            <!-- 序言 -->
+            <view class="intro-section">
+                <text class="intro-text">我们深知个人信息对您的重要性，并会尽全力保护您的个人信息安全。本隐私政策将向您说明我们如何收集、使用、存储和保护您的个人信息。</text>
+            </view>
+
+            <!-- 第一章 -->
+            <view class="section">
+                <view class="section-title">
+                    <text class="section-number">一</text>
+                    <text class="section-name">我们收集的信息</text>
+                </view>
+                <view class="section-content">
+                    <view class="subsection">
+                        <text class="subsection-title">1. 账户信息</text>
+                        <view class="item">
+                            <text class="item-bullet">•</text>
+                            <text class="item-text">微信头像、昵称：用于展示您的个人资料</text>
+                        </view>
+                        <view class="item">
+                            <text class="item-bullet">•</text>
+                            <text class="item-text">微信OpenID：用于识别您的账户身份</text>
+                        </view>
+                    </view>
+                    <view class="subsection">
+                        <text class="subsection-title">2. 位置信息</text>
+                        <view class="item">
+                            <text class="item-bullet">•</text>
+                            <text class="item-text">地理位置：用于获取您所在城市、推荐周边景点</text>
+                        </view>
+                        <view class="item">
+                            <text class="item-bullet">•</text>
+                            <text class="item-text">此信息仅在您主动使用定位功能时获取</text>
+                        </view>
+                    </view>
+                    <view class="subsection">
+                        <text class="subsection-title">3. 用户生成内容</text>
+                        <view class="item">
+                            <text class="item-bullet">•</text>
+                            <text class="item-text">行程记录：您创建的旅行计划</text>
+                        </view>
+                        <view class="item">
+                            <text class="item-bullet">•</text>
+                            <text class="item-text">明信片：通过AI生成的电子明信片</text>
+                        </view>
+                    </view>
+                    <view class="subsection">
+                        <text class="subsection-title">4. 设备信息</text>
+                        <view class="item">
+                            <text class="item-bullet">•</text>
+                            <text class="item-text">设备型号、操作系统版本：用于优化应用兼容性</text>
+                        </view>
+                    </view>
+                </view>
+            </view>
+
+            <!-- 第二章 -->
+            <view class="section">
+                <view class="section-title">
+                    <text class="section-number">二</text>
+                    <text class="section-name">信息使用目的</text>
+                </view>
+                <view class="section-content">
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">为您提供行程规划和明信片生成服务</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">基于位置为您推荐周边景点和目的地</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">云端同步保存您的行程数据</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">改善服务质量和用户体验</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">进行匿名化的数据统计分析</text>
+                    </view>
+                </view>
+            </view>
+
+            <!-- 第三章 -->
+            <view class="section">
+                <view class="section-title">
+                    <text class="section-number">三</text>
+                    <text class="section-name">信息存储与保护</text>
+                </view>
+                <view class="section-content">
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">您的数据存储在安全的云端服务器（Cloudflare）</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">我们采用行业标准的加密技术保护数据传输</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">实施严格的数据访问权限管理</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">您的账户数据将在账户存续期间保留</text>
+                    </view>
+                </view>
+            </view>
+
+            <!-- 第四章 -->
+            <view class="section">
+                <view class="section-title">
+                    <text class="section-number">四</text>
+                    <text class="section-name">信息共享与披露</text>
+                </view>
+                <view class="section-content">
+                    <view class="highlight-box">
+                        <text class="highlight-text">我们不会出售、出租您的个人信息给任何第三方。</text>
+                    </view>
+                    <view class="subsection">
+                        <text class="subsection-title">以下情况可能涉及信息共享：</text>
+                        <view class="item">
+                            <text class="item-bullet">•</text>
+                            <text class="item-text">第三方服务商：高德地图（位置服务）、AI服务商（明信片生成）</text>
+                        </view>
+                        <view class="item">
+                            <text class="item-bullet">•</text>
+                            <text class="item-text">法律要求：根据法律法规、诉讼需要或政府机关要求</text>
+                        </view>
+                        <view class="item">
+                            <text class="item-bullet">•</text>
+                            <text class="item-text">安全保护：为保护用户或公众的人身财产安全</text>
+                        </view>
+                    </view>
+                </view>
+            </view>
+
+            <!-- 第五章 -->
+            <view class="section">
+                <view class="section-title">
+                    <text class="section-number">五</text>
+                    <text class="section-name">您的权利</text>
+                </view>
+                <view class="section-content">
+                    <view class="rights-grid">
+                        <view class="right-item">
+                            <text class="right-icon">📋</text>
+                            <text class="right-name">查询</text>
+                            <text class="right-desc">查看您的个人信息</text>
+                        </view>
+                        <view class="right-item">
+                            <text class="right-icon">✏️</text>
+                            <text class="right-name">更正</text>
+                            <text class="right-desc">修改个人资料</text>
+                        </view>
+                        <view class="right-item">
+                            <text class="right-icon">🗑️</text>
+                            <text class="right-name">删除</text>
+                            <text class="right-desc">删除账户与数据</text>
+                        </view>
+                        <view class="right-item">
+                            <text class="right-icon">🔒</text>
+                            <text class="right-name">撤回</text>
+                            <text class="right-desc">撤回授权许可</text>
+                        </view>
+                    </view>
+                    <view class="item" style="margin-top: 20rpx;">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">如需行使上述权利，请通过应用内的"我的"页面操作，或联系我们。</text>
+                    </view>
+                </view>
+            </view>
+
+            <!-- 第六章 -->
+            <view class="section">
+                <view class="section-title">
+                    <text class="section-number">六</text>
+                    <text class="section-name">未成年人保护</text>
+                </view>
+                <view class="section-content">
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">不满14周岁的未成年人使用本应用，需在监护人监护下进行。</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">我们不会主动收集未成年人的个人信息。</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">如发现误收集未成年人信息，请及时联系我们删除。</text>
+                    </view>
+                </view>
+            </view>
+
+            <!-- 第七章 -->
+            <view class="section">
+                <view class="section-title">
+                    <text class="section-number">七</text>
+                    <text class="section-name">隐私政策更新</text>
+                </view>
+                <view class="section-content">
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">我们可能会适时更新本隐私政策。</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">重大变更将通过应用内通知或弹窗提示您。</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">继续使用本应用即视为接受更新后的隐私政策。</text>
+                    </view>
+                </view>
+            </view>
+
+            <!-- 第八章 -->
+            <view class="section">
+                <view class="section-title">
+                    <text class="section-number">八</text>
+                    <text class="section-name">联系我们</text>
+                </view>
+                <view class="section-content">
+                    <view class="contact-box">
+                        <text class="contact-text">如对本隐私政策有任何疑问或建议，欢迎通过以下方式联系我们：</text>
+                        <view class="contact-item">
+                            <text class="contact-icon">📧</text>
+                            <text class="contact-value">504015995@qq.com</text>
+                        </view>
+                    </view>
+                </view>
+            </view>
+
+            <!-- 底部声明 -->
+            <view class="footer-section">
+                <text class="footer-text">使用本应用即表示您已阅读并同意本隐私政策。</text>
+            </view>
+        </view>
+    </scroll-view>
+</view>

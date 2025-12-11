@@ -6,7 +6,9 @@
         "pages/plan-detail/plan-detail",
         "pages/postcard/postcard",
         "pages/profile/profile",
-        "pages/login/login"
+        "pages/login/login",
+        "pages/agreement/agreement",
+        "pages/privacy/privacy"
     ],
     "window": {
         "navigationBarTextStyle": "white",
