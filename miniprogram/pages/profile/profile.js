@@ -7,7 +7,8 @@ const loginUtils = require('../../utils/login.js')
 Page({
     data: {
         userInfo: {},
-        isLoggedIn: false
+        isLoggedIn: false,
+        showAboutModal: false
     },
 
     onLoad() {
@@ -25,7 +26,7 @@ Page({
         this.setData({
             isLoggedIn: isLoggedIn
         })
-        
+
         if (isLoggedIn) {
             // 从全局数据获取
             if (app.globalData.userInfo) {
@@ -149,10 +150,15 @@ Page({
 
     // 关于我们
     showAbout() {
-        wx.showModal({
-            title: '关于我们',
-            content: '足迹明信片 v1.0.0\n\n一款结合智能规划、实时追踪与AI生成明信片的旅行记录小程序。\n\n让每一次旅行都值得被记录。',
-            showCancel: false
+        this.setData({
+            showAboutModal: true
+        })
+    },
+
+    // 关闭关于弹窗
+    closeAboutModal() {
+        this.setData({
+            showAboutModal: false
         })
     },
 
@@ -172,15 +178,15 @@ Page({
                 // 清除用户信息
                 storage.removeUserInfo()
                 app.globalData.userInfo = null
-                
+
                 // 更新页面状态
                 this.setData({
                     userInfo: {},
                     isLoggedIn: false
                 })
-                
+
                 util.showSuccess('退出成功')
-                
+
                 // 可选：跳转到首页或保持当前页面
                 // wx.switchTab({
                 //     url: '/pages/index/index'

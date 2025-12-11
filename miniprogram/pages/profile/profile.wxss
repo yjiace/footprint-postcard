@@ -140,7 +140,7 @@
   left: 0;
   right: 0;
   padding: 32rpx;
-  padding-bottom: calc(env(safe-area-inset-bottom));
+  padding-bottom: calc(30rpx + env(safe-area-inset-bottom));
   background: transparent;
   z-index: 100;
 }
@@ -176,4 +176,157 @@
   font-size: 28rpx;
   font-weight: 500;
   color: #ef4444;
+}
+
+/* 关于我们弹窗样式 */
+.about-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.about-modal.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.about-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.about-card {
+  position: relative;
+  width: 85%;
+  max-width: 600rpx;
+  background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
+  border-radius: 32rpx;
+  padding: 48rpx 40rpx;
+  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.3);
+  transform: scale(0.8) translateY(40rpx);
+  transition: transform 0.3s ease;
+}
+
+.about-modal.show .about-card {
+  transform: scale(1) translateY(0);
+}
+
+/* 头部样式 */
+.about-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40rpx;
+}
+
+.about-logo {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
+}
+
+.about-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 8rpx;
+}
+
+.about-version {
+  font-size: 24rpx;
+  color: #6b7280;
+  background: linear-gradient(135deg, #fde68a 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 600;
+}
+
+/* 功能列表样式 */
+.about-features {
+  margin-bottom: 40rpx;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.05);
+}
+
+.feature-item:last-child {
+  border-bottom: none;
+}
+
+.feature-icon {
+  font-size: 40rpx;
+  width: 64rpx;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.feature-content {
+  flex: 1;
+  margin-left: 20rpx;
+}
+
+.feature-name {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4rpx;
+}
+
+.feature-desc {
+  display: block;
+  font-size: 22rpx;
+  color: #6b7280;
+}
+
+/* 底部样式 */
+.about-footer {
+  text-align: center;
+}
+
+.about-slogan {
+  display: block;
+  font-size: 24rpx;
+  color: #9ca3af;
+  margin-bottom: 32rpx;
+  font-style: italic;
+}
+
+.about-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 80rpx;
+  background: linear-gradient(135deg, #fde68a 0%, #a78bfa 50%, #60a5fa 100%);
+  border-radius: 40rpx;
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 600;
+  box-shadow: 0 8rpx 24rpx rgba(167, 139, 250, 0.4);
+  transition: all 0.3s;
+}
+
+.about-close-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 4rpx 12rpx rgba(167, 139, 250, 0.4);
 }
