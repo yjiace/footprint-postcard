@@ -22,7 +22,7 @@
           <view class="destinations-list">
             <view class="destination-item" wx:for="{{hotDestinations}}" wx:key="id" bindtap="onDestinationTap" data-item="{{item}}">
               <view class="destination-image-wrapper">
-                <image class="destination-image" src="{{item.image}}" mode="aspectFill"></image>
+                <image class="destination-image" src="{{item.image}}" mode="aspectFill" lazy-load></image>
                 <view class="destination-overlay">
                   <text class="destination-name">{{item.name}}</text>
                 </view>
@@ -63,7 +63,7 @@
       
       <view class="attractions-list">
         <view class="attraction-item" wx:for="{{nearbyAttractions}}" wx:key="id" bindtap="onAttractionTap" data-item="{{item}}">
-          <image class="attraction-image" src="{{item.image}}" mode="aspectFill"></image>
+          <image class="attraction-image" src="{{item.image}}" mode="aspectFill" lazy-load></image>
           <view class="attraction-info">
             <text class="attraction-name">{{item.name}}</text>
             <text class="attraction-tags">{{item.tags}}</text>

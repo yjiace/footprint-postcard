@@ -29,7 +29,7 @@
         data-item="{{item}}"
         data-index="{{index}}"
       >
-        <image class="postcard-image" src="{{item.image}}" mode="aspectFill"></image>
+        <image class="postcard-image" src="{{item.thumbnail || item.image}}" mode="aspectFill" lazy-load></image>
         <text class="postcard-title">{{item.title}}</text>
       </view>
     </view>

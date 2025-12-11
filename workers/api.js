@@ -8,7 +8,11 @@
  * - AMAP_KEY: 高德地图API密钥(Web服务API Key)
  * - N8N_WORKFLOW_URL: N8N智能旅行规划工作流webhook地址
  * - KV: KV命名空间(用于数据存储)
+ * - R2_BUCKET: R2存储桶
+ * - R2_PUBLIC_DOMAIN: R2公开访问域名
  */
+
+import { PhotonImage, resize, SamplingFilter } from '@cf-wasm/photon';
 
 // ==================== 工具函数 ====================
 
@@ -139,17 +143,59 @@ async function wechatLogin(code, env) {
  * 高德地图逆地理编码API
  */
 async function getCityByLocation(longitude, latitude, env) {
+    // 检查 AMAP_KEY 是否配置
+    if (!env.AMAP_KEY) {
+        console.error('AMAP_KEY 未配置')
+        throw new Error('服务配置错误：未配置高德地图API密钥')
+    }
 
-    const url = `https://restapi.amap.com/v3/geocode/regeo?location=${longitude},${latitude}&key=${env.AMAP_KEY}&radius=1000&extensions=base&output=json`
+    // 使用 URLSearchParams 构建请求
+    const baseUrl = 'https://restapi.amap.com/v3/geocode/regeo'
+    const params = new URLSearchParams({
+        location: `${longitude},${latitude}`,
+        key: env.AMAP_KEY,
+        radius: '1000',
+        extensions: 'base',
+        output: 'json'
+    })
+    const url = `${baseUrl}?${params.toString()}`
+
+    console.log('高德地图API请求:', url.replace(env.AMAP_KEY, '***'))
 
     const response = await fetch(url, {
+        method: 'GET',
         headers: {
+            'Accept': 'application/json',
             'User-Agent': 'Mozilla/5.0 (compatible; CloudflareWorker/1.0)'
         }
     })
-    const data = await response.json()
+
+    // 检查 HTTP 状态
+    if (!response.ok) {
+        console.error('高德API HTTP错误:', response.status, response.statusText)
+        throw new Error(`高德API请求失败: ${response.status}`)
+    }
+
+    // 读取响应文本
+    const text = await response.text()
+    if (!text || text.length === 0) {
+        console.error('高德API返回空响应')
+        throw new Error('高德API返回空响应')
+    }
+
+    // 解析 JSON
+    let data
+    try {
+        data = JSON.parse(text)
+    } catch (e) {
+        console.error('高德API返回非JSON:', text.substring(0, 200))
+        throw new Error('高德API返回格式错误')
+    }
+
+    console.log('高德地图API响应:', JSON.stringify(data).substring(0, 200))
 
     if (data.status !== '1') {
+        console.error('高德地图API错误:', data.info, data.infocode)
         throw new Error(data.info || '获取城市信息失败')
     }
 
@@ -182,17 +228,64 @@ async function getCityByLocation(longitude, latitude, env) {
  * 高德地图周边搜索API
  */
 async function searchNearbyPOI(longitude, latitude, radius, keywords, env) {
+    if (!env.AMAP_KEY) {
+        console.error('searchNearbyPOI: AMAP_KEY 未配置')
+        throw new Error('服务配置错误：未配置高德地图API密钥')
+    }
 
-    const url = `https://restapi.amap.com/v3/place/around?location=${longitude},${latitude}&keywords=${keywords}&types=风景名胜|公园广场&radius=${radius}&offset=20&page=1&key=${env.AMAP_KEY}&extensions=all&output=json`
+    // 使用 URL 对象构建请求，自动处理编码
+    const baseUrl = 'https://restapi.amap.com/v3/place/around'
+    const params = new URLSearchParams({
+        location: `${longitude},${latitude}`,
+        keywords: keywords,
+        types: '风景名胜|公园广场',
+        radius: String(radius),
+        offset: '20',
+        page: '1',
+        key: env.AMAP_KEY,
+        extensions: 'all',
+        output: 'json'
+    })
+    const url = `${baseUrl}?${params.toString()}`
+
+    console.log('周边POI搜索请求:', url.replace(env.AMAP_KEY, '***'))
 
     const response = await fetch(url, {
+        method: 'GET',
         headers: {
+            'Accept': 'application/json',
             'User-Agent': 'Mozilla/5.0 (compatible; CloudflareWorker/1.0)'
         }
     })
-    const data = await response.json()
+
+    // 检查 HTTP 状态
+    if (!response.ok) {
+        console.error('高德API HTTP错误:', response.status, response.statusText)
+        throw new Error(`高德API请求失败: ${response.status}`)
+    }
+
+    // 读取响应文本
+    const text = await response.text()
+    console.log('高德API响应长度:', text.length)
+
+    if (!text || text.length === 0) {
+        console.error('高德API返回空响应')
+        throw new Error('高德API返回空响应')
+    }
+
+    // 解析 JSON
+    let data
+    try {
+        data = JSON.parse(text)
+    } catch (e) {
+        console.error('高德API返回非JSON:', text.substring(0, 500))
+        throw new Error('高德API返回格式错误')
+    }
+
+    console.log('周边POI搜索响应:', 'status=' + data.status, 'count=' + data.count, 'info=' + data.info)
 
     if (data.status !== '1') {
+        console.error('周边POI搜索失败:', data.info, data.infocode)
         throw new Error(data.info || '搜索周边POI失败')
     }
 
@@ -331,6 +424,9 @@ async function handleGetNearbyAttractions(request, env) {
 
         return jsonResponse(attractions)
     } catch (err) {
+        // 打印错误日志
+        console.error('获取周边景点失败:', err.message, err.stack)
+
         // 返回模拟数据
         const mockData = [
             {
@@ -582,8 +678,9 @@ async function handleDeletePlan(request, env) {
 
 /**
  * 12. AI生成明信片 - 使用 kuai.host Nano Banana Pro API
+ * 支持异步后台生成缩略图
  */
-async function handleGeneratePostcard(request, env) {
+async function handleGeneratePostcard(request, env, ctx) {
     const user = await getUserFromRequest(request, env)
     if (!user) {
         return errorResponse('未登录', 401)
@@ -691,19 +788,30 @@ async function handleGeneratePostcard(request, env) {
             }
         }
 
-        // 5. 如果有 base64 数据，上传到 R2
+        // 5. 如果有 base64 数据，上传原图到 R2（同步，快速响应）
+        let thumbnailUrl = null
+        const timestamp = Date.now()
+        const postcardId = generateId('postcard_')  // 提前生成 ID，用于异步任务和保存
+
         if (imageData && env.R2_BUCKET) {
-            const filename = `postcards/${user.openid}/${Date.now()}.png`
+            const originalPath = `postcards/${user.openid}/${timestamp}.png`
             const imageBuffer = Uint8Array.from(atob(imageData), c => c.charCodeAt(0))
 
-            await env.R2_BUCKET.put(filename, imageBuffer, {
+            await env.R2_BUCKET.put(originalPath, imageBuffer, {
                 httpMetadata: {
                     contentType: 'image/png'
                 }
             })
 
             // 构建 R2 公开访问 URL
-            imageUrl = `https://${env.R2_PUBLIC_DOMAIN || 'r2.smallyoung.cn'}/${filename}`
+            imageUrl = `https://${env.R2_PUBLIC_DOMAIN || 'r2.smallyoung.cn'}/${originalPath}`
+
+            // 后台异步生成缩略图（不阻塞响应）
+            if (ctx && ctx.waitUntil) {
+                ctx.waitUntil(
+                    generateThumbnailAsync(env, user.openid, postcardId, imageBuffer, timestamp)
+                )
+            }
         }
 
         // 如果没有获取到图片，使用默认图片
@@ -713,12 +821,12 @@ async function handleGeneratePostcard(request, env) {
         }
 
         // 6. 生成明信片记录
-        const postcardId = generateId('postcard_')
         const postcard = {
             id: postcardId,
             planId: planId,
             title: `${plan.city}之旅`,
             image: imageUrl,
+            thumbnail: null,  // 初始为空，后台异步生成后更新
             city: plan.city,
             date: plan.date,
             endDate: plan.endDate,
@@ -738,6 +846,7 @@ async function handleGeneratePostcard(request, env) {
             id: postcardId,
             title: postcard.title,
             image: postcard.image,
+            thumbnail: null,  // 初始为空
             city: postcard.city,
             date: postcard.date,
             createdAt: postcard.createdAt
@@ -748,6 +857,78 @@ async function handleGeneratePostcard(request, env) {
     } catch (err) {
         console.error('生成明信片失败:', err)
         return errorResponse('生成明信片失败: ' + err.message, 500)
+    }
+}
+
+/**
+ * 异步生成缩略图并更新 KV
+ * 使用 ctx.waitUntil() 调用，不阻塞主请求
+ */
+async function generateThumbnailAsync(env, openid, postcardId, imageBuffer, timestamp) {
+    try {
+        console.log('开始异步生成缩略图:', postcardId)
+        const thumbnailPath = `postcards/${openid}/${timestamp}_thumb.jpg`
+
+        // 使用 photon 压缩图片
+        const inputImage = PhotonImage.new_from_byteslice(imageBuffer)
+        const originalWidth = inputImage.get_width()
+        const originalHeight = inputImage.get_height()
+
+        console.log('原始图片尺寸:', originalWidth, 'x', originalHeight)
+
+        // 缩放到 400px 宽
+        const maxWidth = 400
+        const ratio = Math.min(1, maxWidth / originalWidth)
+        const newWidth = Math.round(originalWidth * ratio)
+        const newHeight = Math.round(originalHeight * ratio)
+
+        let jpegBytes
+        if (ratio < 1) {
+            // 需要缩放 (SamplingFilter.Lanczos3 = 3)
+            const resized = resize(inputImage, newWidth, newHeight, SamplingFilter.Lanczos3)
+            jpegBytes = resized.get_bytes_jpeg(80)
+            resized.free()
+        } else {
+            // 不需要缩放，直接转换为 JPEG
+            jpegBytes = inputImage.get_bytes_jpeg(80)
+        }
+        inputImage.free()
+
+
+        console.log('缩略图大小:', jpegBytes.length, 'bytes')
+
+        // 上传缩略图到 R2
+        await env.R2_BUCKET.put(thumbnailPath, jpegBytes, {
+            httpMetadata: { contentType: 'image/jpeg' }
+        })
+
+        const thumbnailUrl = `https://${env.R2_PUBLIC_DOMAIN || 'r2.smallyoung.cn'}/${thumbnailPath}`
+
+        // 更新 KV 中的明信片详情
+        const postcardKey = `postcard:${openid}:${postcardId}`
+        const postcardData = await env.KV.get(postcardKey)
+        if (postcardData) {
+            const postcard = JSON.parse(postcardData)
+            postcard.thumbnail = thumbnailUrl
+            await env.KV.put(postcardKey, JSON.stringify(postcard))
+        }
+
+        // 同时更新列表中的缩略图
+        const listKey = `postcard_list:${openid}`
+        const listData = await env.KV.get(listKey)
+        if (listData) {
+            const list = JSON.parse(listData)
+            const item = list.find(p => p.id === postcardId)
+            if (item) {
+                item.thumbnail = thumbnailUrl
+                await env.KV.put(listKey, JSON.stringify(list))
+            }
+        }
+
+        console.log('缩略图生成完成:', thumbnailUrl)
+    } catch (err) {
+        console.error('异步生成缩略图失败:', err)
+        // 失败不影响主流程，前端会降级显示原图
     }
 }
 
@@ -887,8 +1068,9 @@ function getCityFoods(city) {
 
 /**
  * 13. 获取明信片列表（支持分页）
+ * 同时检测并补生成缺失的缩略图
  */
-async function handleGetPostcardList(request, env) {
+async function handleGetPostcardList(request, env, ctx) {
     const user = await getUserFromRequest(request, env)
     if (!user) {
         return errorResponse('未登录', 401)
@@ -911,6 +1093,13 @@ async function handleGetPostcardList(request, env) {
         const list = allList.slice(start, end)
         const hasMore = page < totalPages
 
+        // 异步检测并补生成缺失的缩略图（不阻塞响应）
+        if (ctx && ctx.waitUntil) {
+            ctx.waitUntil(
+                checkAndGenerateMissingThumbnails(env, user.openid, allList)
+            )
+        }
+
         return jsonResponse({
             list,
             total,
@@ -923,6 +1112,131 @@ async function handleGetPostcardList(request, env) {
         return errorResponse('获取失败', 500)
     }
 }
+
+/**
+ * 检测并补生成缺失的缩略图
+ * 使用锁机制避免重复生成
+ */
+async function checkAndGenerateMissingThumbnails(env, openid, postcardList) {
+    try {
+        // 找出没有缩略图的明信片（排除正在生成中的）
+        const missingThumbnails = []
+
+        for (const item of postcardList) {
+            if (!item.thumbnail) {
+                // 检查是否正在生成中（使用锁机制）
+                const lockKey = `thumbnail_lock:${item.id}`
+                const isLocked = await env.KV.get(lockKey)
+
+                if (!isLocked) {
+                    missingThumbnails.push(item)
+                }
+            }
+        }
+
+        if (missingThumbnails.length === 0) {
+            return
+        }
+
+        console.log('发现缺失缩略图的明信片:', missingThumbnails.length, '个')
+
+        // 限制每次最多处理 3 个，避免 CPU 超限
+        const toProcess = missingThumbnails.slice(0, 3)
+
+        for (const item of toProcess) {
+            try {
+                // 设置锁，5分钟过期（避免死锁）
+                const lockKey = `thumbnail_lock:${item.id}`
+                await env.KV.put(lockKey, 'processing', { expirationTtl: 300 })
+
+                // 获取原图并重新生成缩略图
+                await regenerateThumbnailFromUrl(env, openid, item)
+
+                // 生成完成后删除锁
+                await env.KV.delete(lockKey)
+            } catch (err) {
+                console.error('补生成缩略图失败:', item.id, err)
+                // 失败时也删除锁，允许下次重试
+                await env.KV.delete(`thumbnail_lock:${item.id}`)
+            }
+        }
+    } catch (err) {
+        console.error('检测缺失缩略图失败:', err)
+    }
+}
+
+/**
+ * 从原图 URL 重新生成缩略图
+ */
+async function regenerateThumbnailFromUrl(env, openid, postcardItem) {
+    const imageUrl = postcardItem.image
+    if (!imageUrl) return
+
+    console.log('开始从URL重新生成缩略图:', postcardItem.id)
+
+    // 下载原图
+    const response = await fetch(imageUrl)
+    if (!response.ok) {
+        throw new Error('下载原图失败: ' + response.status)
+    }
+
+    const imageBuffer = new Uint8Array(await response.arrayBuffer())
+
+    // 从 URL 提取时间戳，或使用当前时间
+    const timestamp = Date.now()
+    const thumbnailPath = `postcards/${openid}/${timestamp}_thumb.jpg`
+
+    // 使用 photon 压缩图片
+    const inputImage = PhotonImage.new_from_byteslice(imageBuffer)
+    const originalWidth = inputImage.get_width()
+    const originalHeight = inputImage.get_height()
+
+    const maxWidth = 400
+    const ratio = Math.min(1, maxWidth / originalWidth)
+    const newWidth = Math.round(originalWidth * ratio)
+    const newHeight = Math.round(originalHeight * ratio)
+
+    let jpegBytes
+    if (ratio < 1) {
+        const resized = resize(inputImage, newWidth, newHeight, SamplingFilter.Lanczos3)
+        jpegBytes = resized.get_bytes_jpeg(80)
+        resized.free()
+    } else {
+        jpegBytes = inputImage.get_bytes_jpeg(80)
+    }
+    inputImage.free()
+
+    // 上传缩略图到 R2
+    await env.R2_BUCKET.put(thumbnailPath, jpegBytes, {
+        httpMetadata: { contentType: 'image/jpeg' }
+    })
+
+    const thumbnailUrl = `https://${env.R2_PUBLIC_DOMAIN || 'r2.smallyoung.cn'}/${thumbnailPath}`
+
+    // 更新 KV 中的明信片详情
+    const postcardKey = `postcard:${openid}:${postcardItem.id}`
+    const postcardData = await env.KV.get(postcardKey)
+    if (postcardData) {
+        const postcard = JSON.parse(postcardData)
+        postcard.thumbnail = thumbnailUrl
+        await env.KV.put(postcardKey, JSON.stringify(postcard))
+    }
+
+    // 更新列表中的缩略图
+    const listKey = `postcard_list:${openid}`
+    const listData = await env.KV.get(listKey)
+    if (listData) {
+        const list = JSON.parse(listData)
+        const item = list.find(p => p.id === postcardItem.id)
+        if (item) {
+            item.thumbnail = thumbnailUrl
+            await env.KV.put(listKey, JSON.stringify(list))
+        }
+    }
+
+    console.log('缩略图补生成完成:', thumbnailUrl)
+}
+
 
 /**
  * 14. 获取明信片详情
@@ -1137,7 +1451,7 @@ export default {
             const handler = routes[routeKey]
 
             if (handler) {
-                return await handler(request, env)
+                return await handler(request, env, ctx)
             }
 
             return errorResponse('接口不存在', 404)

@@ -16,7 +16,7 @@ Page({
     },
 
     onLoad() {
-        this.loadPostcardList(true)
+        // onShow 会自动调用 loadPostcardList，这里不重复调用
     },
 
     onShow() {
