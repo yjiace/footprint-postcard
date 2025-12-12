@@ -586,6 +586,25 @@ Page({
         const action = e.currentTarget.dataset.action
         switch (action) {
             case 'plan':
+                // 检查用户是否已登录
+                if (!storage.isLoggedIn()) {
+                    wx.showModal({
+                        title: '登录提示',
+                        content: '您需要登录后才能规划行程',
+                        confirmText: '去登录',
+                        cancelText: '取消',
+                        success: (res) => {
+                            if (res.confirm) {
+                                // 跳转到登录页面，并传递回调页面
+                                wx.navigateTo({
+                                    url: '/pages/login/login?redirect=/pages/plan/plan'
+                                })
+                            }
+                            // 点击取消则不做任何操作，停留在当前页面
+                        }
+                    })
+                    return
+                }
                 wx.navigateTo({
                     url: '/pages/plan/plan'
                 })

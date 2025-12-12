@@ -119,36 +119,131 @@ async function getUserFromRequest(request, env) {
 
 /**
  * 下载城市封面图片并保存到R2
- * 使用Picsum API获取随机高质量图片（更稳定可靠）
+ * 优先使用Unsplash API根据城市名称搜索特色图片，失败时回退到Picsum
  * @param {String} city 城市名称
  * @param {String} planId 行程ID（用于生成唯一文件名）
- * @param {Object} env 环境变量（包含R2_BUCKET和R2_PUBLIC_DOMAIN）
+ * @param {Object} env 环境变量（包含R2_BUCKET、R2_PUBLIC_DOMAIN、UNSPLASH_ACCESS_KEY）
  * @returns {Promise<String>} 保存后的图片URL
  */
+// 中国热门城市中英文映射表（用于 Unsplash 搜索）
+const CITY_NAME_MAP = {
+    // 直辖市
+    '北京': 'Beijing', '上海': 'Shanghai', '天津': 'Tianjin', '重庆': 'Chongqing',
+    // 省会城市
+    '广州': 'Guangzhou', '深圳': 'Shenzhen', '杭州': 'Hangzhou', '南京': 'Nanjing',
+    '成都': 'Chengdu', '武汉': 'Wuhan', '西安': 'Xian', '长沙': 'Changsha',
+    '郑州': 'Zhengzhou', '济南': 'Jinan', '青岛': 'Qingdao', '大连': 'Dalian',
+    '沈阳': 'Shenyang', '哈尔滨': 'Harbin', '长春': 'Changchun', '福州': 'Fuzhou',
+    '厦门': 'Xiamen', '南昌': 'Nanchang', '合肥': 'Hefei', '石家庄': 'Shijiazhuang',
+    '太原': 'Taiyuan', '昆明': 'Kunming', '贵阳': 'Guiyang', '南宁': 'Nanning',
+    '海口': 'Haikou', '三亚': 'Sanya', '拉萨': 'Lhasa', '乌鲁木齐': 'Urumqi',
+    '兰州': 'Lanzhou', '西宁': 'Xining', '银川': 'Yinchuan', '呼和浩特': 'Hohhot',
+    // 热门旅游城市
+    '桂林': 'Guilin', '丽江': 'Lijiang', '大理': 'Dali', '苏州': 'Suzhou',
+    '无锡': 'Wuxi', '扬州': 'Yangzhou', '黄山': 'Huangshan', '张家界': 'Zhangjiajie',
+    '九寨沟': 'Jiuzhaigou', '敦煌': 'Dunhuang', '洛阳': 'Luoyang', '开封': 'Kaifeng',
+    '泰安': 'Taian', '威海': 'Weihai', '烟台': 'Yantai', '秦皇岛': 'Qinhuangdao',
+    '珠海': 'Zhuhai', '汕头': 'Shantou', '佛山': 'Foshan', '东莞': 'Dongguan',
+    '宁波': 'Ningbo', '温州': 'Wenzhou', '绍兴': 'Shaoxing', '嘉兴': 'Jiaxing',
+    // 港澳台
+    '香港': 'Hong Kong', '澳门': 'Macau', '台北': 'Taipei', '高雄': 'Kaohsiung'
+}
+
 async function downloadAndSaveCityImage(city, planId, env) {
     try {
-        // 使用城市名称的hash作为seed，确保同一城市获得类似风格的图片
-        const cityHash = city.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-        const seed = cityHash % 1000
+        let imageUrl = null
+        let imageBuffer = null
 
-        // Picsum API: 获取随机风景图片 (800x400尺寸，grayscale=0表示彩色)
-        const picsumUrl = `https://picsum.photos/seed/${seed}/800/400`
+        // 优先尝试 Unsplash API（需要配置 UNSPLASH_ACCESS_KEY）
+        if (env.UNSPLASH_ACCESS_KEY) {
+            // 尝试搜索图片的辅助函数
+            const searchUnsplash = async (query) => {
+                const searchQuery = encodeURIComponent(query)
+                const unsplashApiUrl = `https://api.unsplash.com/search/photos?query=${searchQuery}&per_page=5&orientation=landscape`
 
-        console.log('下载城市封面图片:', picsumUrl)
+                const unsplashResponse = await fetch(unsplashApiUrl, {
+                    headers: {
+                        'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`,
+                        'Accept-Version': 'v1'
+                    }
+                })
 
-        const response = await fetch(picsumUrl, {
-            headers: {
-                'User-Agent': 'Cloudflare-Worker/1.0'
+                if (unsplashResponse.ok) {
+                    const unsplashData = await unsplashResponse.json()
+                    return unsplashData.results || []
+                }
+                return []
             }
-        })
 
-        if (!response.ok) {
-            console.error('下载图片失败:', response.status)
-            return null
+            try {
+                let results = []
+
+                // 策略1: 如果在映射表中，使用英文名搜索
+                if (CITY_NAME_MAP[city]) {
+                    const englishCity = CITY_NAME_MAP[city]
+                    console.log('Unsplash搜索(映射):', city, '->', englishCity)
+                    results = await searchUnsplash(`${englishCity} city landmark skyline`)
+                }
+
+                // 策略2: 如果策略1没找到或不在映射表中，使用 "城市名 + China travel" 搜索
+                if (results.length === 0) {
+                    console.log('Unsplash搜索(通用):', city, '+ China travel')
+                    results = await searchUnsplash(`${city} China travel landscape`)
+                }
+
+                // 策略3: 如果还是没找到，使用 "China travel" 通用搜索
+                if (results.length === 0) {
+                    console.log('Unsplash搜索(兜底): China travel landscape')
+                    results = await searchUnsplash('China travel landscape beautiful')
+                }
+
+                if (results.length > 0) {
+                    // 随机选择前5张中的一张，增加多样性
+                    const randomIndex = Math.floor(Math.random() * Math.min(5, results.length))
+                    const photo = results[randomIndex]
+
+                    // 使用 small 尺寸 (400px宽)，适合列表展示，减小体积
+                    imageUrl = photo.urls.small
+
+                    console.log('Unsplash找到图片:', imageUrl.substring(0, 80) + '...')
+                    console.log('摄影师:', photo.user.name)
+
+                    // 下载图片
+                    const imgResponse = await fetch(imageUrl)
+                    if (imgResponse.ok) {
+                        imageBuffer = await imgResponse.arrayBuffer()
+                    }
+                } else {
+                    console.log('Unsplash所有搜索策略均未找到图片，使用备用方案')
+                }
+            } catch (unsplashErr) {
+                console.error('Unsplash API异常:', unsplashErr.message)
+            }
+        } else {
+            console.log('未配置 UNSPLASH_ACCESS_KEY，使用备用图片源')
         }
 
-        // 获取图片数据
-        const imageBuffer = await response.arrayBuffer()
+        // 回退方案：使用 Picsum 随机风景图片
+        if (!imageBuffer) {
+            const cityHash = city.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+            const seed = cityHash % 1000
+            const picsumUrl = `https://picsum.photos/seed/${seed}/800/400`
+
+            console.log('使用Picsum备用图片:', picsumUrl)
+
+            const response = await fetch(picsumUrl, {
+                headers: {
+                    'User-Agent': 'Cloudflare-Worker/1.0'
+                }
+            })
+
+            if (!response.ok) {
+                console.error('Picsum下载失败:', response.status)
+                return null
+            }
+
+            imageBuffer = await response.arrayBuffer()
+        }
 
         // 保存到R2
         const timestamp = Date.now()
