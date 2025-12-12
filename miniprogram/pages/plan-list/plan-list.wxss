@@ -132,9 +132,53 @@
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10rpx);
   border-radius: 20rpx;
-  padding: 28rpx;
+  overflow: hidden;
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
   transition: border-radius 0.3s ease;
+}
+
+/* 城市封面图片 */
+.city-cover-image {
+  width: 100%;
+  height: 200rpx;
+  display: block;
+}
+
+/* 行程信息容器 */
+.plan-info {
+  padding: 24rpx 28rpx;
+}
+
+/* 偏好标签行 */
+.plan-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 12rpx;
+}
+
+.tag-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 6rpx 16rpx;
+  border-radius: 16rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+}
+
+.tag-item.transport {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.tag-item.hotel {
+  background-color: #fce7f3;
+  color: #be185d;
+}
+
+.tag-item.poi {
+  background-color: #d1fae5;
+  color: #047857;
 }
 
 .plan-header {
@@ -228,57 +272,77 @@
   color: #6b7280;
 }
 
-/* 删除和明信片按钮 */
-.delete-action {
+/* 右下角菜单按钮 */
+.card-menu-btn {
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 100rpx;
-  height: 100%;
-  background-color: #ef4444;
+  bottom: 16rpx;
+  right: 16rpx;
+  width: 56rpx;
+  height: 56rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  pointer-events: none; /* 隐藏时禁用点击 */
-  transition: opacity 0.3s ease;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 50%;
 }
 
-.delete-action.show {
-  opacity: 1;
-  pointer-events: auto; /* 显示时启用点击 */
+.card-menu-btn:active {
+  background: rgba(0, 0, 0, 0.1);
 }
 
-.delete-text {
-  color: #FFFFFF;
-  font-size: 28rpx;
-  font-weight: 500;
-}
-
-.postcard-action {
-  position: absolute;
-  top: 0;
-  right: 100rpx;
-  width: 100rpx;
-  height: 100%;
-  background-color: #a78bfa;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none; /* 隐藏时禁用点击 */
-  transition: opacity 0.3s ease;
-}
-
-.postcard-action.show {
-  opacity: 1;
-  pointer-events: auto; /* 显示时启用点击 */
-}
-
-.postcard-action-text {
-  color: #FFFFFF;
+.menu-dots {
   font-size: 24rpx;
-  font-weight: 500;
+  color: #6b7280;
+  letter-spacing: 2rpx;
+}
+
+/* 下拉菜单 */
+.dropdown-menu {
+  position: absolute;
+  bottom: 70rpx;
+  right: 16rpx;
+  min-width: 200rpx;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  transform: translateY(10rpx) scale(0.95);
+  pointer-events: none;
+  transition: all 0.2s ease;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 24rpx 28rpx;
+  font-size: 28rpx;
+  color: #374151;
+  border-bottom: 1rpx solid #f3f4f6;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:active {
+  background: #f9fafb;
+}
+
+.menu-item.danger {
+  color: #ef4444;
+}
+
+.menu-icon {
+  font-size: 32rpx;
 }
 
 /* 加载更多 */
@@ -319,8 +383,8 @@
 }
 
 .fab-btn {
-  width: 112rpx;
-  height: 112rpx;
+  width: 100rpx;
+  height: 100rpx;
   border-radius: 50%;
   background: #a78bfa;
   display: flex;
@@ -336,13 +400,52 @@
 }
 
 .fab-icon {
-  font-size: 75rpx;
+  font-size: 48rpx;
   color: #FFFFFF;
   font-weight: 300;
-  height: 140rpx;
+  line-height: 1;
 }
 
 /* 底部占位 */
 .bottom-placeholder {
   height: 120rpx;
+}
+
+/* 回到顶部按钮 */
+.back-to-top {
+  position: fixed;
+  right: 48rpx;
+  bottom: calc(160rpx + env(safe-area-inset-bottom));
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10rpx);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.12);
+  z-index: 99;
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.back-to-top.show {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.back-to-top:active {
+  transform: scale(0.9);
+  background: rgba(255, 255, 255, 1);
+}
+
+.back-top-icon {
+  font-size: 48rpx;
+  color: #a78bfa;
+  font-weight: 300;
+  line-height: 1;
 }

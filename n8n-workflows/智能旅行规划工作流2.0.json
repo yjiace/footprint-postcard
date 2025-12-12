@@ -8,27 +8,27 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "3f103855-88bf-491d-b71a-ab96439d2a8c",
+      "id": "2f577470-caf9-4e14-bb0b-08a2368ef3b7",
       "name": "Webhook触发器",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -992,
-        80
+        -2816,
+        -16
       ],
       "webhookId": "a776125b-943c-4b00-990b-cf32ec9f66d6"
     },
     {
       "parameters": {
-        "jsCode": "// 保存原始请求数据和API配置\nconst request = $input.first().json.body || $input.first().json;\n\n// 配置API密钥 - 请在此处填入您的密钥\nconst config = {\n  AMAP_API_KEY: 'c90071xxx'\n};\n\n// 提取回调信息\nconst callback = request.callback || {};\n\nreturn [{ \n  json: {\n    ...request,\n    _config: config,\n    _callback: callback  // 保存回调信息\n  }\n}];"
+        "jsCode": "// 保存原始请求数据和API配置\nconst request = $input.first().json.body || $input.first().json;\n\n// 配置API密钥 - 请在此处填入您的密钥\nconst config = {\n  AMAP_API_KEY: 'c900719280603182cda1c3d75658da08'\n};\n\n// 提取回调信息\nconst callback = request.callback || {};\n\nreturn [{ \n  json: {\n    ...request,\n    _config: config,\n    _callback: callback  // 保存回调信息\n  }\n}];"
       },
-      "id": "e8894c7b-6015-4c55-87a9-4976fe43abc9",
+      "id": "8498a396-1ad4-4e0a-8901-c2d4ff89f04a",
       "name": "保存请求数据",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -800,
-        80
+        -2624,
+        -16
       ]
     },
     {
@@ -47,13 +47,13 @@
           }
         }
       },
-      "id": "respond-immediately",
+      "id": "371546f9-e71e-4b9b-9844-df4f13c2a2ac",
       "name": "立即返回响应",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        -600,
-        80
+        -2416,
+        -16
       ]
     },
     {
@@ -90,13 +90,13 @@
         },
         "options": {}
       },
-      "id": "56482c9b-007d-4257-b068-f013400b6b91",
+      "id": "89328d09-6b27-48cf-a586-6f9b455726a7",
       "name": "景点搜索",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -592,
-        -128
+        -2416,
+        -224
       ]
     },
     {
@@ -125,13 +125,13 @@
         },
         "options": {}
       },
-      "id": "681bf61d-d33a-4ebf-bbe5-a9c05239ef87",
+      "id": "64c842d8-6308-4de8-b727-bacb51c87659",
       "name": "天气查询",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -592,
-        80
+        -2416,
+        -16
       ]
     },
     {
@@ -164,78 +164,78 @@
         },
         "options": {}
       },
-      "id": "bbb8f6eb-96d6-4c0d-a31e-ffbe2e8a7ca0",
+      "id": "ef78384c-6886-459b-a925-364c18ccb3e3",
       "name": "酒店搜索",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -592,
-        272
+        -2416,
+        192
       ]
     },
     {
       "parameters": {
         "jsCode": "// 处理景点搜索结果\nconst response = $input.first().json;\nconst attractions = (response.pois || []).slice(0, 10).map(poi => ({\n  name: poi.name,\n  address: poi.address,\n  location: poi.location,\n  type: poi.type,\n  tel: poi.tel || '',\n  rating: poi.biz_ext?.rating || '',\n  photos: poi.photos || []\n}));\n\nreturn [{ json: { attractions, status: response.status } }];"
       },
-      "id": "7031e76d-3811-45ed-bd6b-442a231fe542",
+      "id": "700909d8-8372-4269-823d-03d176452f6e",
       "name": "处理景点数据",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -384,
-        -128
+        -2208,
+        -224
       ]
     },
     {
       "parameters": {
         "jsCode": "// 处理天气查询结果\nconst response = $input.first().json;\nconst forecasts = response.forecasts?.[0]?.casts || [];\nconst weather = forecasts.map(cast => ({\n  date: cast.date,\n  dayweather: cast.dayweather,\n  nightweather: cast.nightweather,\n  daytemp: cast.daytemp,\n  nighttemp: cast.nighttemp,\n  daywind: cast.daywind,\n  nightwind: cast.nightwind,\n  daypower: cast.daypower,\n  nightpower: cast.nightpower\n}));\n\nreturn [{ json: { weather, status: response.status } }];"
       },
-      "id": "af5a258a-f076-49ce-949d-35aecd135192",
+      "id": "154f4b25-185d-4670-8025-f912d607556c",
       "name": "处理天气数据",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -384,
-        80
+        -2208,
+        -16
       ]
     },
     {
       "parameters": {
         "jsCode": "// 处理酒店搜索结果\nconst response = $input.first().json;\nconst hotels = (response.pois || []).slice(0, 5).map(poi => ({\n  name: poi.name,\n  address: poi.address,\n  location: poi.location,\n  type: poi.type,\n  tel: poi.tel || '',\n  rating: poi.biz_ext?.rating || ''\n}));\n\nreturn [{ json: { hotels, status: response.status } }];"
       },
-      "id": "5a411702-87bc-4298-bfc9-3792b90de8b9",
+      "id": "396c2bdf-2882-4acc-81ce-6b1b3cc8c0d4",
       "name": "处理酒店数据",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -384,
-        272
+        -2208,
+        192
       ]
     },
     {
       "parameters": {
         "numberInputs": 3
       },
-      "id": "0e88abd2-1a1d-40aa-b47c-ca51ece25502",
+      "id": "79ce91f2-ce9a-43cc-8c32-aba3395b957c",
       "name": "合并所有数据",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        32,
-        80
+        -1792,
+        -16
       ]
     },
     {
       "parameters": {
         "jsCode": "// 整合所有数据\nconst items = $input.all();\n\n// 从保存请求数据节点获取原始请求\nconst savedData = $('保存请求数据').first().json;\nconst savedRequest = savedData;\nconst config = savedData._config;\nconst callback = savedData._callback;\n\n// 提取各类数据\nlet attractions = [];\nlet weather = [];\nlet hotels = [];\n\nfor (const item of items) {\n  if (item.json.attractions) {\n    attractions = item.json.attractions;\n  }\n  if (item.json.weather) {\n    weather = item.json.weather;\n  }\n  if (item.json.hotels) {\n    hotels = item.json.hotels;\n  }\n}\n\nreturn [{\n  json: {\n    request: {\n      city: savedRequest.city || '',\n      start_date: savedRequest.start_date || '',\n      end_date: savedRequest.end_date || '',\n      travel_days: savedRequest.travel_days || 3,\n      transportation: savedRequest.transportation || '公共交通',\n      accommodation: savedRequest.accommodation || '经济型酒店',\n      preferences: savedRequest.preferences || [],\n      free_text_input: savedRequest.free_text_input || ''\n    },\n    attractions: attractions,\n    weather: weather,\n    hotels: hotels,\n    _config: config,\n    _callback: callback\n  }\n}];"
       },
-      "id": "a9e314b0-85f3-4f4a-bbe6-d58c1338ebcb",
+      "id": "135b4c57-232c-4440-bce2-b104ee396d6b",
       "name": "数据格式化",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        224,
-        96
+        -1600,
+        16
       ]
     },
     {
@@ -246,39 +246,39 @@
           "systemMessage": "=你是行程规划专家。你的任务是根据景点信息、天气信息和酒店信息，生成详细的旅行计划。\n\n请严格按照以下JSON格式返回旅行计划（不要包含```json标记，直接输出JSON）：\n\n{\n    \"city\": \"城市名称\",\n    \"start_date\": \"YYYY-MM-DD\",\n    \"end_date\": \"YYYY-MM-DD\",\n    \"days\": [\n        {\n            \"date\": \"YYYY-MM-DD\",\n            \"day_index\": 0,\n            \"description\": \"第1天行程概述\",\n            \"transportation\": \"交通方式\",\n            \"accommodation\": \"住宿类型\",\n            \"planning\": [\n                {\n                    \"type\": \"breakfast\",\n                    \"name\": \"早餐推荐\",\n                    \"address\": \"餐馆地址\",\n                    \"location\": {\n                        \"longitude\": 116.397128,\n                        \"latitude\": 39.916527\n                    },\n                    \"visit_duration\": 30,\n                    \"description\": \"餐馆描述\",\n                    \"category\": \"餐馆类别\",\n                    \"ticket_price\": 30\n                },\n                {\n                    \"type\": \"attraction\",\n                    \"name\": \"景点名称1\",\n                    \"address\": \"详细地址\",\n                    \"location\": {\n                        \"longitude\": 116.397128,\n                        \"latitude\": 39.916527\n                    },\n                    \"visit_duration\": 120,\n                    \"description\": \"景点描述\",\n                    \"category\": \"景点类别\",\n                    \"ticket_price\": 60\n                },\n                {\n                    \"type\": \"lunch\",\n                    \"name\": \"午餐推荐\",\n                    \"address\": \"餐馆地址\",\n                    \"location\": {\n                        \"longitude\": 116.397128,\n                        \"latitude\": 39.916527\n                    },\n                    \"visit_duration\": 60,\n                    \"description\": \"餐馆描述\",\n                    \"category\": \"餐馆类别\",\n                    \"ticket_price\": 50\n                },\n                {\n                    \"type\": \"attraction\",\n                    \"name\": \"景点名称2\",\n                    \"address\": \"详细地址\",\n                    \"location\": {\n                        \"longitude\": 116.397128,\n                        \"latitude\": 39.916527\n                    },\n                    \"visit_duration\": 120,\n                    \"description\": \"景点描述\",\n                    \"category\": \"景点类别\",\n                    \"ticket_price\": 60\n                },\n                {\n                    \"type\": \"dinner\",\n                    \"name\": \"晚餐推荐\",\n                    \"address\": \"餐馆地址\",\n                    \"location\": {\n                        \"longitude\": 116.397128,\n                        \"latitude\": 39.916527\n                    },\n                    \"visit_duration\": 60,\n                    \"description\": \"餐馆描述\",\n                    \"category\": \"餐馆类别\",\n                    \"ticket_price\": 80\n                },\n                {\n                    \"type\": \"hotel\",\n                    \"name\": \"酒店推荐\",\n                    \"address\": \"酒店地址\",\n                    \"location\": {\n                        \"longitude\": 116.397128,\n                        \"latitude\": 39.916527\n                    },\n                    \"visit_duration\": 0,\n                    \"description\": \"酒店描述\",\n                    \"category\": \"酒店类别\",\n                    \"ticket_price\": 300\n                }\n            ]\n        }\n    ],\n    \"weather_info\": [\n        {\n            \"date\": \"YYYY-MM-DD\",\n            \"day_weather\": \"晴\",\n            \"night_weather\": \"多云\",\n            \"day_temp\": 25,\n            \"night_temp\": 15,\n            \"wind_direction\": \"南风\",\n            \"wind_power\": \"1-3级\"\n        }\n    ],\n    \"overall_suggestions\": \"总体建议\",\n    \"budget\": {\n        \"total_attractions\": 180,\n        \"total_hotels\": 1200,\n        \"total_meals\": 480,\n        \"total_transportation\": 200,\n        \"total\": 2060\n    }\n}\n\n重要提示：\n1. 每天安排2-4个景点\n2. 每天必须包含早中晚三餐\n3. 按照时间推断对应景点的酒店\n4. 考虑景点之间的距离和交通方式\n5. 提供实用的旅行建议和预算估算\n6. 使用真实的景点和酒店信息\n7. 只输出JSON，不要有任何其他文字说明\n8. 确保景点、饭店和酒店的地点是线性的，避免一个在城西下一个在城东，下一个又回到了城西"
         }
       },
-      "id": "58ff2098-ba04-4c5e-9429-4dca3c236d9e",
+      "id": "feeb4e60-9acd-4fc6-9bf0-57ed18fe48e5",
       "name": "AI行程规划Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        448,
-        96
+        -1376,
+        16
       ]
     },
     {
       "parameters": {
         "jsCode": "const response = $input.first().json;\n\n// 从数据格式化节点获取回调信息\nconst formattedData = $('数据格式化').first().json;\nconst callback = formattedData._callback || {};\n\ntry {\n  // 提取AI响应内容\n  let content = response.output || response.text || '';\n  \n  // 清理JSON字符串\n  content = content.trim();\n  \n  // 移除可能的markdown代码块标记\n  if (content.startsWith('```json')) {\n    content = content.slice(7);\n  } else if (content.startsWith('```')) {\n    content = content.slice(3);\n  }\n  if (content.endsWith('```')) {\n    content = content.slice(0, -3);\n  }\n  content = content.trim();\n  \n  // 尝试找到JSON对象\n  const jsonStart = content.indexOf('{');\n  const jsonEnd = content.lastIndexOf('}');\n  if (jsonStart !== -1 && jsonEnd !== -1) {\n    content = content.slice(jsonStart, jsonEnd + 1);\n  }\n  \n  // 解析JSON\n  const tripPlan = JSON.parse(content);\n  \n  return [{\n    json: {\n      success: true,\n      message: \"旅行计划生成成功\",\n      data: tripPlan,\n      _callback: callback\n    }\n  }];\n} catch (error) {\n  return [{\n    json: {\n      success: false,\n      message: \"解析旅行计划失败: \" + error.message,\n      raw_response: response.output || response.text || JSON.stringify(response),\n      error: error.message,\n      _callback: callback\n    }\n  }];\n}"
       },
-      "id": "10f5fdd0-3677-481e-8638-7564f1fc68ed",
+      "id": "f54bc6ff-7b27-43f2-ab99-aff4fc53af9f",
       "name": "解析AI响应",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        816,
-        96
+        -1008,
+        16
       ]
     },
     {
       "parameters": {
         "jsCode": "// 接收AI行程规划的响应数据并准备路径查询\n// 输入格式应与\"解析AI响应\"节点输出一致\n\nconst input = $input.first().json;\n\n// 配置API密钥\nconst config = {\n  AMAP_API_KEY: 'c900719280603182cda1c3d75658da08'\n};\n\n// 获取回调信息\nconst callback = input._callback || {};\n\n// 验证输入数据\nif (!input.success || !input.data || !input.data.days) {\n  return [{\n    json: {\n      success: false,\n      message: '输入数据格式错误，需要包含days数组',\n      _config: config,\n      _callback: callback\n    }\n  }];\n}\n\nconst days = input.data.days;\nconst routeQueries = [];\nlet previousDayLastLocation = null;\n\nfor (let dayIndex = 0; dayIndex < days.length; dayIndex++) {\n  const day = days[dayIndex];\n  const planning = day.planning || [];\n  \n  // 过滤出有有效坐标的地点\n  const locations = planning\n    .filter(p => p.location && p.location.longitude && p.location.latitude)\n    .map(p => ({\n      name: p.name,\n      type: p.type,\n      coord: `${p.location.longitude},${p.location.latitude}`\n    }));\n  \n  // 如果是第二天及以后，从前一天最后一个地点开始（跨天衔接）\n  if (previousDayLastLocation && dayIndex > 0) {\n    locations.unshift(previousDayLastLocation);\n  }\n  \n  // 至少需要2个地点才能规划路径\n  if (locations.length >= 2) {\n    const origin = locations[0].coord;\n    const destination = locations[locations.length - 1].coord;\n    // 中间地点作为途经点，用分号分隔\n    const waypoints = locations.slice(1, -1).map(l => l.coord).join(';');\n    \n    routeQueries.push({\n      dayIndex,\n      date: day.date,\n      origin,\n      destination,\n      waypoints: waypoints || '',\n      locationNames: locations.map(l => l.name),\n      locationCount: locations.length,\n      _config: config,\n      _originalData: input,\n      _callback: callback\n    });\n  }\n  \n  // 保存当天最后一个地点供下一天使用\n  if (locations.length > 0) {\n    previousDayLastLocation = locations[locations.length - 1];\n  }\n}\n\n// 如果没有可查询的路径，直接返回原数据\nif (routeQueries.length === 0) {\n  return [{\n    json: {\n      success: true,\n      message: '没有足够的地点进行路径规划',\n      data: input.data,\n      route_info: [],\n      _config: config,\n      _callback: callback\n    }\n  }];\n}\n\n// 返回多个查询项，每天一个\nreturn routeQueries.map(q => ({ json: q }));"
       },
-      "id": "53652510-d60c-49fb-8b47-c28b02dedcb1",
+      "id": "41d039ec-e991-454a-bfba-c56f6dc34189",
       "name": "准备路径查询数据",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1056,
-        96
+        -768,
+        16
       ]
     },
     {
@@ -323,26 +323,26 @@
         },
         "options": {}
       },
-      "id": "72790664-08dc-4f83-bc5d-6fb0fa6bf9f5",
+      "id": "8dd12f8a-c6c4-47e2-90c5-1948c4e3cd16",
       "name": "路径规划查询",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1312,
-        96
+        -512,
+        16
       ]
     },
     {
       "parameters": {
         "jsCode": "// 处理所有路径查询结果并整合到原始数据中\nconst allItems = $input.all();\nlet originalData = null;\nlet callback = {};\nconst routeResults = [];\n\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i].json;\n  \n  // 获取原始输入数据（从准备路径查询数据节点）\n  const preparedData = $('准备路径查询数据').all()[i]?.json;\n  \n  if (!originalData && preparedData?._originalData) {\n    originalData = preparedData._originalData;\n  }\n  \n  // 获取回调信息\n  if (!callback.url && preparedData?._callback) {\n    callback = preparedData._callback;\n  }\n  \n  // 解析路径规划API响应\n  if (item.status === '1' && item.route) {\n    const paths = item.route.paths || [];\n    const mainPath = paths[0] || {};\n    \n    // 提取费用信息\n    const cost = mainPath.cost || {};\n    \n    // 提取每段步骤信息\n    const steps = (mainPath.steps || []).map((step, index) => {\n      const stepCost = step.cost || {};\n      return {\n        segment_index: index,\n        instruction: step.instruction || '',\n        road: step.road || '',\n        distance: parseInt(step.distance) || 0,\n        duration: Math.round((parseInt(stepCost.duration) || parseInt(step.duration) || 0) / 60),\n        tolls: parseFloat(stepCost.tolls) || 0,\n        toll_distance: parseInt(stepCost.toll_distance) || 0,\n        action: step.action || ''\n      };\n    });\n    \n    routeResults.push({\n      day_index: preparedData?.dayIndex ?? i,\n      date: preparedData?.date || '',\n      location_names: preparedData?.locationNames || [],\n      location_count: preparedData?.locationCount || 0,\n      // 总体信息\n      total_distance: parseInt(mainPath.distance) || 0,\n      total_duration: Math.round((parseInt(cost.duration) || parseInt(mainPath.duration) || 0) / 60),\n      // 费用信息\n      toll_cost: parseFloat(cost.tolls) || parseFloat(mainPath.tolls) || 0,\n      toll_distance: parseInt(cost.toll_distance) || parseInt(mainPath.toll_distance) || 0,\n      traffic_lights: parseInt(cost.traffic_lights) || parseInt(mainPath.traffic_lights) || 0,\n      // 路段详情\n      segments: steps,\n      // 策略信息\n      strategy: mainPath.strategy || ''\n    });\n  } else {\n    // API调用失败时记录错误\n    routeResults.push({\n      day_index: preparedData?.dayIndex ?? i,\n      date: preparedData?.date || '',\n      location_names: preparedData?.locationNames || [],\n      error: item.info || '路径规划查询失败',\n      status: item.status\n    });\n  }\n}\n\n// 构建最终响应\nconst response = {\n  success: true,\n  message: '路径规划查询完成',\n  data: originalData?.data || {},\n  route_info: routeResults,\n  summary: {\n    total_days: routeResults.length,\n    total_distance: routeResults.reduce((sum, r) => sum + (r.total_distance || 0), 0),\n    total_duration: routeResults.reduce((sum, r) => sum + (r.total_duration || 0), 0),\n    total_toll_cost: routeResults.reduce((sum, r) => sum + (r.toll_cost || 0), 0),\n    total_traffic_lights: routeResults.reduce((sum, r) => sum + (r.traffic_lights || 0), 0)\n  },\n  _callback: callback\n};\n\n// 将路径信息也写入data中\nif (response.data) {\n  response.data.route_info = routeResults;\n  response.data.route_summary = response.summary;\n}\n\nreturn [{ json: response }];"
       },
-      "id": "eff36aa9-10dc-4ab8-b59d-9bad5c7ed8ae",
+      "id": "8b370922-0441-485d-9859-fda333b8f784",
       "name": "处理路径数据",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1568,
-        96
+        -256,
+        16
       ]
     },
     {
@@ -368,17 +368,18 @@
         },
         "options": {}
       },
-      "id": "232547e6-1b1b-47ac-b974-de36b114762b",
+      "id": "f5f25cac-18f3-4963-9041-9480d6d78bcc",
       "name": "判断回调地址",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1792,
-        96
+        -32,
+        16
       ]
     },
     {
       "parameters": {
+        "method": "POST",
         "url": "={{ $json._callback.url }}",
         "sendBody": true,
         "specifyBody": "json",
@@ -387,24 +388,24 @@
           "timeout": 30000
         }
       },
-      "id": "c88be3eb-f070-4634-b2ab-a3a4d21cfb69",
+      "id": "289ed402-245e-4cfb-9d14-a5c73cf041ad",
       "name": "回调Worker",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2016,
-        0
+        208,
+        -96
       ]
     },
     {
       "parameters": {},
-      "id": "9093caed-e1a2-4187-adc7-948701881baa",
+      "id": "f5d377aa-6615-4485-85ee-7c02d1260d20",
       "name": "无回调地址",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        2016,
-        208
+        208,
+        128
       ]
     },
     {
@@ -414,10 +415,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
       "typeVersion": 1,
       "position": [
-        320,
-        304
+        -1376,
+        240
       ],
-      "id": "fd17a8e0-8005-4766-a8c2-546ee2c7e872",
+      "id": "c548013f-9ce1-4a9e-8992-2cdd47b0e0ad",
       "name": "DeepSeek Chat Model",
       "credentials": {
         "deepSeekApi": {
@@ -643,7 +644,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "f72b22f9-06e4-4d48-8fe3-c04fa500a19a",
+  "versionId": "cb79b3a1-ce4f-45e6-a875-bf0c25328ba8",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "cf9c0509ff6869d2cbaeeeaab3d4f06fa4ab9d464862441ea5252900964aed32"

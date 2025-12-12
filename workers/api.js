@@ -115,6 +115,117 @@ async function getUserFromRequest(request, env) {
 }
 
 
+// ==================== 图片和地图相关 ====================
+
+/**
+ * 下载城市封面图片并保存到R2
+ * 使用Picsum API获取随机高质量图片（更稳定可靠）
+ * @param {String} city 城市名称
+ * @param {String} planId 行程ID（用于生成唯一文件名）
+ * @param {Object} env 环境变量（包含R2_BUCKET和R2_PUBLIC_DOMAIN）
+ * @returns {Promise<String>} 保存后的图片URL
+ */
+async function downloadAndSaveCityImage(city, planId, env) {
+    try {
+        // 使用城市名称的hash作为seed，确保同一城市获得类似风格的图片
+        const cityHash = city.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+        const seed = cityHash % 1000
+
+        // Picsum API: 获取随机风景图片 (800x400尺寸，grayscale=0表示彩色)
+        const picsumUrl = `https://picsum.photos/seed/${seed}/800/400`
+
+        console.log('下载城市封面图片:', picsumUrl)
+
+        const response = await fetch(picsumUrl, {
+            headers: {
+                'User-Agent': 'Cloudflare-Worker/1.0'
+            }
+        })
+
+        if (!response.ok) {
+            console.error('下载图片失败:', response.status)
+            return null
+        }
+
+        // 获取图片数据
+        const imageBuffer = await response.arrayBuffer()
+
+        // 保存到R2
+        const timestamp = Date.now()
+        const imagePath = `city-covers/${planId}_${timestamp}.jpg`
+
+        if (env.R2_BUCKET) {
+            await env.R2_BUCKET.put(imagePath, imageBuffer, {
+                httpMetadata: {
+                    contentType: 'image/jpeg'
+                }
+            })
+
+            const publicUrl = `https://${env.R2_PUBLIC_DOMAIN || 'r2.smallyoung.cn'}/${imagePath}`
+            console.log('城市图片已保存:', publicUrl)
+            return publicUrl
+        }
+
+        return null
+    } catch (err) {
+        console.error('下载保存城市图片失败:', err)
+        return null
+    }
+}
+
+/**
+ * 生成高德静态地图URL（仅标注地点，不含路径）
+ * @param {Array} planning 当日行程数组，每项包含location对象
+ * @param {String} amapKey 高德地图API密钥
+ * @returns {String|null} 静态地图URL，无有效坐标时返回null
+ */
+function generateStaticMapUrl(planning, amapKey) {
+    if (!planning || planning.length === 0 || !amapKey) {
+        return null
+    }
+
+    // 根据类型设置不同颜色
+    const typeColorMap = {
+        'attraction': '0xFF5722',  // 景点 - 橙色
+        'restaurant': '0x4CAF50',  // 餐厅 - 绿色
+        'hotel': '0x9C27B0',       // 酒店 - 紫色
+        'breakfast': '0x4CAF50',   // 早餐 - 绿色
+        'lunch': '0x4CAF50',       // 午餐 - 绿色
+        'dinner': '0x4CAF50',      // 晚餐 - 绿色
+        'default': '0x2196F3'      // 默认 - 蓝色
+    }
+
+    // 提取有效坐标点（最多10个，受API限制）
+    const locations = planning
+        .filter(item => item.location && item.location.longitude && item.location.latitude)
+        .slice(0, 10)
+        .map((item, index) => ({
+            name: item.name,
+            type: item.type || 'default',
+            lng: item.location.longitude,
+            lat: item.location.latitude,
+            label: String(index + 1),
+            color: typeColorMap[item.type] || typeColorMap['default']
+        }))
+
+    if (locations.length < 1) {
+        return null // 至少需要1个点
+    }
+
+    // 构建markers参数（使用中等大小标注，根据类型显示不同颜色）
+    const markers = locations.map(loc => `mid,${loc.color},${loc.label}:${loc.lng},${loc.lat}`).join('|')
+
+    // 构建静态地图URL（自动计算中心点和缩放级别，不含路径折线）
+    const params = new URLSearchParams({
+        key: amapKey,
+        size: '600*400',
+        scale: '2', // 高清图
+        markers: markers
+    })
+
+    return `https://restapi.amap.com/v3/staticmap?${params.toString()}`
+}
+
 // ==================== 微信相关 ====================
 
 /**
@@ -507,7 +618,39 @@ async function handleGeneratePlan(request, env, ctx) {
     // 生成行程ID
     const planId = generateId('plan_')
 
-    // 创建"生成中"状态的行程记录
+    // ====== 翻译偏好设置（在创建pendingPlan之前，确保所有地方使用相同的翻译值）======
+
+    // 翻译景点类型
+    const preferenceMap = {
+        'any': '不限',
+        'nature': '自然风光',
+        'history': '历史古迹',
+        'museum': '博物馆',
+        'amusement': '游乐园',
+        'food': '美食探店'
+    }
+    // 翻译后的景点类型（过滤掉"不限"）
+    const translatedPoiTypes = (poiTypes || [])
+        .filter(type => type !== 'any')
+        .map(type => preferenceMap[type] || type)
+
+    // 翻译交通方式
+    const transportMap = {
+        'public': '公共交通',
+        'drive': '自驾',
+        'walk': '步行为主'
+    }
+    const translatedTransport = transportMap[transportation] || transportation || '公共交通'
+
+    // 翻译住宿偏好
+    const accommodationMap = {
+        'budget': '经济型酒店',
+        'comfort': '舒适型酒店',
+        'luxury': '豪华型酒店'
+    }
+    const translatedAccommodation = accommodationMap[accommodation] || accommodation || '经济型酒店'
+
+    // 创建"生成中"状态的行程记录（使用翻译后的值）
     const pendingPlan = {
         id: planId,
         openid: user.openid,  // 用于回调时识别用户
@@ -515,9 +658,9 @@ async function handleGeneratePlan(request, env, ctx) {
         date: date,
         endDate: endDateStr,
         days: days,
-        transportation: transportation || '公共交通',
-        accommodation: accommodation || '经济型酒店',
-        poiTypes: poiTypes,
+        transportation: translatedTransport,
+        accommodation: translatedAccommodation,
+        poiTypes: translatedPoiTypes,  // 翻译后的景点类型
         notes: notes,
         apiVersion: apiVersion || null,
         // 状态字段
@@ -534,6 +677,10 @@ async function handleGeneratePlan(request, env, ctx) {
     }
 
     try {
+        // 下载并保存城市封面图片到R2（在创建时就保存，避免列表无图）
+        const cityImage = await downloadAndSaveCityImage(city, planId, env)
+        pendingPlan.cityImage = cityImage
+
         // 立即保存"生成中"状态的记录
         await env.KV.put(`plan:${user.openid}:${planId}`, JSON.stringify(pendingPlan))
 
@@ -548,22 +695,18 @@ async function handleGeneratePlan(request, env, ctx) {
             endDate: pendingPlan.endDate,
             days: pendingPlan.days,
             status: 'generating',
+            cityImage: cityImage,  // 创建时就有封面图
+            transportation: translatedTransport,
+            accommodation: translatedAccommodation,
+            poiTypes: translatedPoiTypes,
             createdAt: pendingPlan.createdAt
         })
         await env.KV.put(listKey, JSON.stringify(planList))
 
-        // 转换偏好类型名称
-        const preferenceMap = {
-            'any': '不限',
-            'nature': '自然风光',
-            'history': '历史古迹',
-            'museum': '博物馆',
-            'amusement': '游乐园',
-            'food': '美食探店'
-        }
-        const preferences = (poiTypes || [])
-            .filter(type => type !== 'any')
-            .map(type => preferenceMap[type] || type)
+
+        // 用于N8N的偏好参数（使用翻译后的景点类型）
+        const preferences = translatedPoiTypes.length > 0 ? translatedPoiTypes : ['休闲']
+
 
         // 构建回调URL（N8N完成后调用此接口更新状态）
         const callbackUrl = new URL(request.url)
@@ -654,17 +797,33 @@ async function handlePlanCallback(request, env) {
         const existingPlan = JSON.parse(existingData)
         const tripPlan = data
 
+        // 下载并保存城市封面图片到R2
+        const cityName = tripPlan.city || existingPlan.city
+        const cityImage = await downloadAndSaveCityImage(cityName, planId, env)
+
+        // 为每天生成静态地图URL
+        const dayStaticMaps = []
+        const days = tripPlan.days || []
+        for (const day of days) {
+            const planning = day.planning || []
+            const mapUrl = generateStaticMapUrl(planning, env.AMAP_KEY)
+            dayStaticMaps.push(mapUrl)
+        }
+
         // 更新行程记录为完成状态
         const completedPlan = {
             ...existingPlan,
-            city: tripPlan.city || existingPlan.city,
+            city: cityName,
             date: tripPlan.start_date || existingPlan.date,
             endDate: tripPlan.end_date || existingPlan.endDate,
+            // 新增：城市封面图片和静态地图
+            cityImage: cityImage,
+            dayStaticMaps: dayStaticMaps,
             // 状态更新为已完成
             status: 'completed',
             statusMessage: '',
             // N8N返回的详细数据
-            schedule: tripPlan.days || [],
+            schedule: days,
             weatherInfo: tripPlan.weather_info || [],
             budget: tripPlan.budget || {},
             overallSuggestions: tripPlan.overall_suggestions || '',
@@ -676,10 +835,18 @@ async function handlePlanCallback(request, env) {
         // 保存完成的行程
         await env.KV.put(planKey, JSON.stringify(completedPlan))
 
-        // 更新列表中的状态
-        await updatePlanListStatus(env, openid, planId, 'completed')
+        // 构建列表项额外信息（用于显示标签）
+        const listItemInfo = {
+            cityImage: cityImage,
+            transportation: existingPlan.transportation || '公共交通',
+            accommodation: existingPlan.accommodation || '经济型酒店',
+            poiTypes: existingPlan.poiTypes || []
+        }
 
-        console.log('行程生成完成(回调):', planId)
+        // 更新列表中的状态和额外信息
+        await updatePlanListStatus(env, openid, planId, 'completed', listItemInfo)
+
+        console.log('行程生成完成(回调):', planId, '城市图片:', cityImage)
         return jsonResponse({ received: true, status: 'completed' })
 
     } catch (err) {
@@ -819,8 +986,13 @@ async function updatePlanStatus(env, openid, planId, status, message) {
 
 /**
  * 更新行程列表中的状态
+ * @param {Object} env 环境变量
+ * @param {String} openid 用户openid
+ * @param {String} planId 行程ID
+ * @param {String} status 状态
+ * @param {Object|String} extraInfo 可选，额外信息对象或城市图片URL（兼容旧调用）
  */
-async function updatePlanListStatus(env, openid, planId, status) {
+async function updatePlanListStatus(env, openid, planId, status, extraInfo = null) {
     try {
         const listKey = `plan_list:${openid}`
         const listData = await env.KV.get(listKey)
@@ -829,6 +1001,21 @@ async function updatePlanListStatus(env, openid, planId, status) {
             const item = planList.find(p => p.id === planId)
             if (item) {
                 item.status = status
+
+                // 处理额外信息（支持对象或字符串）
+                if (extraInfo) {
+                    if (typeof extraInfo === 'object') {
+                        // 新格式：对象包含多个字段
+                        if (extraInfo.cityImage) item.cityImage = extraInfo.cityImage
+                        if (extraInfo.transportation) item.transportation = extraInfo.transportation
+                        if (extraInfo.accommodation) item.accommodation = extraInfo.accommodation
+                        if (extraInfo.poiTypes) item.poiTypes = extraInfo.poiTypes
+                    } else {
+                        // 旧格式：仅城市图片URL字符串
+                        item.cityImage = extraInfo
+                    }
+                }
+
                 await env.KV.put(listKey, JSON.stringify(planList))
             }
         }

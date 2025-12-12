@@ -29,7 +29,7 @@
         <view class="trip-meta">
           <text class="meta-tag">{{plan.days}}天</text>
           <text class="meta-tag">{{plan.transportation}}</text>
-          <text class="meta-tag" wx:if="{{plan.apiVersion}}">{{plan.apiVersion}}</text>
+          <!-- <text class="meta-tag" wx:if="{{plan.apiVersion}}">{{plan.apiVersion}}</text> -->
         </view>
       </view>
 
@@ -52,6 +52,11 @@
         <view class="route-summary-header">
           <text class="route-summary-emoji">🚗</text>
           <text class="route-summary-title">今日路程概况</text>
+          <!-- 查看地图按钮 -->
+          <view class="view-map-btn" wx:if="{{currentDayMapUrl}}" bindtap="onViewRouteMap">
+            <text class="map-icon">🗺️</text>
+            <text>查看地图</text>
+          </view>
         </view>
         <view class="route-summary-stats">
           <view class="stat-item">

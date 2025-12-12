@@ -6,7 +6,7 @@
   <!-- 固定导航栏 -->
   <custom-navbar title="我的行程"></custom-navbar>
 
-  <scroll-view class="content-scroll" scroll-y refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" bindrefresherrefresh="onRefresh" bindtap="onPageTap">
+  <scroll-view class="content-scroll" scroll-y scroll-top="{{scrollTop}}" refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" bindrefresherrefresh="onRefresh" bindscroll="onScroll" bindtap="onPageTap">
     <!-- 加载中 -->
     <view wx:if="{{loading}}" class="loading-container">
       <view class="loading-spinner"></view>
@@ -38,50 +38,59 @@
         wx:key="id"
       >
         <view 
-          class="plan-card {{item.swiped ? 'swiped' : ''}} {{item.status === 'generating' ? 'generating' : ''}} {{item.status === 'failed' ? 'failed' : ''}}"
-          bindtouchstart="{{item.status !== 'generating' ? 'onTouchStart' : ''}}"
-          bindtouchmove="{{item.status !== 'generating' ? 'onTouchMove' : ''}}"
-          bindtouchend="{{item.status !== 'generating' ? 'onTouchEnd' : ''}}"
-          data-index="{{index}}"
+          class="plan-card {{item.status === 'generating' ? 'generating' : ''}} {{item.status === 'failed' ? 'failed' : ''}}"
           bindtap="onViewDetail"
           data-id="{{item.id}}"
           data-status="{{item.status}}"
+          data-index="{{index}}"
         >
           <view class="plan-card-main">
-            <view class="plan-header">
-              <text class="city-name">{{item.city}}</text>
-              <text class="plan-days-tag">{{item.days}}天</text>
-            </view>
-            <view class="plan-meta">
-              <text class="plan-date">📅 {{item.date}} 至 {{item.endDate}}</text>
-              <!-- 状态标签 -->
-              <view wx:if="{{item.status === 'generating'}}" class="status-tag generating">
-                <view class="status-spinner"></view>
-                <text>生成中</text>
+            <!-- 城市封面图片 -->
+            <image 
+              wx:if="{{item.cityImage}}" 
+              class="city-cover-image" 
+              src="{{item.cityImage}}" 
+              mode="aspectFill"
+              lazy-load
+            />
+            <view class="plan-info">
+              <view class="plan-header">
+                <text class="city-name">{{item.city}}</text>
+                <text class="plan-days-tag">{{item.days}}天</text>
               </view>
-              <view wx:elif="{{item.status === 'failed'}}" class="status-tag failed">
-                <text>生成失败</text>
+              <view class="plan-meta">
+                <text class="plan-date">📅 {{item.date}} 至 {{item.endDate}}</text>
+                <!-- 状态标签 -->
+                <view wx:if="{{item.status === 'generating'}}" class="status-tag generating">
+                  <view class="status-spinner"></view>
+                  <text>生成中</text>
+                </view>
+                <view wx:elif="{{item.status === 'failed'}}" class="status-tag failed">
+                  <text>生成失败</text>
+                </view>
+              </view>
+              <!-- 偏好标签 -->
+              <view class="plan-tags" wx:if="{{item.status === 'completed'}}">
+                <text class="tag-item transport" wx:if="{{item.transportation}}">🚗 {{item.transportation}}</text>
+                <text class="tag-item hotel" wx:if="{{item.accommodation}}">🏨 {{item.accommodation}}</text>
+              </view>
+              <!-- 右下角菜单按钮（非生成中状态显示）-->
+              <view class="card-menu-btn" wx:if="{{item.status !== 'generating'}}" catchtap="onToggleMenu" data-index="{{index}}">
+                <text class="menu-dots">•••</text>
               </view>
             </view>
           </view>
-        </view>
-        <view 
-          class="delete-action {{item.swiped ? 'show' : ''}}"
-          catchtap="onDelete"
-          data-id="{{item.id}}"
-          data-city="{{item.city}}"
-          data-index="{{index}}"
-        >
-          <text class="delete-text">删除</text>
-        </view>
-        <view 
-          class="postcard-action {{item.swiped ? 'show' : ''}}"
-          catchtap="onGeneratePostcard"
-          data-id="{{item.id}}"
-          data-city="{{item.city}}"
-          data-index="{{index}}"
-        >
-          <text class="postcard-action-text">明信片</text>
+          <!-- 下拉菜单 -->
+          <view class="dropdown-menu {{item.menuOpen ? 'show' : ''}}" wx:if="{{item.status !== 'generating'}}">
+            <view class="menu-item" catchtap="onGeneratePostcard" data-id="{{item.id}}" data-city="{{item.city}}" data-index="{{index}}">
+              <text class="menu-icon">🖼️</text>
+              <text>生成明信片</text>
+            </view>
+            <view class="menu-item danger" catchtap="onDelete" data-id="{{item.id}}" data-city="{{item.city}}" data-index="{{index}}">
+              <text class="menu-icon">🗑️</text>
+              <text>删除行程</text>
+            </view>
+          </view>
         </view>
       </view>
     </view>
@@ -100,6 +109,11 @@
     <!-- 底部占位 -->
     <view class="bottom-placeholder"></view>
   </scroll-view>
+
+  <!-- 回到顶部按钮 -->
+  <view class="back-to-top {{showBackTop ? 'show' : ''}}" bindtap="scrollToTop">
+    <text class="back-top-icon">↑</text>
+  </view>
 
   <!-- 悬浮添加按钮（仅登录后显示）-->
   <view class="fab-container" wx:if="{{isLoggedIn}}">

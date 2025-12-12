@@ -13,7 +13,10 @@ Page({
         page: 1,
         pageSize: 10,
         hasMore: true,
-        loadingMore: false
+        loadingMore: false,
+        // 回到顶部
+        showBackTop: false,
+        scrollTop: 0
     },
 
     onShow() {
@@ -117,6 +120,24 @@ Page({
         this.setData({ refreshing: false })
     },
 
+    // 监听滚动
+    onScroll(e) {
+        const scrollTop = e.detail.scrollTop
+        const showBackTop = scrollTop > 300 // 滚动超过 300px 显示
+        if (this.data.showBackTop !== showBackTop) {
+            this.setData({ showBackTop })
+        }
+    },
+
+    // 回到顶部
+    scrollToTop() {
+        this.setData({ scrollTop: 0 })
+        // 需要先设置非 0 值再设置 0，确保触发滚动
+        setTimeout(() => {
+            this.setData({ scrollTop: 0 })
+        }, 50)
+    },
+
     // 查看详情
     onViewDetail(e) {
         const index = e.currentTarget.dataset.index
@@ -178,73 +199,47 @@ Page({
         }
     },
 
-    // 触摸开始
-    onTouchStart(e) {
-        this.touchStartX = e.touches[0].clientX
-        this.touchStartY = e.touches[0].clientY
-    },
-
-    // 触摸移动
-    onTouchMove(e) {
-        // 计算移动距离
-        const moveX = e.touches[0].clientX - this.touchStartX
-        const moveY = e.touches[0].clientY - this.touchStartY
-
-        // 如果是水平滑动
-        if (Math.abs(moveX) > Math.abs(moveY)) {
-            e.preventDefault && e.preventDefault()
-        }
-    },
-
-    // 触摸结束
-    onTouchEnd(e) {
-        const moveX = e.changedTouches[0].clientX - this.touchStartX
+    // 切换下拉菜单显示
+    onToggleMenu(e) {
         const index = e.currentTarget.dataset.index
         const planList = this.data.planList
 
-        // 清除之前的定时器
-        if (this.hideTimer) {
-            clearTimeout(this.hideTimer)
-            this.hideTimer = null
-        }
-
-        // 先重置所有其他项的滑动状态
+        // 先关闭所有其他菜单
         planList.forEach((item, i) => {
             if (i !== index) {
-                item.swiped = false
+                item.menuOpen = false
             }
         })
 
-        // 根据滑动方向设置当前项状态
-        if (moveX < -80) {
-            // 向左滑动，显示操作按钮
-            planList[index].swiped = true
-
-            // 5秒后自动隐藏
-            this.hideTimer = setTimeout(() => {
-                this.hideAllSwiped()
-            }, 5000)
-        } else if (moveX > 80) {
-            // 向右滑动，隐藏操作按钮
-            planList[index].swiped = false
-        }
+        // 切换当前菜单状态
+        planList[index].menuOpen = !planList[index].menuOpen
 
         this.setData({ planList })
+
+        // 5秒后自动关闭菜单
+        if (planList[index].menuOpen) {
+            if (this.menuTimer) {
+                clearTimeout(this.menuTimer)
+            }
+            this.menuTimer = setTimeout(() => {
+                this.closeAllMenus()
+            }, 5000)
+        }
     },
 
-    // 隐藏所有滑动状态
-    hideAllSwiped() {
-        if (this.hideTimer) {
-            clearTimeout(this.hideTimer)
-            this.hideTimer = null
+    // 关闭所有菜单
+    closeAllMenus() {
+        if (this.menuTimer) {
+            clearTimeout(this.menuTimer)
+            this.menuTimer = null
         }
 
         const planList = this.data.planList
         let hasChange = false
 
         planList.forEach(item => {
-            if (item.swiped) {
-                item.swiped = false
+            if (item.menuOpen) {
+                item.menuOpen = false
                 hasChange = true
             }
         })
@@ -254,13 +249,14 @@ Page({
         }
     },
 
-    // 点击空白处隐藏删除按钮
+    // 点击空白处关闭菜单
     onPageTap() {
-        this.hideAllSwiped()
+        this.closeAllMenus()
     },
 
     // 删除规划
     onDelete(e) {
+        this.closeAllMenus()
         const id = e.currentTarget.dataset.id
         const city = e.currentTarget.dataset.city
 
@@ -309,8 +305,8 @@ Page({
         const id = e.currentTarget.dataset.id
         const city = e.currentTarget.dataset.city
 
-        // 隐藏滑动按钮
-        this.hideAllSwiped()
+        // 关闭菜单
+        this.closeAllMenus()
 
         wx.showModal({
             title: '生成明信片',
