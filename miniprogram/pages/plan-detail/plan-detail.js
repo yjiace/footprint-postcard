@@ -26,6 +26,16 @@ const TRANSPORT_ICONS = {
     '向右后方行驶': '↘'
 }
 
+// 路程图标映射（根据交通方式）
+const ROUTE_TRANSPORT_ICONS = {
+    '自驾': '🚗',
+    '公共交通': '🚌',
+    '步行为主': '🚶'
+}
+
+// 短距离阈值（米），距离小于该值时使用步行图标
+const WALK_DISTANCE_THRESHOLD = 500
+
 Page({
     data: {
         currentDay: 0,
@@ -35,7 +45,9 @@ Page({
         currentWeather: null,
         currentRouteInfo: null,  // 当天路径信息
         currentDayMapUrl: null,  // 当天静态地图URL
-        expandedRoutes: {}       // 展开的路径段索引
+        expandedRoutes: {},      // 展开的路径段索引
+        routeSummaryIcon: '🚗',  // 路程概况卡片图标
+        routeSegmentIcons: {}    // 各路段图标 { itemIndex: icon }
     },
 
     onLoad(options) {
@@ -66,6 +78,8 @@ Page({
             const currentWeather = this.getWeatherForDay(plan, 0)
             const currentRouteInfo = this.getRouteInfoForDay(plan, 0)
             const currentDayMapUrl = this.getStaticMapForDay(plan, 0)
+            const routeSummaryIcon = this.getRouteSummaryIcon(plan)
+            const routeSegmentIcons = this.getRouteSegmentIcons(plan, currentRouteInfo)
 
             this.setData({
                 plan: plan,
@@ -75,7 +89,9 @@ Page({
                 currentWeather: currentWeather,
                 currentRouteInfo: currentRouteInfo,
                 currentDayMapUrl: currentDayMapUrl,
-                expandedRoutes: {}
+                expandedRoutes: {},
+                routeSummaryIcon: routeSummaryIcon,
+                routeSegmentIcons: routeSegmentIcons
             })
         } else {
             this.setData({
@@ -99,6 +115,8 @@ Page({
             const currentWeather = this.getWeatherForDay(localPlan, 0)
             const currentRouteInfo = this.getRouteInfoForDay(localPlan, 0)
             const currentDayMapUrl = this.getStaticMapForDay(localPlan, 0)
+            const routeSummaryIcon = this.getRouteSummaryIcon(localPlan)
+            const routeSegmentIcons = this.getRouteSegmentIcons(localPlan, currentRouteInfo)
 
             this.setData({
                 plan: localPlan,
@@ -108,7 +126,9 @@ Page({
                 currentWeather: currentWeather,
                 currentRouteInfo: currentRouteInfo,
                 currentDayMapUrl: currentDayMapUrl,
-                expandedRoutes: {}
+                expandedRoutes: {},
+                routeSummaryIcon: routeSummaryIcon,
+                routeSegmentIcons: routeSegmentIcons
             })
             return
         }
@@ -122,6 +142,8 @@ Page({
                 const currentWeather = this.getWeatherForDay(plan, 0)
                 const currentRouteInfo = this.getRouteInfoForDay(plan, 0)
                 const currentDayMapUrl = this.getStaticMapForDay(plan, 0)
+                const routeSummaryIcon = this.getRouteSummaryIcon(plan)
+                const routeSegmentIcons = this.getRouteSegmentIcons(plan, currentRouteInfo)
 
                 this.setData({
                     plan: plan,
@@ -131,7 +153,9 @@ Page({
                     currentWeather: currentWeather,
                     currentRouteInfo: currentRouteInfo,
                     currentDayMapUrl: currentDayMapUrl,
-                    expandedRoutes: {}
+                    expandedRoutes: {},
+                    routeSummaryIcon: routeSummaryIcon,
+                    routeSegmentIcons: routeSegmentIcons
                 })
             } else {
                 this.setData({
@@ -285,6 +309,7 @@ Page({
             const currentWeather = this.getWeatherForDay(plan, index)
             const currentRouteInfo = this.getRouteInfoForDay(plan, index)
             const currentDayMapUrl = this.getStaticMapForDay(plan, index)
+            const routeSegmentIcons = this.getRouteSegmentIcons(plan, currentRouteInfo)
 
             this.setData({
                 currentDay: index,
@@ -292,7 +317,8 @@ Page({
                 currentWeather: currentWeather,
                 currentRouteInfo: currentRouteInfo,
                 currentDayMapUrl: currentDayMapUrl,
-                expandedRoutes: {}  // 切换天数时重置展开状态
+                expandedRoutes: {},  // 切换天数时重置展开状态
+                routeSegmentIcons: routeSegmentIcons
             })
         }
     },
@@ -311,6 +337,38 @@ Page({
     getStaticMapForDay(plan, dayIndex) {
         if (!plan || !plan.dayStaticMaps) return null
         return plan.dayStaticMaps[dayIndex] || null
+    },
+
+    // 获取路程概况卡片的图标（根据交通方式）
+    getRouteSummaryIcon(plan) {
+        const transportation = plan?.transportation || '公共交通'
+        return ROUTE_TRANSPORT_ICONS[transportation] || '🚗'
+    },
+
+    // 获取各路段的图标（根据交通方式和距离）
+    // 距离小于阈值时显示步行图标，否则显示对应交通工具图标
+    getRouteSegmentIcons(plan, routeInfo) {
+        const icons = {}
+        if (!routeInfo || !routeInfo.location_names) return icons
+
+        const transportation = plan?.transportation || '公共交通'
+        const defaultIcon = ROUTE_TRANSPORT_ICONS[transportation] || '🚗'
+        const locationCount = routeInfo.location_names.length
+
+        // 累计距离用于估算每段距离
+        // 如果路径信息中包含 segments，可以用来估算每段距离
+        const totalDistance = routeInfo.total_distance || 0
+        const segmentCount = locationCount - 1
+        const avgDistance = segmentCount > 0 ? totalDistance / segmentCount : 0
+
+        for (let i = 1; i < locationCount; i++) {
+            // 使用平均距离估算，或者如果有更细粒度的段距离数据可以使用
+            const estimatedDistance = avgDistance
+            // 距离很近时使用步行图标，否则使用配置的交通工具图标
+            icons[i] = estimatedDistance < WALK_DISTANCE_THRESHOLD ? '🚶' : defaultIcon
+        }
+
+        return icons
     },
 
     // 查看路线静态地图

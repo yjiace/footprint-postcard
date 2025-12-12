@@ -71,8 +71,8 @@
               </view>
               <!-- 偏好标签 -->
               <view class="plan-tags" wx:if="{{item.status === 'completed'}}">
-                <text class="tag-item transport" wx:if="{{item.transportation}}">🚗 {{item.transportation}}</text>
-                <text class="tag-item hotel" wx:if="{{item.accommodation}}">🏨 {{item.accommodation}}</text>
+                <text class="tag-item transport" wx:if="{{item.transportation}}">{{item.transportIcon}} {{item.transportation}}</text>
+                <text class="tag-item hotel" wx:if="{{item.accommodation}}">{{item.accommodationIcon}} {{item.accommodation}}</text>
               </view>
               <!-- 右下角菜单按钮（非生成中状态显示）-->
               <view class="card-menu-btn" wx:if="{{item.status !== 'generating'}}" catchtap="onToggleMenu" data-index="{{index}}">

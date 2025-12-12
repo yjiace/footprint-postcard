@@ -3,6 +3,29 @@ const api = require('../../utils/api.js')
 const storage = require('../../utils/storage.js')
 const util = require('../../utils/util.js')
 
+// 交通工具图标映射
+const TRANSPORT_ICON_MAP = {
+    '公共交通': '🚌',
+    '自驾': '🚗',
+    '步行为主': '🚶'
+}
+
+// 住宿偏好图标映射
+const ACCOMMODATION_ICON_MAP = {
+    '经济型酒店': '🏠',
+    '舒适型酒店': '🏨',
+    '豪华型酒店': '🏰'
+}
+
+// 为行程列表项添加图标字段
+function addIconsToList(list) {
+    return list.map(item => ({
+        ...item,
+        transportIcon: TRANSPORT_ICON_MAP[item.transportation] || '🚗',
+        accommodationIcon: ACCOMMODATION_ICON_MAP[item.accommodation] || '🏨'
+    }))
+}
+
 Page({
     data: {
         planList: [],
@@ -57,7 +80,7 @@ Page({
                 const cachedData = storage.getPlanListCache()
                 if (cachedData && cachedData.list && cachedData.list.length > 0) {
                     this.setData({
-                        planList: cachedData.list,
+                        planList: addIconsToList(cachedData.list),
                         loading: false
                     })
                 }
@@ -71,7 +94,7 @@ Page({
             if (reset) {
                 // 重置时直接替换列表
                 this.setData({
-                    planList: serverList,
+                    planList: addIconsToList(serverList),
                     loading: false,
                     hasMore,
                     page: this.data.page + 1
@@ -80,7 +103,7 @@ Page({
                 storage.setPlanListCache({ list: serverList, timestamp: Date.now() })
             } else {
                 // 追加数据
-                const newList = [...this.data.planList, ...serverList]
+                const newList = [...this.data.planList, ...addIconsToList(serverList)]
                 this.setData({
                     planList: newList,
                     loadingMore: false,

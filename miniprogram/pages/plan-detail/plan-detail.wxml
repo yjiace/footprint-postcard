@@ -50,7 +50,7 @@
       <!-- Route Summary (V2) -->
       <view class="route-summary-card" wx:if="{{currentRouteInfo}}">
         <view class="route-summary-header">
-          <text class="route-summary-emoji">🚗</text>
+          <text class="route-summary-emoji">{{routeSummaryIcon}}</text>
           <text class="route-summary-title">今日路程概况</text>
           <!-- 查看地图按钮 -->
           <view class="view-map-btn" wx:if="{{currentDayMapUrl}}" bindtap="onViewRouteMap">
@@ -106,7 +106,7 @@
               <!-- 路程信息段（非首项显示） -->
               <view class="route-segment" wx:if="{{itemIndex > 0 && currentRouteInfo}}" bindtap="toggleRouteDetail" data-index="{{itemIndex}}">
                 <view class="route-segment-header">
-                  <view class="route-icon">🚶</view>
+                  <view class="route-icon">{{routeSegmentIcons[itemIndex] || '🚗'}}</view>
                   <view class="route-summary-inline">
                     <text class="route-distance">{{currentRouteInfo.location_names[itemIndex - 1]}} → {{currentRouteInfo.location_names[itemIndex]}}</text>
                   </view>
