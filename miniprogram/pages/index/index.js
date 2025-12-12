@@ -12,7 +12,8 @@ Page({
         longitude: 0,
         hotDestinations: [],
         nearbyAttractions: [],
-        lastLocationTime: 0  // 上次定位时间戳，用于频率控制
+        lastLocationTime: 0,  // 上次定位时间戳，用于频率控制
+        currentDestinationIndex: 0  // 热门目的地轮播当前索引
     },
 
     onLoad() {
@@ -572,6 +573,14 @@ Page({
             })
             util.showError('加载周边景点失败')
         }
+    },
+
+    // 热门目的地轮播切换事件
+    onDestinationChange(e) {
+        const current = e.detail.current
+        this.setData({
+            currentDestinationIndex: current
+        })
     },
 
     // 点击目的地

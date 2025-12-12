@@ -19,24 +19,31 @@
       </view>
       
       <view class="destinations-container">
-        <scroll-view class="destinations-scroll" scroll-x>
-          <view class="destinations-list">
-            <view class="destination-item" wx:for="{{hotDestinations}}" wx:key="id" bindtap="onDestinationTap" data-item="{{item}}">
+        <swiper class="destinations-swiper" 
+                current="{{currentDestinationIndex}}" 
+                bindchange="onDestinationChange"
+                previous-margin="32rpx" 
+                next-margin="80rpx"
+                circular="{{false}}"
+                duration="300">
+          <swiper-item wx:for="{{hotDestinations}}" wx:key="id">
+            <view class="destination-item" bindtap="onDestinationTap" data-item="{{item}}">
               <view class="destination-image-wrapper">
                 <image class="destination-image" src="{{item.image}}" mode="aspectFill" lazy-load></image>
                 <view class="destination-overlay">
                   <text class="destination-name">{{item.name}}</text>
+                  <text class="destination-desc" wx:if="{{item.description}}">{{item.description}}</text>
                 </view>
               </view>
             </view>
-          </view>
-        </scroll-view>
+          </swiper-item>
+        </swiper>
       </view>
       
       <!-- 指示器 -->
       <view class="indicators">
-        <view class="indicator" wx:for="{{hotDestinations}}" wx:key="id" wx:for-index="index">
-          <view class="indicator-dot {{index === 0 ? 'active' : ''}}"></view>
+        <view class="indicator" wx:for="{{hotDestinations}}" wx:key="id" wx:for-index="idx">
+          <view class="indicator-dot {{idx === currentDestinationIndex ? 'active' : ''}}"></view>
         </view>
       </view>
     </view>

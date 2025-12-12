@@ -565,42 +565,178 @@ async function handleGetCityByLocation(request, env) {
     }
 }
 
+// 预定义热门旅游城市列表
+const HOT_DESTINATION_CITIES = [
+    { name: '北京', keywords: '故宫', description: '千年古都' },
+    { name: '上海', keywords: '外滩', description: '魔都风情' },
+    { name: '西安', keywords: '兵马俑', description: '历史名城' },
+    { name: '成都', keywords: '大熊猫基地', description: '天府之国' },
+    { name: '杭州', keywords: '西湖', description: '人间天堂' },
+    { name: '丽江', keywords: '丽江古城', description: '浪漫古镇' },
+]
+
+/**
+ * 使用高德API搜索城市地标景点
+ */
+async function searchCityLandmark(city, keywords, env) {
+    if (!env.AMAP_KEY) {
+        return null
+    }
+
+    try {
+        const params = new URLSearchParams({
+            key: env.AMAP_KEY,
+            keywords: keywords,
+            city: city,
+            citylimit: 'true',
+            types: '风景名胜',
+            offset: '1',
+            page: '1',
+            extensions: 'base',
+            output: 'json'
+        })
+
+        const url = `https://restapi.amap.com/v3/place/text?${params.toString()}`
+        console.log('查询城市地标:', city, keywords)
+
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (compatible; CloudflareWorker/1.0)'
+            }
+        })
+
+        if (!response.ok) {
+            console.error('高德API请求失败:', response.status)
+            return null
+        }
+
+        const data = await response.json()
+        if (data.status !== '1' || !data.pois || data.pois.length === 0) {
+            console.log('未找到城市地标:', city)
+            return null
+        }
+
+        const poi = data.pois[0]
+        const location = poi.location ? poi.location.split(',') : null
+
+        return {
+            poiName: poi.name,
+            address: poi.address || '',
+            latitude: location ? parseFloat(location[1]) : null,
+            longitude: location ? parseFloat(location[0]) : null
+        }
+    } catch (err) {
+        console.error('搜索城市地标失败:', city, err.message)
+        return null
+    }
+}
+
+/**
+ * 使用Unsplash搜索城市图片
+ */
+async function searchCityImage(city, env) {
+    if (!env.UNSPLASH_ACCESS_KEY) {
+        return null
+    }
+
+    try {
+        // 优先使用英文城市名搜索
+        const englishName = CITY_NAME_MAP[city] || city
+        const query = `${englishName} city landmark skyline`
+
+        const params = new URLSearchParams({
+            query: query,
+            per_page: '3',
+            orientation: 'landscape'
+        })
+
+        const url = `https://api.unsplash.com/search/photos?${params.toString()}`
+
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`,
+                'Accept-Version': 'v1'
+            }
+        })
+
+        if (!response.ok) {
+            console.error('Unsplash API请求失败:', response.status)
+            return null
+        }
+
+        const data = await response.json()
+        if (!data.results || data.results.length === 0) {
+            console.log('Unsplash未找到城市图片:', city)
+            return null
+        }
+
+        // 随机选择前3张中的一张，使用 small 尺寸 (约400px) 减小体积
+        const randomIndex = Math.floor(Math.random() * Math.min(3, data.results.length))
+        return data.results[randomIndex].urls.small
+    } catch (err) {
+        console.error('搜索城市图片失败:', city, err.message)
+        return null
+    }
+}
+
 /**
  * 3. 获取热门目的地
+ * 使用高德API查询热门城市地标,Unsplash获取城市图片
  */
 async function handleGetHotDestinations(request, env) {
-    // 从KV获取或返回默认数据
+    // 从KV获取缓存数据(7天有效)
     const cached = await env.KV.get('hot_destinations')
     if (cached) {
+        console.log('使用缓存的热门目的地数据')
         return jsonResponse(JSON.parse(cached))
     }
 
-    // 默认数据
-    const destinations = [
-        {
-            id: 1,
-            name: '桂林',
-            image: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=800',
-            description: '山水甲天下'
-        },
-        {
-            id: 2,
-            name: '西安',
-            image: 'https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b?w=800',
-            description: '千年古都'
-        },
-        {
-            id: 3,
-            name: '元阳梯田',
-            image: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800',
-            description: '云南美景'
+    console.log('开始获取热门目的地真实数据...')
+
+    // 并发查询所有热门城市
+    const destinationPromises = HOT_DESTINATION_CITIES.map(async (cityConfig, index) => {
+        const { name, keywords, description } = cityConfig
+
+        // 并发获取地标信息和城市图片
+        const [landmark, imageUrl] = await Promise.all([
+            searchCityLandmark(name, keywords, env),
+            searchCityImage(name, env)
+        ])
+
+        return {
+            id: index + 1,
+            name: name,
+            image: imageUrl || `https://picsum.photos/seed/${name}/800/400`,
+            description: description,
+            landmark: landmark ? landmark.poiName : keywords,
+            latitude: landmark ? landmark.latitude : null,
+            longitude: landmark ? landmark.longitude : null
         }
-    ]
+    })
 
-    // 缓存1天
-    await env.KV.put('hot_destinations', JSON.stringify(destinations), { expirationTtl: 86400 })
+    try {
+        const destinations = await Promise.all(destinationPromises)
+        console.log('热门目的地数据获取完成:', destinations.length)
 
-    return jsonResponse(destinations)
+        // 缓存7天 (604800秒)
+        await env.KV.put('hot_destinations', JSON.stringify(destinations), { expirationTtl: 604800 })
+
+        return jsonResponse(destinations)
+    } catch (err) {
+        console.error('获取热门目的地失败:', err.message)
+
+        // 降级返回默认数据
+        const fallbackDestinations = HOT_DESTINATION_CITIES.map((city, index) => ({
+            id: index + 1,
+            name: city.name,
+            image: `https://picsum.photos/seed/${city.name}/800/400`,
+            description: city.description,
+            landmark: city.keywords
+        }))
+
+        return jsonResponse(fallbackDestinations)
+    }
 }
 
 /**
