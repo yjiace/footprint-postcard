@@ -5,7 +5,7 @@
   
   <!-- 固定导航栏：使用插槽放置定位按钮 -->
   <custom-navbar title="足迹明信片">
-    <view slot="left" class="location-badge">
+    <view slot="left" class="location-badge" bindtap="onLocationTap">
       <view class="icon icon-location location-icon"></view>
       <text class="location-text">{{currentCity}}</text>
     </view>
@@ -58,7 +58,8 @@
     <!-- 周边景点推荐 -->
     <view class="section">
       <view class="section-header">
-        <text class="section-title">周边景点推荐</text>
+        <text class="section-title">周边景点</text>
+        <text class="section-more" bindtap="goToAttractionList">查看更多 ></text>
       </view>
       
       <view class="attractions-list">
@@ -68,6 +69,7 @@
             <text class="attraction-name">{{item.name}}</text>
             <text class="attraction-tags">{{item.tags}}</text>
             <text class="attraction-distance">距离您 {{item.distance}}</text>
+            <text class="attraction-address" wx:if="{{item.address}}">{{item.address}}</text>
           </view>
         </view>
       </view>

@@ -1,0 +1,7 @@
+{
+    "navigationStyle": "custom",
+    "enablePullDownRefresh": false,
+    "usingComponents": {
+        "custom-navbar": "/components/custom-navbar/custom-navbar"
+    }
+}

@@ -226,8 +226,16 @@ async function getCityByLocation(longitude, latitude, env) {
 /**
  * 搜索周边POI(景点)
  * 高德地图周边搜索API
+ * @param {Number} longitude 经度
+ * @param {Number} latitude 纬度
+ * @param {Number} radius 搜索半径（米）
+ * @param {String} keywords 关键词
+ * @param {Object} env 环境变量
+ * @param {String} types POI类型，默认"风景名胜|公园广场"
+ * @param {Number} page 页码，默认1
+ * @param {Number} pageSize 每页数量，默认20
  */
-async function searchNearbyPOI(longitude, latitude, radius, keywords, env) {
+async function searchNearbyPOI(longitude, latitude, radius, keywords, env, types = '风景名胜|公园广场', page = 1, pageSize = 20) {
     if (!env.AMAP_KEY) {
         console.error('searchNearbyPOI: AMAP_KEY 未配置')
         throw new Error('服务配置错误：未配置高德地图API密钥')
@@ -238,10 +246,10 @@ async function searchNearbyPOI(longitude, latitude, radius, keywords, env) {
     const params = new URLSearchParams({
         location: `${longitude},${latitude}`,
         keywords: keywords,
-        types: '风景名胜|公园广场',
+        types: types,
         radius: String(radius),
-        offset: '20',
-        page: '1',
+        offset: String(pageSize),
+        page: String(page),
         key: env.AMAP_KEY,
         extensions: 'all',
         output: 'json'
@@ -289,7 +297,10 @@ async function searchNearbyPOI(longitude, latitude, radius, keywords, env) {
         throw new Error(data.info || '搜索周边POI失败')
     }
 
-    return data.pois || []
+    return {
+        pois: data.pois || [],
+        total: parseInt(data.count) || 0
+    }
 }
 
 // ==================== 路由处理器 ====================
@@ -388,6 +399,7 @@ async function handleGetHotDestinations(request, env) {
 
 /**
  * 4. 获取周边景点 (改用高德地图)
+ * 支持分页和类型筛选
  */
 async function handleGetNearbyAttractions(request, env) {
     const url = new URL(request.url)
@@ -395,13 +407,18 @@ async function handleGetNearbyAttractions(request, env) {
     const longitude = parseFloat(url.searchParams.get('longitude'))
     const radius = parseInt(url.searchParams.get('radius') || '10')
     const keywords = url.searchParams.get('keywords') || '景点'
+    const types = url.searchParams.get('types') || '风景名胜|公园广场'
+    const page = parseInt(url.searchParams.get('page') || '1')
+    const pageSize = parseInt(url.searchParams.get('pageSize') || '20')
 
     if (!latitude || !longitude) {
         return errorResponse('缺少经纬度参数', 400)
     }
 
     try {
-        const pois = await searchNearbyPOI(longitude, latitude, radius * 1000, keywords, env)
+        const result = await searchNearbyPOI(longitude, latitude, radius * 1000, keywords, env, types, page, pageSize)
+        const pois = result.pois
+        const total = result.total
 
         // 转换数据格式
         const attractions = pois.map((poi, index) => {
@@ -422,7 +439,13 @@ async function handleGetNearbyAttractions(request, env) {
             }
         })
 
-        return jsonResponse(attractions)
+        return jsonResponse({
+            list: attractions,
+            total: total,
+            page: page,
+            pageSize: pageSize,
+            hasMore: attractions.length >= pageSize
+        })
     } catch (err) {
         // 打印错误日志
         console.error('获取周边景点失败:', err.message, err.stack)
@@ -440,7 +463,13 @@ async function handleGetNearbyAttractions(request, env) {
                 longitude: longitude + 0.01
             }
         ]
-        return jsonResponse(mockData)
+        return jsonResponse({
+            list: mockData,
+            total: 1,
+            page: 1,
+            pageSize: pageSize,
+            hasMore: false
+        })
     }
 }
 

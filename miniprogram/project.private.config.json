@@ -19,7 +19,19 @@
     "bigPackageSizeSupport": false,
     "useIsolateContext": true
   },
-  "condition": {},
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "pages/attractions/attractions",
+          "pathName": "pages/attractions/attractions",
+          "query": "latitude=38.03647&longitude=114.53952",
+          "scene": null,
+          "launchMode": "default"
+        }
+      ]
+    }
+  },
   "libVersion": "3.12.1",
   "projectname": "miniprogram"
 }

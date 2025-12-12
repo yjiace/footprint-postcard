@@ -1,0 +1,134 @@
+<!--pages/attractions/attractions.wxml-->
+<view class="page-container">
+  <!-- 固定渐变背景层 -->
+  <view class="bg-gradient"></view>
+  
+  <!-- 自定义导航栏 -->
+  <custom-navbar title="周边景点" showBack="{{true}}"></custom-navbar>
+
+  <!-- 搜索栏 - 透明风格 -->
+  <view class="search-bar">
+    <!-- 关键字搜索 -->
+    <view class="search-input-wrap">
+      <!-- <text class="search-icon">🔍</text> -->
+      <input 
+        class="search-input" 
+        type="text" 
+        placeholder="搜索景点" 
+        placeholder-class="placeholder"
+        value="{{keywords}}"
+        bindinput="onKeywordsInput"
+        bindconfirm="onSearch"
+        confirm-type="search"
+      />
+      <text class="clear-btn" wx:if="{{keywords}}" bindtap="onClearKeywords">×</text>
+    </view>
+    
+    <!-- 景点类型下拉 -->
+    <picker 
+      mode="selector" 
+      range="{{filterTypes}}" 
+      range-key="name"
+      value="{{filterTypeIndex}}"
+      bindchange="onTypeChange"
+    >
+      <view class="filter-picker">
+        <text>{{filterTypes[filterTypeIndex].shortName}}</text>
+        <text class="arrow">▼</text>
+      </view>
+    </picker>
+    
+    <!-- 搜索半径下拉 -->
+    <picker 
+      mode="selector" 
+      range="{{radiusOptions}}" 
+      range-key="shortName"
+      value="{{radiusIndex}}"
+      bindchange="onRadiusChange"
+    >
+      <view class="filter-picker">
+        <text>{{radiusOptions[radiusIndex].shortName}}</text>
+        <text class="arrow">▼</text>
+      </view>
+    </picker>
+    
+    <!-- 搜索按钮 -->
+    <view class="search-btn" bindtap="onSearch">
+      <view class="search-icon-svg"></view>
+    </view>
+  </view>
+
+  <!-- 景点列表 -->
+  <scroll-view 
+    class="content-scroll" 
+    scroll-y 
+    enhanced
+    scroll-into-view="{{scrollToView}}"
+    scroll-with-animation="{{true}}"
+    refresher-enabled="{{true}}"
+    refresher-triggered="{{refreshing}}"
+    bindrefresherrefresh="onRefresh"
+    bindscrolltolower="onLoadMore"
+    bindscroll="onScroll"
+    lower-threshold="100"
+  >
+    <!-- 顶部锚点 -->
+    <view id="list-top"></view>
+
+    <!-- 结果统计 -->
+    <view class="result-count" wx:if="{{!loading && attractions.length > 0}}">
+      <text>共 {{totalCount}} 个景点</text>
+    </view>
+
+    <!-- 景点列表内容 -->
+    <view class="attractions-list" wx:if="{{attractions.length > 0}}">
+      <view 
+        class="attraction-item" 
+        wx:for="{{attractions}}" 
+        wx:key="id" 
+        bindtap="onAttractionTap" 
+        data-item="{{item}}"
+      >
+        <image class="attraction-image" src="{{item.image}}" mode="aspectFill" lazy-load></image>
+        <view class="attraction-info">
+          <text class="attraction-name">{{item.name}}</text>
+          <text class="attraction-tags">{{item.tags}}</text>
+          <text class="attraction-distance">距离您 {{item.distance}}</text>
+          <text class="attraction-address" wx:if="{{item.address}}">{{item.address}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{!loading && attractions.length === 0}}">
+      <text class="empty-icon">🏞️</text>
+      <text class="empty-text">暂无符合条件的景点</text>
+      <text class="empty-hint">试试扩大搜索范围或更换关键字</text>
+    </view>
+
+    <!-- 加载更多 -->
+    <view class="loading-more" wx:if="{{loading && attractions.length > 0}}">
+      <view class="loading-spinner"></view>
+      <text>加载中...</text>
+    </view>
+
+    <!-- 没有更多 -->
+    <view class="no-more" wx:if="{{noMore && attractions.length > 0}}">
+      <text>— 已展示全部 —</text>
+    </view>
+
+    <!-- 底部占位 -->
+    <view class="bottom-placeholder"></view>
+  </scroll-view>
+
+  <!-- 回到顶部按钮 -->
+  <view class="back-to-top {{showBackTop ? 'show' : ''}}" bindtap="scrollToTop">
+    <text>↑</text>
+  </view>
+
+  <!-- 初次加载中 -->
+  <view class="initial-loading" wx:if="{{loading && attractions.length === 0}}">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+</view>

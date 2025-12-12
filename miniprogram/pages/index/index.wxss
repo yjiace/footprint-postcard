@@ -260,6 +260,14 @@
   line-height: 1.5;
 }
 
+.attraction-address {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .bottom-placeholder {
   height: 40rpx;
 }

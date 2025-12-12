@@ -1,6 +1,7 @@
 {
     "pages": [
         "pages/index/index",
+        "pages/attractions/attractions",
         "pages/plan-list/plan-list",
         "pages/plan/plan",
         "pages/plan-detail/plan-detail",

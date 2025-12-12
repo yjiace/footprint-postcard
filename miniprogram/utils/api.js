@@ -161,9 +161,20 @@ function getHotDestinations() {
 
 /**
  * 获取周边景点
+ * @param {Number} latitude 纬度
+ * @param {Number} longitude 经度
+ * @param {Number} radius 搜索半径（公里）
+ * @param {String} types POI类型，默认"风景名胜|公园广场"
+ * @param {Number} page 页码，默认1
+ * @param {Number} pageSize 每页数量，默认20
+ * @param {String} keywords 搜索关键字，可选
  */
-function getNearbyAttractions(latitude, longitude, radius = 10) {
-    return get('/attractions/nearby', { latitude, longitude, radius })
+function getNearbyAttractions(latitude, longitude, radius = 10, types = '风景名胜|公园广场', page = 1, pageSize = 20, keywords = '') {
+    const params = { latitude, longitude, radius, types, page, pageSize }
+    if (keywords) {
+        params.keywords = keywords
+    }
+    return get('/attractions/nearby', params)
 }
 
 /**

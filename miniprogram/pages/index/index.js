@@ -11,7 +11,8 @@ Page({
         latitude: 0,
         longitude: 0,
         hotDestinations: [],
-        nearbyAttractions: []
+        nearbyAttractions: [],
+        lastLocationTime: 0  // 上次定位时间戳，用于频率控制
     },
 
     onLoad() {
@@ -62,15 +63,33 @@ Page({
                 })
             })
 
-            // 如果用户未授权定位权限，则静默请求授权
+            console.log('首页定位 - 权限状态:', authSetting.authSetting['scope.userLocation'])
+
+            // 如果用户未授权定位权限，则静默请求授权（带超时）
             if (!authSetting.authSetting['scope.userLocation']) {
-                const authResult = await new Promise((resolve) => {
-                    wx.authorize({
-                        scope: 'scope.userLocation',
-                        success: () => resolve(true),
-                        fail: () => resolve(false)
+                console.log('首页定位 - 请求授权')
+                const authResult = await Promise.race([
+                    new Promise((resolve) => {
+                        wx.authorize({
+                            scope: 'scope.userLocation',
+                            success: () => {
+                                console.log('首页定位 - 授权成功')
+                                resolve(true)
+                            },
+                            fail: (err) => {
+                                console.log('首页定位 - 授权失败:', err)
+                                resolve(false)
+                            }
+                        })
+                    }),
+                    // 5秒超时
+                    new Promise((resolve) => {
+                        setTimeout(() => {
+                            console.log('首页定位 - 授权超时')
+                            resolve(false)
+                        }, 5000)
                     })
-                })
+                ])
 
                 if (!authResult) {
                     console.log('用户拒绝定位权限，使用缓存或默认位置')
@@ -529,7 +548,8 @@ Page({
                 name: item.name || item.title || '未知景点',
                 image: item.image || item.cover || item.picture || '/images/default-attraction.jpg',
                 tags: item.tags || item.category || '',
-                distance: item.distance || ''
+                distance: item.distance || '',
+                address: item.address || ''
             }))
 
             this.setData({
@@ -589,9 +609,33 @@ Page({
         // TODO: 跳转到景点详情页
     },
 
-    // 查看更多景点
-    onMoreAttractions() {
-        util.showError('功能开发中')
+    // 点击定位徽章重新定位（带30秒冷却时间）
+    onLocationTap() {
+        const now = Date.now()
+        const cooldown = 30 * 1000  // 30秒冷却时间
+        const lastTime = this.data.lastLocationTime
+
+        if (lastTime && (now - lastTime) < cooldown) {
+            const remaining = Math.ceil((cooldown - (now - lastTime)) / 1000)
+            wx.showToast({
+                title: `${remaining}秒后可重新定位`,
+                icon: 'none'
+            })
+            return
+        }
+
+        // 更新最后定位时间
+        this.setData({ lastLocationTime: now })
+
+        // 执行重新定位
+        this.getCurrentLocation()
+    },
+
+    // 跳转到周边景点列表页面
+    goToAttractionList() {
+        wx.navigateTo({
+            url: `/pages/attractions/attractions?latitude=${this.data.latitude}&longitude=${this.data.longitude}`
+        })
     },
 
     // 分享
