@@ -6,7 +6,7 @@
   <!-- 固定导航栏 -->
   <custom-navbar title="明信片"></custom-navbar>
 
-  <scroll-view class="content-scroll" scroll-y>
+  <scroll-view class="content-scroll" scroll-y refresher-enabled="{{isLoggedIn}}" refresher-triggered="{{refreshing}}" bindrefresherrefresh="onRefresh" bindscrolltolower="onScrollToLower" lower-threshold="100">
     <!-- 未登录状态 -->
     <view class="empty-container" wx:if="{{!isLoggedIn}}">
       <view class="empty-icon">🔐</view>
@@ -33,6 +33,16 @@
         </view>
         <text class="postcard-title">{{item.title}}</text>
       </view>
+    </view>
+
+    <!-- 底部状态提示（合并分页信息和加载状态）-->
+    <view class="load-more" wx:if="{{postcardList.length > 0}}">
+      <view class="loading-indicator" wx:if="{{loadingMore}}">
+        <view class="loading-spinner"></view>
+        <text>加载中...</text>
+      </view>
+      <text class="load-hint" wx:elif="{{hasMore}}">共 {{totalCount || postcardList.length}} 张 · 上滑加载更多</text>
+      <text class="no-more" wx:else>共 {{totalCount || postcardList.length}} 张 · 没有更多了</text>
     </view>
 
     <!-- 空状态（已登录但无数据）-->

@@ -11,8 +11,12 @@ Page({
         // 分页相关
         page: 1,
         pageSize: 10,
-        hasMore: true,
-        loadingMore: false
+        hasMore: false,  // 默认没有更多，等API返回后再确定
+        loadingMore: false,
+        // 下拉刷新状态
+        refreshing: false,
+        // 总数
+        totalCount: 0
     },
 
     onLoad() {
@@ -30,13 +34,27 @@ Page({
         })
     },
 
-    // 上拉加载更多
-    onReachBottom() {
-        if (this.data.loadingMore || !this.data.hasMore || !this.data.isLoggedIn) {
+    // scroll-view 下拉刷新
+    onRefresh() {
+        this.setData({ refreshing: true })
+        this.loadPostcardList(true).finally(() => {
+            this.setData({ refreshing: false })
+        })
+    },
+
+    // scroll-view 上滑加载更多
+    onScrollToLower() {
+        // 防止重复加载：正在加载更多、没有更多数据、未登录、正在刷新时都不触发
+        if (this.data.loadingMore || !this.data.hasMore || !this.data.isLoggedIn || this.data.refreshing) {
             return
         }
         this.setData({ loadingMore: true })
         this.loadPostcardList(false)
+    },
+
+    // 上拉加载更多（页面级，保留兼容）
+    onReachBottom() {
+        this.onScrollToLower()
     },
 
     // 加载明信片列表
@@ -57,7 +75,7 @@ Page({
         if (reset) {
             this.setData({
                 page: 1,
-                hasMore: true,
+                hasMore: false,  // 重置时默认没有更多，等API返回后再确定
                 loading: true
             })
 
@@ -79,12 +97,14 @@ Page({
             const result = await api.getPostcardList(this.data.page, this.data.pageSize)
             const serverList = result.list || []
             const hasMore = result.hasMore !== undefined ? result.hasMore : serverList.length >= this.data.pageSize
+            const totalCount = result.total || 0
 
             if (reset) {
                 this.setData({
                     postcardList: serverList,
                     loading: false,
                     hasMore,
+                    totalCount,
                     page: this.data.page + 1
                 })
                 // 缓存第一页数据
@@ -95,6 +115,7 @@ Page({
                     postcardList: newList,
                     loadingMore: false,
                     hasMore,
+                    totalCount,
                     page: this.data.page + 1
                 })
             }
