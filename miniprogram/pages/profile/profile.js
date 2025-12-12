@@ -105,13 +105,21 @@ Page({
 
     // 清除缓存
     clearCache() {
-        util.showConfirm('确定清除所有缓存数据?').then(confirm => {
+        util.showConfirm('确定清除所有缓存数据?\n\n将清除以下内容：\n• 首页定位信息\n• 周边景点缓存\n• 用户登录信息\n• 行程和明信片数据').then(confirm => {
             if (confirm) {
+                // 清除所有本地存储
                 storage.clear()
+                
+                // 清除全局数据
                 app.globalData.userInfo = null
+                app.globalData.location = null
+                
+                // 更新页面状态
                 this.setData({
-                    userInfo: {}
+                    userInfo: {},
+                    isLoggedIn: false
                 })
+                
                 util.showSuccess('清除成功')
             }
         })
