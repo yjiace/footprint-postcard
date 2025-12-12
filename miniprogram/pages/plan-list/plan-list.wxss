@@ -275,8 +275,8 @@
 /* 右下角菜单按钮 */
 .card-menu-btn {
   position: absolute;
-  bottom: 16rpx;
-  right: 16rpx;
+  bottom: 20rpx;
+  right: 20rpx;
   width: 56rpx;
   height: 56rpx;
   display: flex;
@@ -291,16 +291,19 @@
 }
 
 .menu-dots {
-  font-size: 24rpx;
+  font-size: 25rpx;
   color: #6b7280;
-  letter-spacing: 2rpx;
+  letter-spacing: -4rpx;
+  line-height: 1;
+  word-spacing: -4rpx;
+  font-family: monospace;
 }
 
 /* 下拉菜单 */
 .dropdown-menu {
   position: absolute;
-  bottom: 70rpx;
-  right: 16rpx;
+  bottom: 76rpx;
+  right: 20rpx;
   min-width: 200rpx;
   background: #FFFFFF;
   border-radius: 16rpx;

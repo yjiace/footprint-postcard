@@ -12,8 +12,8 @@
   </custom-navbar>
 
   <scroll-view class="content-scroll" scroll-y>
-    <!-- 热门目的地 -->
-    <view class="section">
+    <!-- 热门目的地 - 无数据时隐藏整个区域 -->
+    <view class="section" wx:if="{{hotDestinations && hotDestinations.length > 0}}">
       <view class="section-header">
         <text class="section-title">热门目的地</text>
       </view>
@@ -59,10 +59,11 @@
     <view class="section">
       <view class="section-header">
         <text class="section-title">周边景点</text>
-        <text class="section-more" bindtap="goToAttractionList">查看更多 ></text>
+        <text class="section-more" bindtap="goToAttractionList" wx:if="{{nearbyAttractions && nearbyAttractions.length > 0}}">查看更多 ></text>
       </view>
       
-      <view class="attractions-list">
+      <!-- 有数据时显示景点列表 -->
+      <view class="attractions-list" wx:if="{{nearbyAttractions && nearbyAttractions.length > 0}}">
         <view class="attraction-item" wx:for="{{nearbyAttractions}}" wx:key="id" bindtap="onAttractionTap" data-item="{{item}}">
           <image class="attraction-image" src="{{item.image}}" mode="aspectFill" lazy-load></image>
           <view class="attraction-info">
@@ -72,6 +73,12 @@
             <text class="attraction-address" wx:if="{{item.address}}">{{item.address}}</text>
           </view>
         </view>
+      </view>
+      <!-- 无数据时显示暂无数据提示 -->
+      <view class="empty-container" wx:else>
+        <view class="empty-icon">📍</view>
+        <text class="empty-title">暂无周边景点</text>
+        <text class="empty-desc">请确认定位权限已开启</text>
       </view>
     </view>
 
