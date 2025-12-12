@@ -12,11 +12,12 @@
 }
 
 .page-container {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   padding-bottom: env(safe-area-inset-bottom);
+  overflow: hidden;
 }
 
 .loading-container,
@@ -47,6 +48,7 @@
 
 .content-scroll {
   flex: 1;
+  min-height: 0;
 }
 
 /* Header Info */

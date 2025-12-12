@@ -1,9 +1,12 @@
 /* pages/privacy/privacy.wxss */
 
 .privacy-container {
-    min-height: 100vh;
+    height: 100vh;
     position: relative;
     background: transparent;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* 固定渐变背景 */
@@ -19,8 +22,8 @@
 
 /* 内容滚动区域 */
 .content-scroll {
-    height: calc(100vh - 88px);
-    padding-top: 20px;
+    flex: 1;
+    min-height: 0;
     box-sizing: border-box;
 }
 

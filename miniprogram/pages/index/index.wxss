@@ -13,8 +13,11 @@
 }
 
 .page-container {
-  min-height: 100vh;
+  height: 100vh;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* 定位徽章样式（在导航栏左侧插槽中使用） */
@@ -41,6 +44,7 @@
 
 .content-scroll {
   flex: 1;
+  min-height: 0;
 }
 
 .section-header {
