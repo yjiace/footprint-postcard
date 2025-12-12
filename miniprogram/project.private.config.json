@@ -23,9 +23,9 @@
     "miniprogram": {
       "list": [
         {
-          "name": "pages/attractions/attractions",
-          "pathName": "pages/attractions/attractions",
-          "query": "latitude=38.03647&longitude=114.53952",
+          "name": "pages/plan-list/plan-list",
+          "pathName": "pages/plan-list/plan-list",
+          "query": "",
           "scene": null,
           "launchMode": "default"
         }
