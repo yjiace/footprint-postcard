@@ -1,4 +1,5 @@
-// 路线地图弹框组件
+// 路线地图弹框组件 - 增强版
+// 支持两种模式：segment（单段路径）和 day（当天全程路径）
 const api = require('../../utils/api.js')
 
 Component({
@@ -8,11 +9,17 @@ Component({
             type: Boolean,
             value: false,
             observer: function (newVal) {
-                if (newVal && this.data.origin && this.data.destination) {
-                    this.fetchRoute()
+                if (newVal) {
+                    this.onShow()
                 }
             }
         },
+        // 显示模式: segment | day
+        displayMode: {
+            type: String,
+            value: 'segment' // segment: 单段路径, day: 当天全程
+        },
+        // ======= 单段模式属性 =======
         // 起点坐标 { longitude, latitude }
         origin: {
             type: Object,
@@ -33,6 +40,18 @@ Component({
             type: String,
             value: '终点'
         },
+        // ======= 全天模式属性 =======
+        // 行程ID（全天模式必需）
+        planId: {
+            type: String,
+            value: ''
+        },
+        // 天数索引（全天模式必需）
+        dayIndex: {
+            type: Number,
+            value: 0
+        },
+        // ======= 通用属性 =======
         // 城市（公交路径规划必需）
         city: {
             type: String,
@@ -53,12 +72,35 @@ Component({
         mapCenter: { latitude: 39.9, longitude: 116.4 },
         mapScale: 14,
         markers: [],
-        polyline: []
+        polyline: [],
+        // 全天模式汇总信息
+        totalDistanceText: '',
+        totalDurationText: '',
+        locationCount: 0,
+        // 全屏模式
+        isFullscreen: false,
+        statusBarHeight: 20,
+        fullscreenTop: 64
     },
 
     lifetimes: {
         attached() {
             this.setData({ mode: this.properties.defaultMode })
+
+            // 获取状态栏高度用于全屏模式
+            try {
+                const systemInfo = wx.getWindowInfo()
+                const statusBarHeight = systemInfo.statusBarHeight || 20
+                this.setData({
+                    statusBarHeight: statusBarHeight,
+                    fullscreenTop: statusBarHeight + 44 // 状态栏 + 导航栏高度
+                })
+            } catch (e) {
+                this.setData({
+                    statusBarHeight: 20,
+                    fullscreenTop: 64
+                })
+            }
         }
     },
 
@@ -70,7 +112,33 @@ Component({
 
         // 关闭弹框
         onClose() {
+            this.setData({ isFullscreen: false })
             this.triggerEvent('close')
+        },
+
+        // 切换全屏模式
+        toggleFullscreen() {
+            const isFullscreen = !this.data.isFullscreen
+            this.setData({ isFullscreen })
+
+            // 全屏后重新调整地图视野
+            if (isFullscreen) {
+                setTimeout(() => {
+                    this.fitMapToRoute()
+                }, 300)
+            }
+        },
+
+        // 弹框显示时触发
+        onShow() {
+            const { displayMode, origin, destination, planId } = this.data
+            if (displayMode === 'day' && planId) {
+                // 全天模式
+                this.fetchDayPath()
+            } else if (displayMode === 'segment' && origin && destination) {
+                // 单段模式
+                this.fetchRoute()
+            }
         },
 
         // 切换交通方式
@@ -78,11 +146,132 @@ Component({
             const mode = e.currentTarget.dataset.mode
             if (mode !== this.data.mode) {
                 this.setData({ mode })
-                this.fetchRoute()
+                // 根据模式重新获取数据
+                if (this.data.displayMode === 'day') {
+                    this.fetchDayPath()
+                } else {
+                    this.fetchRoute()
+                }
             }
         },
 
-        // 获取路线数据
+        // ======= 全天路径获取 =======
+        async fetchDayPath() {
+            const { planId, dayIndex, mode } = this.data
+
+            if (!planId) {
+                this.setData({ error: '缺少行程ID' })
+                return
+            }
+
+            this.setData({
+                loading: true,
+                error: '',
+                routeData: null
+            })
+
+            try {
+                const result = await api.getDayPath(planId, dayIndex, mode)
+
+                // 生成地图数据
+                const mapData = this.generateDayMapData(result)
+
+                this.setData({
+                    loading: false,
+                    routeData: result,
+                    totalDistanceText: result.totalDistanceText,
+                    totalDurationText: result.totalDurationText,
+                    locationCount: result.locationCount,
+                    ...mapData
+                })
+
+                // 延迟调用 includePoints 让地图自动调整视野
+                setTimeout(() => {
+                    this.fitMapToRoute()
+                }, 100)
+
+            } catch (err) {
+                console.error('获取全天路径失败:', err)
+                this.setData({
+                    loading: false,
+                    error: err.message || '获取路径失败，请重试'
+                })
+            }
+        },
+
+        // 生成全天地图数据（多点多线）
+        generateDayMapData(result) {
+            const markers = (result.markers || []).map((marker, idx) => ({
+                id: marker.id,
+                latitude: marker.latitude,
+                longitude: marker.longitude,
+                title: marker.name,
+                width: 30,
+                height: 30,
+                anchor: { x: 0.5, y: 1 },
+                callout: {
+                    content: marker.name,
+                    color: '#ffffff',
+                    bgColor: marker.color || '#3b82f6',
+                    fontSize: 12,
+                    borderRadius: 8,
+                    padding: 8,
+                    display: 'ALWAYS'
+                },
+                label: {
+                    content: marker.label,
+                    color: '#ffffff',
+                    bgColor: marker.color || '#3b82f6',
+                    fontSize: 10,
+                    borderRadius: 12,
+                    padding: 4,
+                    anchorX: 0,
+                    anchorY: -35
+                }
+            }))
+
+            // 多条线段
+            const polyline = (result.polylines || []).map(pl => ({
+                points: pl.points || [],
+                color: pl.color || '#8b5cf6',
+                width: pl.width || 6,
+                arrowLine: pl.arrowLine !== false,
+                borderColor: this.darkenColor(pl.color || '#8b5cf6'),
+                borderWidth: 1
+            }))
+
+            // 计算中心点
+            let mapCenter = { latitude: 39.9, longitude: 116.4 }
+            if (markers.length > 0) {
+                const sumLat = markers.reduce((sum, m) => sum + m.latitude, 0)
+                const sumLng = markers.reduce((sum, m) => sum + m.longitude, 0)
+                mapCenter = {
+                    latitude: sumLat / markers.length,
+                    longitude: sumLng / markers.length
+                }
+            }
+
+            return { markers, polyline, mapCenter, mapScale: 12 }
+        },
+
+        // 颜色加深（用于边框）
+        darkenColor(hex) {
+            // 简单的颜色加深处理
+            const colorMap = {
+                '#8b5cf6': '#7c3aed',
+                '#10b981': '#059669',
+                '#f59e0b': '#d97706',
+                '#ef4444': '#dc2626',
+                '#6366f1': '#4f46e5',
+                '#ec4899': '#db2777',
+                '#14b8a6': '#0d9488',
+                '#f97316': '#ea580c',
+                '#3b82f6': '#2563eb'
+            }
+            return colorMap[hex] || hex
+        },
+
+        // ======= 单段路径获取（原有逻辑）=======
         async fetchRoute() {
             const { origin, destination, city, mode } = this.data
 
@@ -155,8 +344,7 @@ Component({
             }
         },
 
-        // 生成地图数据（markers + polyline + center）
-        // routeDistance: 路线实际距离（米），用于计算缩放级别
+        // 生成单段地图数据（markers + polyline + center）
         generateMapData(polyline, routeDistance) {
             const { origin, destination, originName, destinationName } = this.data
 
@@ -246,20 +434,20 @@ Component({
 
         // 自动调整地图视野以包含整条路线
         fitMapToRoute() {
-            const { origin, destination, polyline } = this.data
-            if (!origin || !destination) return
+            const { markers, polyline, displayMode } = this.data
+            if (!markers || markers.length === 0) return
 
             // 获取地图上下文
             const mapCtx = wx.createMapContext('routeMap', this)
 
             // 收集所有需要包含的点
-            const points = [
-                { latitude: origin.latitude, longitude: origin.longitude },
-                { latitude: destination.latitude, longitude: destination.longitude }
-            ]
+            const points = markers.map(m => ({
+                latitude: m.latitude,
+                longitude: m.longitude
+            }))
 
             // 如果有 polyline 点，取一些关键点
-            if (polyline && polyline.length > 0 && polyline[0].points) {
+            if (polyline && polyline.length > 0 && polyline[0].points && polyline[0].points.length > 0) {
                 const routePoints = polyline[0].points
                 // 取起点、中间点、终点确保路线在视野内
                 if (routePoints.length > 2) {
@@ -295,9 +483,19 @@ Component({
 
         // 打开导航
         openNavigation() {
-            const { destination, destinationName } = this.data
+            const { destination, destinationName, displayMode, markers } = this.data
 
-            if (!destination) {
+            // 全天模式：导航到最后一个点
+            let navDest = destination
+            let navName = destinationName
+
+            if (displayMode === 'day' && markers && markers.length > 0) {
+                const lastMarker = markers[markers.length - 1]
+                navDest = { latitude: lastMarker.latitude, longitude: lastMarker.longitude }
+                navName = lastMarker.title || '终点'
+            }
+
+            if (!navDest) {
                 wx.showToast({
                     title: '缺少目的地信息',
                     icon: 'none'
@@ -306,9 +504,9 @@ Component({
             }
 
             wx.openLocation({
-                latitude: destination.latitude,
-                longitude: destination.longitude,
-                name: destinationName,
+                latitude: navDest.latitude,
+                longitude: navDest.longitude,
+                name: navName,
                 scale: 15,
                 success: () => {
                     console.log('打开导航成功')

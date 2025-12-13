@@ -339,6 +339,17 @@ function getRouteTransit(origin, destination, city) {
     return get('/route/transit', { origin, destination, city })
 }
 
+/**
+ * 获取当天全程路径（支持缓存）
+ * @param {String} planId 行程ID
+ * @param {Number} dayIndex 天数索引（从0开始）
+ * @param {String} mode 交通方式: driving | walking | transit
+ */
+function getDayPath(planId, dayIndex, mode = 'driving') {
+    // 使用较长超时时间（120秒），因为需要为多个景点调用路径规划 API
+    return request('/route/day-path', { planId, dayIndex, mode }, 'GET', {}, 120000)
+}
+
 module.exports = {
     request,
     get,
@@ -368,6 +379,8 @@ module.exports = {
     // 路径规划
     getRouteDriving,
     getRouteWalking,
-    getRouteTransit
+    getRouteTransit,
+    getDayPath
 }
+
 

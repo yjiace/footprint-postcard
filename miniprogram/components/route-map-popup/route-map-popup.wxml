@@ -1,10 +1,10 @@
-<!-- 路线地图弹框组件 -->
+<!-- 路线地图弹框组件 - 增强版 -->
 <view class="route-map-popup {{visible ? 'visible' : ''}}" catchtouchmove="preventTouchMove">
   <!-- 遮罩层 -->
   <view class="mask" bindtap="onClose"></view>
   
   <!-- 弹框内容 -->
-  <view class="popup-content">
+  <view class="popup-content {{isFullscreen ? 'fullscreen' : ''}}" style="{{isFullscreen ? 'top: ' + fullscreenTop + 'px; height: calc(100vh - ' + fullscreenTop + 'px);' : ''}}">
     <!-- 顶部拖拽条 -->
     <view class="drag-bar">
       <view class="drag-indicator"></view>
@@ -13,15 +13,22 @@
     <!-- 头部信息 -->
     <view class="popup-header">
       <view class="route-info">
-        <view class="route-title">
+        <!-- 单段模式标题 -->
+        <view class="route-title" wx:if="{{displayMode === 'segment'}}">
           <text class="from-name">{{originName}}</text>
           <text class="arrow">→</text>
           <text class="to-name">{{destinationName}}</text>
         </view>
-        <view class="route-summary" wx:if="{{!loading && routeData}}">
-          <text class="distance">{{routeData.distanceText}}</text>
+        <!-- 全天模式标题 -->
+        <view class="route-title" wx:else>
+          <text class="day-title">今日全程路线</text>
+          <text class="location-count" wx:if="{{locationCount}}">{{locationCount}}个地点</text>
+        </view>
+        <!-- 路程汇总 -->
+        <view class="route-summary" wx:if="{{!loading && (routeData || totalDistanceText)}}">
+          <text class="distance">{{displayMode === 'day' ? totalDistanceText : routeData.distanceText}}</text>
           <text class="separator">|</text>
-          <text class="duration">约{{routeData.duration}}分钟</text>
+          <text class="duration">{{displayMode === 'day' ? totalDurationText : '约' + routeData.duration + '分钟'}}</text>
         </view>
       </view>
       <view class="close-btn" bindtap="onClose">
@@ -55,11 +62,15 @@
     <view class="error-container" wx:elif="{{error}}">
       <text class="error-icon">⚠️</text>
       <text class="error-text">{{error}}</text>
-      <view class="retry-btn" bindtap="fetchRoute">重试</view>
+      <view class="retry-btn" bindtap="{{displayMode === 'day' ? 'fetchDayPath' : 'fetchRoute'}}">重试</view>
     </view>
 
     <!-- 地图区域 -->
-    <view class="map-container" wx:elif="{{routeData}}">
+    <view class="map-container {{isFullscreen ? 'fullscreen' : ''}}" wx:elif="{{routeData || markers.length > 0}}">
+      <!-- 全屏/关闭按钮（右上角） -->
+      <view class="map-action-btn" bindtap="{{isFullscreen ? 'toggleFullscreen' : 'toggleFullscreen'}}">
+        <text>{{isFullscreen ? '✕' : '⛶'}}</text>
+      </view>
       <map
         id="routeMap"
         class="route-map"
@@ -74,8 +85,23 @@
       ></map>
     </view>
 
-    <!-- 导航步骤列表 -->
-    <scroll-view class="steps-container" scroll-y wx:if="{{routeData && routeData.steps && routeData.steps.length > 0}}">
+    <!-- 路段信息列表（全天模式） -->
+    <scroll-view class="segments-container" scroll-y wx:if="{{displayMode === 'day' && routeData && routeData.polylines && routeData.polylines.length > 0}}">
+      <view class="segments-title">路段详情</view>
+      <view class="segment-item" wx:for="{{routeData.polylines}}" wx:key="index">
+        <view class="segment-color" style="background-color: {{item.color}};"></view>
+        <view class="segment-info">
+          <text class="segment-route">{{item.fromName}} → {{item.toName}}</text>
+          <view class="segment-stats">
+            <text class="segment-distance">{{item.distanceText}}</text>
+            <text class="segment-duration" wx:if="{{item.duration > 0}}">约{{item.duration}}分钟</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 导航步骤列表（单段模式） -->
+    <scroll-view class="steps-container" scroll-y wx:if="{{displayMode === 'segment' && routeData && routeData.steps && routeData.steps.length > 0}}">
       <view class="steps-title">导航详情</view>
       <view class="step-item" wx:for="{{routeData.steps}}" wx:key="index">
         <view class="step-icon">
@@ -99,7 +125,7 @@
     </scroll-view>
 
     <!-- 底部导航按钮 -->
-    <view class="bottom-actions" wx:if="{{routeData}}">
+    <view class="bottom-actions" wx:if="{{routeData || markers.length > 0}}">
       <view class="nav-btn" bindtap="openNavigation">
         <text class="nav-icon">📍</text>
         <text class="nav-text">开始导航</text>

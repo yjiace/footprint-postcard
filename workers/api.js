@@ -830,7 +830,239 @@ async function handleRouteTransit(request, env) {
     }
 }
 
-// ==================== 路由处理器 ====================
+// 路段颜色配置
+const SEGMENT_COLORS = [
+    '#8b5cf6', // 紫色
+    '#10b981', // 绿色
+    '#f59e0b', // 橙色
+    '#ef4444', // 红色
+    '#6366f1', // 蓝色
+    '#ec4899', // 粉色
+    '#14b8a6', // 青色
+    '#f97316', // 深橙
+]
+
+/**
+ * 获取当天全程路径
+ * 支持缓存机制，根据交通方式调用不同的路径规划API
+ * 
+ * @param {String} planId 行程ID
+ * @param {Number} dayIndex 天数索引
+ * @param {String} mode 交通方式: driving | walking | transit
+ * @param {String} city 城市名称（公交模式需要）
+ * @param {Object} env 环境变量
+ */
+async function handleGetDayPath(request, env) {
+    const user = await getUserFromRequest(request, env)
+    if (!user) {
+        return errorResponse('未登录', 401)
+    }
+
+    const url = new URL(request.url)
+    const planId = url.searchParams.get('planId')
+    const dayIndex = parseInt(url.searchParams.get('dayIndex') || '0')
+    const mode = url.searchParams.get('mode') || 'driving' // driving | walking | transit
+
+    if (!planId) {
+        return errorResponse('缺少 planId 参数', 400)
+    }
+
+    // 1. 检查缓存
+    const cacheKey = `day_path:${planId}:${dayIndex}:${mode}`
+    const cached = await env.KV.get(cacheKey)
+    if (cached) {
+        console.log('使用缓存的路径数据:', cacheKey)
+        return jsonResponse(JSON.parse(cached))
+    }
+
+    // 2. 获取行程数据
+    const planData = await env.KV.get(`plan:${user.openid}:${planId}`)
+    if (!planData) {
+        return errorResponse('行程不存在', 404)
+    }
+
+    const plan = JSON.parse(planData)
+    const schedule = plan.schedule || []
+
+    if (dayIndex >= schedule.length) {
+        return errorResponse('天数索引超出范围', 400)
+    }
+
+    const dayData = schedule[dayIndex]
+    const planning = dayData.planning || []
+    const city = plan.city || ''
+
+    // 3. 收集所有有效坐标点
+    // 包括用户起点（如果是第一天）和返程终点（如果是最后一天）
+    const locations = []
+
+    // 第一天：添加用户起点
+    if (dayIndex === 0 && plan.userLocation) {
+        locations.push({
+            id: 0,
+            name: '出发点',
+            latitude: plan.userLocation.latitude,
+            longitude: plan.userLocation.longitude,
+            type: 'start'
+        })
+    }
+
+    // 添加当天所有景点/餐厅
+    planning.forEach((item, idx) => {
+        if (item.location && item.location.latitude && item.location.longitude) {
+            locations.push({
+                id: locations.length,
+                name: item.name || `地点${idx + 1}`,
+                latitude: item.location.latitude,
+                longitude: item.location.longitude,
+                type: item.type || 'attraction'
+            })
+        }
+    })
+
+    // 最后一天：添加返程终点
+    const isLastDay = dayIndex === schedule.length - 1
+    if (isLastDay && plan.userLocation) {
+        locations.push({
+            id: locations.length,
+            name: '返回起点',
+            latitude: plan.userLocation.latitude,
+            longitude: plan.userLocation.longitude,
+            type: 'end'
+        })
+    }
+
+    // 验证至少有2个点才能规划路径
+    if (locations.length < 2) {
+        return jsonResponse({
+            markers: locations.map((loc, idx) => ({
+                id: loc.id,
+                name: loc.name,
+                latitude: loc.latitude,
+                longitude: loc.longitude,
+                label: loc.type === 'start' ? '起' : loc.type === 'end' ? '终' : String(idx),
+                type: loc.type
+            })),
+            polylines: [],
+            totalDistance: 0,
+            totalDuration: 0,
+            mode: mode,
+            message: '坐标点不足，无法规划路径'
+        })
+    }
+
+    // 4. 为每对相邻点查询路径
+    const polylines = []
+    let totalDistance = 0
+    let totalDuration = 0
+
+    for (let i = 0; i < locations.length - 1; i++) {
+        const from = locations[i]
+        const to = locations[i + 1]
+        const originStr = `${from.longitude},${from.latitude}`
+        const destStr = `${to.longitude},${to.latitude}`
+
+        try {
+            let routeResult
+            if (mode === 'walking') {
+                routeResult = await getRouteWalking(originStr, destStr, env)
+            } else if (mode === 'transit') {
+                routeResult = await getRouteTransit(originStr, destStr, city, env)
+            } else {
+                routeResult = await getRouteDriving(originStr, destStr, env)
+            }
+
+            const segmentColor = SEGMENT_COLORS[i % SEGMENT_COLORS.length]
+            const distance = routeResult.distance || 0
+
+            polylines.push({
+                fromId: from.id,
+                toId: to.id,
+                fromName: from.name,
+                toName: to.name,
+                points: routeResult.polyline || [],
+                distance: distance,
+                distanceText: distance >= 1000
+                    ? `${(distance / 1000).toFixed(1)}公里`
+                    : `${distance}米`,
+                duration: routeResult.duration || 0,
+                color: segmentColor,
+                width: 6,
+                arrowLine: true
+            })
+
+            totalDistance += distance
+            totalDuration += routeResult.duration || 0
+
+        } catch (err) {
+            console.error(`路径规划失败 (${from.name} -> ${to.name}):`, err.message)
+            // 继续处理其他路段，不中断
+            polylines.push({
+                fromId: from.id,
+                toId: to.id,
+                fromName: from.name,
+                toName: to.name,
+                points: [],
+                distance: 0,
+                distanceText: '0米',
+                duration: 0,
+                color: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
+                error: err.message
+            })
+        }
+    }
+
+    // 5. 生成 markers 数据
+    const markers = locations.map((loc, idx) => {
+        let label = String(idx)
+        let markerColor = '#3b82f6' // 默认蓝色
+
+        if (loc.type === 'start') {
+            label = '起'
+            markerColor = '#10b981' // 绿色
+        } else if (loc.type === 'end') {
+            label = '终'
+            markerColor = '#ef4444' // 红色
+        }
+
+        return {
+            id: loc.id,
+            name: loc.name,
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            label: label,
+            type: loc.type,
+            color: markerColor
+        }
+    })
+
+    // 6. 构建结果
+    const result = {
+        markers: markers,
+        polylines: polylines,
+        totalDistance: totalDistance,
+        totalDuration: totalDuration,
+        totalDistanceText: totalDistance >= 1000
+            ? `${(totalDistance / 1000).toFixed(1)}公里`
+            : `${totalDistance}米`,
+        totalDurationText: totalDuration > 0 ? `约${totalDuration}分钟` : '',
+        mode: mode,
+        dayIndex: dayIndex,
+        locationCount: locations.length
+    }
+
+    // 7. 缓存结果（24小时）
+    try {
+        await env.KV.put(cacheKey, JSON.stringify(result), { expirationTtl: 86400 })
+        console.log('路径数据已缓存:', cacheKey)
+    } catch (cacheErr) {
+        console.error('缓存路径数据失败:', cacheErr.message)
+    }
+
+    return jsonResponse(result)
+}
+
+
 
 /**
  * 1. 用户登录
@@ -2449,6 +2681,7 @@ const routes = {
     'GET /route/driving': handleRouteDriving,    // 驾车路径规划
     'GET /route/walking': handleRouteWalking,    // 步行路径规划
     'GET /route/transit': handleRouteTransit,    // 公交路径规划
+    'GET /route/day-path': handleGetDayPath,     // 当天全程路径（含缓存）
 
     // 行程相关
     'POST /plan/generate': handleGeneratePlan,

@@ -299,6 +299,9 @@
   <!-- 路线地图弹框 -->
   <route-map-popup
     visible="{{showRouteMapPopup}}"
+    displayMode="{{routeMapDisplayMode}}"
+    planId="{{routeMapPlanId}}"
+    dayIndex="{{routeMapDayIndex}}"
     origin="{{routeMapOrigin}}"
     destination="{{routeMapDestination}}"
     originName="{{routeMapOriginName}}"

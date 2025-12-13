@@ -45,6 +45,28 @@
   transform: translateY(0);
 }
 
+/* 弹框全屏模式 */
+.popup-content.fullscreen {
+  height: calc(100vh - env(safe-area-inset-top));
+  top: env(safe-area-inset-top);
+  border-radius: 0;
+}
+
+.popup-content.fullscreen .drag-bar,
+.popup-content.fullscreen .popup-header,
+.popup-content.fullscreen .mode-tabs,
+.popup-content.fullscreen .segments-container,
+.popup-content.fullscreen .steps-container,
+.popup-content.fullscreen .bottom-actions {
+  display: none;
+}
+
+.popup-content.fullscreen .map-container {
+  margin: 0;
+  border-radius: 0;
+  min-height: calc(100vh - env(safe-area-inset-top));
+}
+
 /* 拖拽条 */
 .drag-bar {
   display: flex;
@@ -85,6 +107,21 @@
   color: #8b5cf6;
 }
 
+/* 全天模式标题 */
+.day-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.location-count {
+  font-size: 22rpx;
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
 .route-summary {
   display: flex;
   align-items: center;
@@ -93,6 +130,7 @@
   font-size: 24rpx;
   color: #666;
 }
+
 
 .separator {
   color: #ddd;
@@ -208,16 +246,52 @@
 
 /* 地图区域 */
 .map-container {
-  height: 400rpx;
+  flex: 1;
+  min-height: 500rpx;
   margin: 16rpx 32rpx;
   border-radius: 16rpx;
   overflow: hidden;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.map-container.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  border-radius: 0;
+  z-index: 1001;
+  min-height: 100vh;
 }
 
 .route-map {
   width: 100%;
   height: 100%;
+}
+
+/* 全屏/关闭按钮（右上角） */
+.map-action-btn {
+  position: absolute;
+  top: 16rpx;
+  right: 16rpx;
+  width: 64rpx;
+  height: 64rpx;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.map-action-btn text {
+  font-size: 32rpx;
+  color: #333;
 }
 
 /* 导航步骤列表 */
@@ -312,4 +386,64 @@
   font-size: 30rpx;
   font-weight: 600;
   color: #fff;
+}
+
+/* 路段信息列表（全天模式） */
+.segments-container {
+  flex: 1;
+  padding: 0 32rpx;
+  max-height: 300rpx;
+}
+
+.segments-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 16rpx;
+  padding-top: 8rpx;
+}
+
+.segment-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.segment-item:last-child {
+  border-bottom: none;
+}
+
+.segment-color {
+  width: 8rpx;
+  height: 48rpx;
+  border-radius: 4rpx;
+  flex-shrink: 0;
+}
+
+.segment-info {
+  flex: 1;
+}
+
+.segment-route {
+  font-size: 26rpx;
+  color: #333;
+  display: block;
+}
+
+.segment-stats {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #999;
+}
+
+.segment-distance {
+  color: #666;
+}
+
+.segment-duration {
+  color: #8b5cf6;
 }

@@ -52,6 +52,9 @@ Page({
         returnHomeName: '',      // 返回起点名称
         // 路线地图弹框
         showRouteMapPopup: false,
+        routeMapDisplayMode: 'segment',   // segment | day
+        routeMapPlanId: '',               // 全天模式需要
+        routeMapDayIndex: 0,              // 全天模式需要
         routeMapOrigin: null,
         routeMapDestination: null,
         routeMapOriginName: '',
@@ -400,20 +403,33 @@ Page({
         return icons
     },
 
-    // 查看路线静态地图
+    // 查看路线地图（使用map组件全天模式）
     onViewRouteMap() {
-        const mapUrl = this.data.currentDayMapUrl
-        if (mapUrl) {
-            wx.previewImage({
-                urls: [mapUrl],
-                current: mapUrl
-            })
-        } else {
+        const { plan, currentDay } = this.data
+
+        if (!plan || !plan.id) {
             wx.showToast({
-                title: '地图加载中...',
+                title: '行程数据不存在',
                 icon: 'none'
             })
+            return
         }
+
+        // 根据交通方式设置默认模式
+        let defaultMode = 'driving'
+        if (plan.transportation === '公共交通') {
+            defaultMode = 'transit'
+        } else if (plan.transportation === '步行为主') {
+            defaultMode = 'walking'
+        }
+
+        this.setData({
+            showRouteMapPopup: true,
+            routeMapDisplayMode: 'day',
+            routeMapPlanId: plan.id,
+            routeMapDayIndex: currentDay,
+            routeMapDefaultMode: defaultMode
+        })
     },
 
     // 返回（直接跳转到列表页）
@@ -540,6 +556,7 @@ Page({
 
         this.setData({
             showRouteMapPopup: true,
+            routeMapDisplayMode: 'segment',
             routeMapOrigin: fromLocation,
             routeMapDestination: toLocation,
             routeMapOriginName: fromName,
@@ -623,6 +640,7 @@ Page({
 
         this.setData({
             showRouteMapPopup: true,
+            routeMapDisplayMode: 'segment',
             routeMapOrigin: {
                 longitude: lastItem.location.longitude,
                 latitude: lastItem.location.latitude
