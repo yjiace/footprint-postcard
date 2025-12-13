@@ -130,14 +130,14 @@
                   <view class="timeline-dot" style="background: {{item.typeColor}};">
                     <text class="dot-emoji">{{item.typeEmoji}}</text>
                   </view>
-                  <view class="timeline-line" wx:if="{{itemIndex < currentDayData.planning.length - 1}}"></view>
+                  <view class="timeline-line" wx:if="{{itemIndex < currentDayData.planning.length - 1 || isLastDay}}"></view>
                 </view>
                 <view class="timeline-content">
                   <view class="item-header">
                     <text class="type-tag" style="background: {{item.typeColor}};">{{item.typeLabel}}</text>
                     <text class="item-name">{{item.name}}</text>
-                    <!-- 查看地图图标 -->
-                    <view class="item-map-icon" catchtap="onShowRouteSegment" data-from-index="{{itemIndex - 1}}" data-to-index="{{itemIndex}}" wx:if="{{currentRouteInfo}}">🗺️</view>
+                    <!-- 查看地图图标：第一天显示所有，其他天只显示非第一个景点 -->
+                    <view class="item-map-icon" catchtap="onShowRouteSegment" data-from-index="{{itemIndex - 1}}" data-to-index="{{itemIndex}}" wx:if="{{currentRouteInfo && (currentDay === 0 || itemIndex > 0)}}">🗺️</view>
                   </view>
                   <text class="item-address" wx:if="{{item.address}}">📍 {{item.address}}</text>
                   <view class="item-meta">
@@ -149,6 +149,38 @@
                 </view>
               </view>
             </block>
+
+            <!-- 返回起点项目（仅最后一天显示） -->
+            <view class="return-home-item" wx:if="{{isLastDay && currentRouteInfo}}">
+              <!-- 路程信息段 -->
+              <view class="route-segment">
+                <view class="route-segment-header" bindtap="toggleRouteDetail" data-index="{{currentDayData.planning.length}}">
+                  <view class="route-icon">{{routeSegmentIcons[currentDayData.planning.length] || '🚗'}}</view>
+                  <view class="route-summary-inline">
+                    <text class="route-distance">{{currentDayData.planning[currentDayData.planning.length - 1].name}} → 返回起点</text>
+                  </view>
+                  <view class="route-expand-icon">{{expandedRoutes[currentDayData.planning.length] ? '▲' : '▼'}}</view>
+                </view>
+              </view>
+
+              <!-- 返回起点地点项目 -->
+              <view class="timeline-item return-home">
+                <view class="timeline-left">
+                  <view class="timeline-dot" style="background: #10b981;">
+                    <text class="dot-emoji">🏠</text>
+                  </view>
+                </view>
+                <view class="timeline-content">
+                  <view class="item-header">
+                    <text class="type-tag" style="background: #10b981;">返程</text>
+                    <text class="item-name">{{returnHomeName || '返回起点'}}</text>
+                    <!-- 查看地图图标 -->
+                    <view class="item-map-icon" catchtap="onShowReturnRoute">🗺️</view>
+                  </view>
+                  <text class="item-address">📍 规划起始位置</text>
+                </view>
+              </view>
+            </view>
           </view>
         </view>
 

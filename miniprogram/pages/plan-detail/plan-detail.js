@@ -48,6 +48,8 @@ Page({
         expandedRoutes: {},      // 展开的路径段索引
         routeSummaryIcon: '🚗',  // 路程概况卡片图标
         routeSegmentIcons: {},   // 各路段图标 { itemIndex: icon }
+        isLastDay: false,        // 是否为最后一天
+        returnHomeName: '',      // 返回起点名称
         // 路线地图弹框
         showRouteMapPopup: false,
         routeMapOrigin: null,
@@ -88,6 +90,9 @@ Page({
             const routeSummaryIcon = this.getRouteSummaryIcon(plan)
             const routeSegmentIcons = this.getRouteSegmentIcons(plan, currentRouteInfo)
 
+            const isLastDay = plan.schedule.length === 1
+            const returnHomeInfo = this.getReturnHomeInfo(plan)
+
             this.setData({
                 plan: plan,
                 loading: false,
@@ -98,7 +103,9 @@ Page({
                 currentDayMapUrl: currentDayMapUrl,
                 expandedRoutes: {},
                 routeSummaryIcon: routeSummaryIcon,
-                routeSegmentIcons: routeSegmentIcons
+                routeSegmentIcons: routeSegmentIcons,
+                isLastDay: isLastDay,
+                returnHomeName: returnHomeInfo.name
             })
         } else {
             this.setData({
@@ -125,6 +132,9 @@ Page({
             const routeSummaryIcon = this.getRouteSummaryIcon(localPlan)
             const routeSegmentIcons = this.getRouteSegmentIcons(localPlan, currentRouteInfo)
 
+            const isLastDay = localPlan.schedule.length === 1
+            const returnHomeInfo = this.getReturnHomeInfo(localPlan)
+
             this.setData({
                 plan: localPlan,
                 loading: false,
@@ -135,7 +145,9 @@ Page({
                 currentDayMapUrl: currentDayMapUrl,
                 expandedRoutes: {},
                 routeSummaryIcon: routeSummaryIcon,
-                routeSegmentIcons: routeSegmentIcons
+                routeSegmentIcons: routeSegmentIcons,
+                isLastDay: isLastDay,
+                returnHomeName: returnHomeInfo.name
             })
             return
         }
@@ -152,6 +164,9 @@ Page({
                 const routeSummaryIcon = this.getRouteSummaryIcon(plan)
                 const routeSegmentIcons = this.getRouteSegmentIcons(plan, currentRouteInfo)
 
+                const isLastDay = plan.schedule.length === 1
+                const returnHomeInfo = this.getReturnHomeInfo(plan)
+
                 this.setData({
                     plan: plan,
                     loading: false,
@@ -162,7 +177,9 @@ Page({
                     currentDayMapUrl: currentDayMapUrl,
                     expandedRoutes: {},
                     routeSummaryIcon: routeSummaryIcon,
-                    routeSegmentIcons: routeSegmentIcons
+                    routeSegmentIcons: routeSegmentIcons,
+                    isLastDay: isLastDay,
+                    returnHomeName: returnHomeInfo.name
                 })
             } else {
                 this.setData({
@@ -318,6 +335,9 @@ Page({
             const currentDayMapUrl = this.getStaticMapForDay(plan, index)
             const routeSegmentIcons = this.getRouteSegmentIcons(plan, currentRouteInfo)
 
+            const isLastDay = index === plan.schedule.length - 1
+            const returnHomeInfo = this.getReturnHomeInfo(plan)
+
             this.setData({
                 currentDay: index,
                 currentDayData: currentDayData,
@@ -325,7 +345,9 @@ Page({
                 currentRouteInfo: currentRouteInfo,
                 currentDayMapUrl: currentDayMapUrl,
                 expandedRoutes: {},  // 切换天数时重置展开状态
-                routeSegmentIcons: routeSegmentIcons
+                routeSegmentIcons: routeSegmentIcons,
+                isLastDay: isLastDay,
+                returnHomeName: returnHomeInfo.name
             })
         }
     },
@@ -418,7 +440,9 @@ Page({
 
     // 显示路线段地图弹框
     onShowRouteSegment(e) {
-        const { fromIndex, toIndex } = e.currentTarget.dataset
+        // 将 dataset 中的字符串转换为数字
+        const fromIndex = parseInt(e.currentTarget.dataset.fromIndex, 10)
+        const toIndex = parseInt(e.currentTarget.dataset.toIndex, 10)
         const { currentDayData, plan } = this.data
 
         if (!currentDayData || !currentDayData.planning) {
@@ -499,6 +523,76 @@ Page({
     onCloseRouteMapPopup() {
         this.setData({
             showRouteMapPopup: false
+        })
+    },
+
+    // 获取返回起点信息
+    getReturnHomeInfo(plan) {
+        let location = null
+        let name = '返回起点'
+
+        if (plan.userLocation && plan.userLocation.latitude && plan.userLocation.longitude) {
+            location = {
+                longitude: plan.userLocation.longitude,
+                latitude: plan.userLocation.latitude
+            }
+            name = plan.userLocation.name || '返回起点'
+        } else {
+            // 尝试从缓存获取当前位置
+            const cachedLocation = storage.getLocation()
+            if (cachedLocation && cachedLocation.latitude && cachedLocation.longitude) {
+                location = {
+                    longitude: cachedLocation.longitude,
+                    latitude: cachedLocation.latitude
+                }
+                name = cachedLocation.city ? (cachedLocation.city + '(当前位置)') : '返回当前位置'
+            }
+        }
+
+        return { location, name }
+    },
+
+    // 显示返回起点的路线地图
+    onShowReturnRoute() {
+        const { currentDayData, plan } = this.data
+
+        if (!currentDayData || !currentDayData.planning || currentDayData.planning.length === 0) {
+            wx.showToast({ title: '无法获取位置信息', icon: 'none' })
+            return
+        }
+
+        // 获取最后一个景点
+        const lastItem = currentDayData.planning[currentDayData.planning.length - 1]
+        if (!lastItem?.location) {
+            wx.showToast({ title: '缺少起点坐标', icon: 'none' })
+            return
+        }
+
+        // 获取返回起点位置
+        const returnHomeInfo = this.getReturnHomeInfo(plan)
+        if (!returnHomeInfo.location) {
+            wx.showToast({ title: '无法获取起点位置', icon: 'none' })
+            return
+        }
+
+        // 根据交通方式设置默认模式
+        let defaultMode = 'driving'
+        if (plan.transportation === '公共交通') {
+            defaultMode = 'transit'
+        } else if (plan.transportation === '步行为主') {
+            defaultMode = 'walking'
+        }
+
+        this.setData({
+            showRouteMapPopup: true,
+            routeMapOrigin: {
+                longitude: lastItem.location.longitude,
+                latitude: lastItem.location.latitude
+            },
+            routeMapDestination: returnHomeInfo.location,
+            routeMapOriginName: lastItem.name || '最后一站',
+            routeMapDestinationName: returnHomeInfo.name,
+            routeMapDefaultMode: defaultMode
         })
     }
 })

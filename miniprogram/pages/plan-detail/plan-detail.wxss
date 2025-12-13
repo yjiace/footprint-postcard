@@ -720,3 +720,21 @@
 .bottom-placeholder {
   height: 100rpx;
 }
+
+/* 返回起点项目样式 */
+.return-home-item {
+  margin-top: 8rpx;
+}
+
+.return-home-item .route-segment {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-left: 6rpx solid #10b981;
+}
+
+.return-home-item .route-distance {
+  color: #047857;
+}
+
+.timeline-item.return-home .timeline-content {
+  padding-bottom: 0;
+}
