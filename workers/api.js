@@ -829,7 +829,7 @@ async function handleGeneratePlan(request, env, ctx) {
     }
 
     const body = await request.json()
-    const { city, date, days, poiTypes, notes, transportation, accommodation, apiVersion } = body
+    const { city, date, days, poiTypes, notes, transportation, accommodation, apiVersion, userLocation } = body
 
     if (!city || !date || !days) {
         return errorResponse('缺少必要参数', 400)
@@ -953,6 +953,8 @@ async function handleGeneratePlan(request, env, ctx) {
             accommodation: accommodation || '经济型酒店',
             preferences: preferences.length > 0 ? preferences : ['休闲'],
             free_text_input: notes || '',
+            // 用户起点坐标（用于规划起点到第一个景点、最后一个景点回起点的路线）
+            user_location: userLocation || null,
             // 回调信息
             callback: {
                 url: callbackUrl.toString(),

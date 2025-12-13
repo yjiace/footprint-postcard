@@ -362,7 +362,25 @@ Page({
             poiTypes: selectedTypes,
             notes: this.data.notes,
             transportation: transportation,
-            accommodation: accommodation
+            accommodation: accommodation,
+            // 用户起点坐标（用于规划从起点到第一个景点、最后一个景点回起点的路线）
+            userLocation: null,
+            apiVersion: 'v3'
+        }
+
+        // 尝试获取用户当前位置作为起点
+        try {
+            const cachedLocation = storage.getLocation()
+            if (cachedLocation && cachedLocation.latitude && cachedLocation.longitude) {
+                params.userLocation = {
+                    latitude: cachedLocation.latitude,
+                    longitude: cachedLocation.longitude,
+                    name: cachedLocation.city ? (cachedLocation.city + '(起点)') : '起点'
+                }
+                console.log('使用用户起点坐标:', params.userLocation)
+            }
+        } catch (e) {
+            console.log('获取用户位置失败，将不使用起点规划:', e)
         }
 
         try {
