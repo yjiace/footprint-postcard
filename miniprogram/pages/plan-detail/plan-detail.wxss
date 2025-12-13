@@ -384,6 +384,18 @@
   flex-shrink: 0;
 }
 
+/* 透明地图图标 */
+.route-map-icon {
+  font-size: 32rpx;
+  padding: 8rpx 12rpx;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.route-map-icon:active {
+  opacity: 1;
+}
+
 /* Timeline Item (通用) */
 .timeline-item {
   display: flex;

@@ -47,7 +47,14 @@ Page({
         currentDayMapUrl: null,  // 当天静态地图URL
         expandedRoutes: {},      // 展开的路径段索引
         routeSummaryIcon: '🚗',  // 路程概况卡片图标
-        routeSegmentIcons: {}    // 各路段图标 { itemIndex: icon }
+        routeSegmentIcons: {},   // 各路段图标 { itemIndex: icon }
+        // 路线地图弹框
+        showRouteMapPopup: false,
+        routeMapOrigin: null,
+        routeMapDestination: null,
+        routeMapOriginName: '',
+        routeMapDestinationName: '',
+        routeMapDefaultMode: 'driving'
     },
 
     onLoad(options) {
@@ -407,5 +414,54 @@ Page({
             title: '我的旅行行程',
             path: '/pages/plan-detail/plan-detail'
         }
+    },
+
+    // 显示路线段地图弹框
+    onShowRouteSegment(e) {
+        const { fromIndex, toIndex } = e.currentTarget.dataset
+        const { currentDayData, plan } = this.data
+
+        if (!currentDayData || !currentDayData.planning) {
+            wx.showToast({ title: '无法获取位置信息', icon: 'none' })
+            return
+        }
+
+        const fromItem = currentDayData.planning[fromIndex]
+        const toItem = currentDayData.planning[toIndex]
+
+        if (!fromItem?.location || !toItem?.location) {
+            wx.showToast({ title: '缺少坐标信息', icon: 'none' })
+            return
+        }
+
+        // 根据交通方式设置默认模式
+        let defaultMode = 'driving'
+        if (plan.transportation === '公共交通') {
+            defaultMode = 'transit'
+        } else if (plan.transportation === '步行为主') {
+            defaultMode = 'walking'
+        }
+
+        this.setData({
+            showRouteMapPopup: true,
+            routeMapOrigin: {
+                longitude: fromItem.location.longitude,
+                latitude: fromItem.location.latitude
+            },
+            routeMapDestination: {
+                longitude: toItem.location.longitude,
+                latitude: toItem.location.latitude
+            },
+            routeMapOriginName: fromItem.name || '起点',
+            routeMapDestinationName: toItem.name || '终点',
+            routeMapDefaultMode: defaultMode
+        })
+    },
+
+    // 关闭路线地图弹框
+    onCloseRouteMapPopup() {
+        this.setData({
+            showRouteMapPopup: false
+        })
     }
 })

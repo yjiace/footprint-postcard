@@ -509,6 +509,327 @@ async function searchNearbyPOI(longitude, latitude, radius, keywords, env, types
     }
 }
 
+/**
+ * 解析高德地图 polyline 字符串为坐标数组
+ * 高德格式: "lng1,lat1;lng2,lat2;..."
+ * 输出格式: [{ latitude, longitude }, ...]
+ */
+function parsePolyline(polylineStr) {
+    if (!polylineStr) return []
+    return polylineStr.split(';').map(point => {
+        const [lng, lat] = point.split(',')
+        return {
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lng)
+        }
+    }).filter(p => !isNaN(p.latitude) && !isNaN(p.longitude))
+}
+
+/**
+ * 驾车路径规划
+ * @param {String} origin 起点坐标 "lng,lat"
+ * @param {String} destination 终点坐标 "lng,lat"
+ * @param {Object} env 环境变量
+ */
+async function getRouteDriving(origin, destination, env) {
+    if (!env.AMAP_KEY) {
+        throw new Error('服务配置错误：未配置高德地图API密钥')
+    }
+
+    const params = new URLSearchParams({
+        key: env.AMAP_KEY,
+        origin: origin,
+        destination: destination,
+        extensions: 'all',
+        strategy: '10', // 综合最优
+        output: 'json'
+    })
+
+    const url = `https://restapi.amap.com/v3/direction/driving?${params.toString()}`
+    console.log('驾车路径规划请求:', url.replace(env.AMAP_KEY, '***'))
+
+    const response = await fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (compatible; CloudflareWorker/1.0)'
+        }
+    })
+
+    if (!response.ok) {
+        throw new Error(`高德API请求失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+    if (data.status !== '1') {
+        throw new Error(data.info || '驾车路径规划失败')
+    }
+
+    const route = data.route
+    if (!route || !route.paths || route.paths.length === 0) {
+        throw new Error('未找到有效路线')
+    }
+
+    const path = route.paths[0]
+
+    // 合并所有步骤的 polyline
+    let allPolyline = []
+    const steps = (path.steps || []).map(step => {
+        if (step.polyline) {
+            allPolyline = allPolyline.concat(parsePolyline(step.polyline))
+        }
+        return {
+            instruction: step.instruction || '',
+            road: step.road || '',
+            distance: parseInt(step.distance) || 0,
+            duration: Math.round((parseInt(step.duration) || 0) / 60),
+            action: step.action || ''
+        }
+    })
+
+    return {
+        distance: parseInt(path.distance) || 0,
+        duration: Math.round((parseInt(path.duration) || 0) / 60),
+        polyline: allPolyline,
+        steps: steps,
+        strategy: path.strategy || '',
+        tolls: parseFloat(path.tolls) || 0,
+        trafficLights: parseInt(path.traffic_lights) || 0
+    }
+}
+
+/**
+ * 步行路径规划
+ * @param {String} origin 起点坐标 "lng,lat"
+ * @param {String} destination 终点坐标 "lng,lat"
+ * @param {Object} env 环境变量
+ */
+async function getRouteWalking(origin, destination, env) {
+    if (!env.AMAP_KEY) {
+        throw new Error('服务配置错误：未配置高德地图API密钥')
+    }
+
+    const params = new URLSearchParams({
+        key: env.AMAP_KEY,
+        origin: origin,
+        destination: destination,
+        output: 'json'
+    })
+
+    const url = `https://restapi.amap.com/v3/direction/walking?${params.toString()}`
+    console.log('步行路径规划请求:', url.replace(env.AMAP_KEY, '***'))
+
+    const response = await fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (compatible; CloudflareWorker/1.0)'
+        }
+    })
+
+    if (!response.ok) {
+        throw new Error(`高德API请求失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+    if (data.status !== '1') {
+        throw new Error(data.info || '步行路径规划失败')
+    }
+
+    const route = data.route
+    if (!route || !route.paths || route.paths.length === 0) {
+        throw new Error('未找到有效路线')
+    }
+
+    const path = route.paths[0]
+
+    // 合并所有步骤的 polyline
+    let allPolyline = []
+    const steps = (path.steps || []).map(step => {
+        if (step.polyline) {
+            allPolyline = allPolyline.concat(parsePolyline(step.polyline))
+        }
+        return {
+            instruction: step.instruction || '',
+            road: step.road || '',
+            distance: parseInt(step.distance) || 0,
+            duration: Math.round((parseInt(step.duration) || 0) / 60),
+            action: step.action || ''
+        }
+    })
+
+    return {
+        distance: parseInt(path.distance) || 0,
+        duration: Math.round((parseInt(path.duration) || 0) / 60),
+        polyline: allPolyline,
+        steps: steps
+    }
+}
+
+/**
+ * 公交路径规划
+ * @param {String} origin 起点坐标 "lng,lat"
+ * @param {String} destination 终点坐标 "lng,lat"
+ * @param {String} city 城市名称
+ * @param {Object} env 环境变量
+ */
+async function getRouteTransit(origin, destination, city, env) {
+    if (!env.AMAP_KEY) {
+        throw new Error('服务配置错误：未配置高德地图API密钥')
+    }
+
+    const params = new URLSearchParams({
+        key: env.AMAP_KEY,
+        origin: origin,
+        destination: destination,
+        city: city,
+        cityd: city, // 目的地城市，默认与起点相同
+        strategy: '0', // 最快到达
+        output: 'json'
+    })
+
+    const url = `https://restapi.amap.com/v3/direction/transit/integrated?${params.toString()}`
+    console.log('公交路径规划请求:', url.replace(env.AMAP_KEY, '***'))
+
+    const response = await fetch(url, {
+        headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (compatible; CloudflareWorker/1.0)'
+        }
+    })
+
+    if (!response.ok) {
+        throw new Error(`高德API请求失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+    if (data.status !== '1') {
+        throw new Error(data.info || '公交路径规划失败')
+    }
+
+    const route = data.route
+    if (!route || !route.transits || route.transits.length === 0) {
+        throw new Error('未找到有效公交路线')
+    }
+
+    // 取第一个（最优）换乘方案
+    const transit = route.transits[0]
+
+    // 解析公交路线各段
+    let allPolyline = []
+    const steps = []
+
+    for (const segment of (transit.segments || [])) {
+        // 步行段
+        if (segment.walking && segment.walking.steps) {
+            for (const step of segment.walking.steps) {
+                if (step.polyline) {
+                    allPolyline = allPolyline.concat(parsePolyline(step.polyline))
+                }
+                steps.push({
+                    type: 'walking',
+                    instruction: step.instruction || '步行',
+                    distance: parseInt(step.distance) || 0,
+                    duration: 0
+                })
+            }
+        }
+
+        // 公交/地铁段
+        if (segment.bus && segment.bus.buslines && segment.bus.buslines.length > 0) {
+            const busline = segment.bus.buslines[0]
+            if (busline.polyline) {
+                allPolyline = allPolyline.concat(parsePolyline(busline.polyline))
+            }
+            steps.push({
+                type: 'bus',
+                instruction: `乘坐 ${busline.name}`,
+                lineName: busline.name,
+                departureStop: busline.departure_stop?.name || '',
+                arrivalStop: busline.arrival_stop?.name || '',
+                viaStops: parseInt(busline.via_num) || 0,
+                distance: parseInt(busline.distance) || 0,
+                duration: Math.round((parseInt(busline.duration) || 0) / 60)
+            })
+        }
+    }
+
+    return {
+        distance: parseInt(transit.distance) || parseInt(route.distance) || 0,
+        duration: Math.round((parseInt(transit.duration) || 0) / 60),
+        cost: parseFloat(transit.cost) || 0,
+        walkingDistance: parseInt(transit.walking_distance) || 0,
+        polyline: allPolyline,
+        steps: steps
+    }
+}
+
+/**
+ * 处理驾车路径规划请求
+ */
+async function handleRouteDriving(request, env) {
+    const url = new URL(request.url)
+    const origin = url.searchParams.get('origin')
+    const destination = url.searchParams.get('destination')
+
+    if (!origin || !destination) {
+        return errorResponse('缺少 origin 或 destination 参数', 400)
+    }
+
+    try {
+        const result = await getRouteDriving(origin, destination, env)
+        return jsonResponse(result)
+    } catch (err) {
+        console.error('驾车路径规划失败:', err.message)
+        return errorResponse(err.message, 500)
+    }
+}
+
+/**
+ * 处理步行路径规划请求
+ */
+async function handleRouteWalking(request, env) {
+    const url = new URL(request.url)
+    const origin = url.searchParams.get('origin')
+    const destination = url.searchParams.get('destination')
+
+    if (!origin || !destination) {
+        return errorResponse('缺少 origin 或 destination 参数', 400)
+    }
+
+    try {
+        const result = await getRouteWalking(origin, destination, env)
+        return jsonResponse(result)
+    } catch (err) {
+        console.error('步行路径规划失败:', err.message)
+        return errorResponse(err.message, 500)
+    }
+}
+
+/**
+ * 处理公交路径规划请求
+ */
+async function handleRouteTransit(request, env) {
+    const url = new URL(request.url)
+    const origin = url.searchParams.get('origin')
+    const destination = url.searchParams.get('destination')
+    const city = url.searchParams.get('city')
+
+    if (!origin || !destination) {
+        return errorResponse('缺少 origin 或 destination 参数', 400)
+    }
+
+    if (!city) {
+        return errorResponse('公交路径规划需要 city 参数', 400)
+    }
+
+    try {
+        const result = await getRouteTransit(origin, destination, city, env)
+        return jsonResponse(result)
+    } catch (err) {
+        console.error('公交路径规划失败:', err.message)
+        return errorResponse(err.message, 500)
+    }
+}
+
 // ==================== 路由处理器 ====================
 
 /**
@@ -2121,6 +2442,11 @@ const routes = {
 
     // 景点相关
     'GET /attractions/nearby': handleGetNearbyAttractions,
+
+    // 路径规划相关
+    'GET /route/driving': handleRouteDriving,    // 驾车路径规划
+    'GET /route/walking': handleRouteWalking,    // 步行路径规划
+    'GET /route/transit': handleRouteTransit,    // 公交路径规划
 
     // 行程相关
     'POST /plan/generate': handleGeneratePlan,

@@ -1,0 +1,109 @@
+<!-- 路线地图弹框组件 -->
+<view class="route-map-popup {{visible ? 'visible' : ''}}" catchtouchmove="preventTouchMove">
+  <!-- 遮罩层 -->
+  <view class="mask" bindtap="onClose"></view>
+  
+  <!-- 弹框内容 -->
+  <view class="popup-content">
+    <!-- 顶部拖拽条 -->
+    <view class="drag-bar">
+      <view class="drag-indicator"></view>
+    </view>
+    
+    <!-- 头部信息 -->
+    <view class="popup-header">
+      <view class="route-info">
+        <view class="route-title">
+          <text class="from-name">{{originName}}</text>
+          <text class="arrow">→</text>
+          <text class="to-name">{{destinationName}}</text>
+        </view>
+        <view class="route-summary" wx:if="{{!loading && routeData}}">
+          <text class="distance">{{routeData.distanceText}}</text>
+          <text class="separator">|</text>
+          <text class="duration">约{{routeData.duration}}分钟</text>
+        </view>
+      </view>
+      <view class="close-btn" bindtap="onClose">
+        <text>✕</text>
+      </view>
+    </view>
+
+    <!-- 交通方式切换 -->
+    <view class="mode-tabs">
+      <view class="mode-tab {{mode === 'driving' ? 'active' : ''}}" bindtap="switchMode" data-mode="driving">
+        <text class="mode-icon">🚗</text>
+        <text class="mode-label">驾车</text>
+      </view>
+      <view class="mode-tab {{mode === 'transit' ? 'active' : ''}}" bindtap="switchMode" data-mode="transit">
+        <text class="mode-icon">🚌</text>
+        <text class="mode-label">公交</text>
+      </view>
+      <view class="mode-tab {{mode === 'walking' ? 'active' : ''}}" bindtap="switchMode" data-mode="walking">
+        <text class="mode-icon">🚶</text>
+        <text class="mode-label">步行</text>
+      </view>
+    </view>
+
+    <!-- 加载状态 -->
+    <view class="loading-container" wx:if="{{loading}}">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">正在规划路线...</text>
+    </view>
+
+    <!-- 错误状态 -->
+    <view class="error-container" wx:elif="{{error}}">
+      <text class="error-icon">⚠️</text>
+      <text class="error-text">{{error}}</text>
+      <view class="retry-btn" bindtap="fetchRoute">重试</view>
+    </view>
+
+    <!-- 地图区域 -->
+    <view class="map-container" wx:elif="{{routeData}}">
+      <map
+        id="routeMap"
+        class="route-map"
+        latitude="{{mapCenter.latitude}}"
+        longitude="{{mapCenter.longitude}}"
+        scale="{{mapScale}}"
+        markers="{{markers}}"
+        polyline="{{polyline}}"
+        show-location="{{false}}"
+        enable-scroll="{{true}}"
+        enable-zoom="{{true}}"
+      ></map>
+    </view>
+
+    <!-- 导航步骤列表 -->
+    <scroll-view class="steps-container" scroll-y wx:if="{{routeData && routeData.steps && routeData.steps.length > 0}}">
+      <view class="steps-title">导航详情</view>
+      <view class="step-item" wx:for="{{routeData.steps}}" wx:key="index">
+        <view class="step-icon">
+          <text wx:if="{{item.type === 'bus'}}">🚌</text>
+          <text wx:elif="{{item.type === 'walking'}}">🚶</text>
+          <text wx:else>{{index + 1}}</text>
+        </view>
+        <view class="step-content">
+          <text class="step-instruction">{{item.instruction}}</text>
+          <view class="step-detail" wx:if="{{item.distance > 0}}">
+            <text class="step-distance">{{item.distanceText}}</text>
+            <text class="step-duration" wx:if="{{item.duration > 0}}">约{{item.duration}}分钟</text>
+          </view>
+          <!-- 公交站点信息 -->
+          <view class="bus-info" wx:if="{{item.type === 'bus'}}">
+            <text class="bus-stops">{{item.departureStop}} → {{item.arrivalStop}}</text>
+            <text class="bus-via" wx:if="{{item.viaStops > 0}}">途经{{item.viaStops}}站</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 底部导航按钮 -->
+    <view class="bottom-actions" wx:if="{{routeData}}">
+      <view class="nav-btn" bindtap="openNavigation">
+        <text class="nav-icon">📍</text>
+        <text class="nav-text">开始导航</text>
+      </view>
+    </view>
+  </view>
+</view>

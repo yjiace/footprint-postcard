@@ -104,12 +104,14 @@
           <view class="planning-timeline">
             <block wx:for="{{currentDayData.planning}}" wx:key="index" wx:for-item="item" wx:for-index="itemIndex">
               <!-- 路程信息段（非首项显示） -->
-              <view class="route-segment" wx:if="{{itemIndex > 0 && currentRouteInfo}}" bindtap="toggleRouteDetail" data-index="{{itemIndex}}">
-                <view class="route-segment-header">
+              <view class="route-segment" wx:if="{{itemIndex > 0 && currentRouteInfo}}">
+                <view class="route-segment-header" bindtap="toggleRouteDetail" data-index="{{itemIndex}}">
                   <view class="route-icon">{{routeSegmentIcons[itemIndex] || '🚗'}}</view>
                   <view class="route-summary-inline">
                     <text class="route-distance">{{currentRouteInfo.location_names[itemIndex - 1]}} → {{currentRouteInfo.location_names[itemIndex]}}</text>
                   </view>
+                  <!-- 查看地图图标 -->
+                  <view class="route-map-icon" catchtap="onShowRouteSegment" data-from-index="{{itemIndex - 1}}" data-to-index="{{itemIndex}}">🗺️</view>
                   <view class="route-expand-icon">{{expandedRoutes[itemIndex] ? '▲' : '▼'}}</view>
                 </view>
                 
@@ -262,4 +264,16 @@
       </view>
     </scroll-view>
   </block>
+
+  <!-- 路线地图弹框 -->
+  <route-map-popup
+    visible="{{showRouteMapPopup}}"
+    origin="{{routeMapOrigin}}"
+    destination="{{routeMapDestination}}"
+    originName="{{routeMapOriginName}}"
+    destinationName="{{routeMapDestinationName}}"
+    city="{{plan.city}}"
+    defaultMode="{{routeMapDefaultMode}}"
+    bind:close="onCloseRouteMapPopup"
+  ></route-map-popup>
 </view>

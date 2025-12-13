@@ -309,6 +309,36 @@ function proxyImageUrls(items) {
     }))
 }
 
+// ========== 路径规划接口 ==========
+
+/**
+ * 驾车路径规划
+ * @param {String} origin 起点坐标 "lng,lat"
+ * @param {String} destination 终点坐标 "lng,lat"
+ */
+function getRouteDriving(origin, destination) {
+    return get('/route/driving', { origin, destination })
+}
+
+/**
+ * 步行路径规划
+ * @param {String} origin 起点坐标 "lng,lat"
+ * @param {String} destination 终点坐标 "lng,lat"
+ */
+function getRouteWalking(origin, destination) {
+    return get('/route/walking', { origin, destination })
+}
+
+/**
+ * 公交路径规划
+ * @param {String} origin 起点坐标 "lng,lat"
+ * @param {String} destination 终点坐标 "lng,lat"
+ * @param {String} city 城市名称
+ */
+function getRouteTransit(origin, destination, city) {
+    return get('/route/transit', { origin, destination, city })
+}
+
 module.exports = {
     request,
     get,
@@ -333,5 +363,11 @@ module.exports = {
 
     // 图片代理工具
     getProxiedImageUrl,
-    proxyImageUrls
+    proxyImageUrls,
+
+    // 路径规划
+    getRouteDriving,
+    getRouteWalking,
+    getRouteTransit
 }
+
