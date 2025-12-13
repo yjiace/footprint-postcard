@@ -1,5 +1,6 @@
 {
     "usingComponents": {
-        "custom-navbar": "/components/custom-navbar/custom-navbar"
+        "custom-navbar": "/components/custom-navbar/custom-navbar",
+        "postcard-loading": "/components/postcard-loading/postcard-loading"
     }
 }

@@ -39,7 +39,9 @@ Page({
         loadingMore: false,
         // 回到顶部
         showBackTop: false,
-        scrollTop: 0
+        scrollTop: 0,
+        // 明信片生成加载动画
+        showPostcardLoading: false
     },
 
     onShow() {
@@ -339,31 +341,41 @@ Page({
             success: async (res) => {
                 if (res.confirm) {
                     try {
-                        util.showLoading('正在生成明信片...')
+                        // 显示自定义加载动画
+                        this.setData({ showPostcardLoading: true })
 
                         // 调用生成明信片API
                         const result = await api.generatePostcardFromPlan(id)
 
-                        util.hideLoading()
-
-                        if (result && result.id) {
-                            wx.showModal({
-                                title: '生成成功',
-                                content: '明信片已生成，是否立即查看？',
-                                confirmText: '查看',
-                                cancelText: '稍后',
-                                success: (modalRes) => {
-                                    if (modalRes.confirm) {
-                                        wx.switchTab({
-                                            url: '/pages/postcard/postcard'
-                                        })
-                                    }
-                                }
-                            })
+                        // 调用组件的完成动画方法
+                        const loadingComponent = this.selectComponent('#postcardLoading')
+                        if (loadingComponent) {
+                            loadingComponent.complete()
                         }
+
+                        // 延迟隐藏动画，让用户看到100%完成状态
+                        setTimeout(() => {
+                            this.setData({ showPostcardLoading: false })
+
+                            if (result && result.id) {
+                                wx.showModal({
+                                    title: '生成成功',
+                                    content: '明信片已生成，是否立即查看？',
+                                    confirmText: '查看',
+                                    cancelText: '稍后',
+                                    success: (modalRes) => {
+                                        if (modalRes.confirm) {
+                                            wx.switchTab({
+                                                url: '/pages/postcard/postcard'
+                                            })
+                                        }
+                                    }
+                                })
+                            }
+                        }, 800)
                     } catch (err) {
                         console.error('生成明信片失败:', err)
-                        util.hideLoading()
+                        this.setData({ showPostcardLoading: false })
                         util.showError('生成失败，请稍后重试')
                     }
                 }

@@ -121,4 +121,7 @@
       <text class="fab-icon">+</text>
     </view>
   </view>
+
+  <!-- 明信片生成加载动画 -->
+  <postcard-loading id="postcardLoading" visible="{{showPostcardLoading}}" />
 </view>

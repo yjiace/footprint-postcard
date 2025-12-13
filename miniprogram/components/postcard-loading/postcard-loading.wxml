@@ -1,0 +1,59 @@
+<!--components/postcard-loading/postcard-loading.wxml-->
+<view class="loading-overlay" wx:if="{{visible}}">
+  <!-- 主内容卡片 -->
+  <view class="loading-content">
+    <!-- 明信片动画区 -->
+    <view class="postcard-animation">
+      <!-- 明信片翻转效果 -->
+      <view class="postcard-flip {{isFlipping ? 'flip' : ''}}">
+        <view class="postcard-front">
+          <view class="postcard-image-placeholder">
+            <text class="postcard-emoji">🏞️</text>
+          </view>
+          <view class="postcard-lines">
+            <view class="line"></view>
+            <view class="line short"></view>
+            <view class="line"></view>
+          </view>
+        </view>
+        <view class="postcard-back">
+          <view class="stamp-area">
+            <text class="stamp-emoji">📮</text>
+          </view>
+          <view class="address-lines">
+            <view class="line"></view>
+            <view class="line"></view>
+            <view class="line short"></view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 邮戳盖章动画 -->
+      <view class="stamp-animation {{showStamp ? 'show' : ''}}">
+        <view class="stamp-circle">
+          <text class="stamp-text">✓</text>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 画笔绘制动画 -->
+    <view class="drawing-animation">
+      <view class="brush brush-1">🖌️</view>
+      <view class="brush brush-2">✨</view>
+      <view class="brush brush-3">🎨</view>
+    </view>
+    
+    <!-- 动态提示语 -->
+    <view class="tip-text">
+      <text class="tip-content">{{currentTip}}</text>
+    </view>
+    
+    <!-- 模拟进度条 -->
+    <view class="progress-container">
+      <view class="progress-bar">
+        <view class="progress-fill" style="width: {{progress}}%;"></view>
+      </view>
+      <text class="progress-text">{{progress}}%</text>
+    </view>
+  </view>
+</view>
