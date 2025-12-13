@@ -1225,6 +1225,8 @@ async function handleGeneratePlan(request, env, ctx) {
         overallSuggestions: '',
         routeInfo: [],
         routeSummary: null,
+        // 用户起点坐标（用于导航）
+        userLocation: userLocation || null,
         createdAt: Date.now()
     }
 

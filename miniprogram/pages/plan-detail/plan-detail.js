@@ -478,8 +478,18 @@ Page({
                             latitude: cachedLocation.latitude
                         }
                     } else {
-                        wx.showToast({ title: '无法获取起点位置', icon: 'none' })
-                        return
+                        // 备用方案：使用第一个景点的坐标作为临时起点
+                        const firstItem = currentDayData.planning[0]
+                        if (firstItem?.location) {
+                            fromLocation = {
+                                longitude: firstItem.location.longitude,
+                                latitude: firstItem.location.latitude
+                            }
+                            fromName = '起点(位置未知)'
+                        } else {
+                            wx.showToast({ title: '无法获取起点位置', icon: 'none' })
+                            return
+                        }
                     }
                 }
             } else {
@@ -546,7 +556,9 @@ Page({
     },
 
     // 获取返回起点信息
-    getReturnHomeInfo(plan) {
+    // @param {Object} plan 行程数据
+    // @param {Object} fallbackLocation 可选，备用坐标（用于无法获取用户位置时）
+    getReturnHomeInfo(plan, fallbackLocation = null) {
         let location = null
         let name = '返回起点'
 
@@ -565,6 +577,10 @@ Page({
                     latitude: cachedLocation.latitude
                 }
                 name = cachedLocation.city ? (cachedLocation.city + '(当前位置)') : '返回当前位置'
+            } else if (fallbackLocation) {
+                // 使用备用坐标
+                location = fallbackLocation
+                name = '终点(位置未知)'
             }
         }
 
@@ -587,10 +603,13 @@ Page({
             return
         }
 
-        // 获取返回起点位置
-        const returnHomeInfo = this.getReturnHomeInfo(plan)
+        // 获取返回起点位置（使用最后一个景点坐标作为备用）
+        const returnHomeInfo = this.getReturnHomeInfo(plan, {
+            longitude: lastItem.location.longitude,
+            latitude: lastItem.location.latitude
+        })
         if (!returnHomeInfo.location) {
-            wx.showToast({ title: '无法获取起点位置', icon: 'none' })
+            wx.showToast({ title: '无法获取终点位置', icon: 'none' })
             return
         }
 

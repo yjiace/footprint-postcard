@@ -152,17 +152,6 @@
 
             <!-- 返回起点项目（仅最后一天显示） -->
             <view class="return-home-item" wx:if="{{isLastDay && currentRouteInfo}}">
-              <!-- 路程信息段：最后一个景点到返回起点 -->
-              <view class="route-segment">
-                <view class="route-segment-header" bindtap="toggleRouteDetail" data-index="{{currentDayData.planning.length}}">
-                  <view class="route-icon">{{routeSegmentIcons[currentDayData.planning.length] || '🚗'}}</view>
-                  <view class="route-summary-inline">
-                    <text class="route-distance">{{currentRouteInfo.location_names[currentDayData.planning.length]}} → {{currentRouteInfo.location_names[currentDayData.planning.length + 1] || returnHomeName || '返回起点'}}</text>
-                  </view>
-                  <view class="route-expand-icon">{{expandedRoutes[currentDayData.planning.length] ? '▲' : '▼'}}</view>
-                </view>
-              </view>
-
               <!-- 返回起点地点项目 -->
               <view class="timeline-item return-home">
                 <view class="timeline-left">
@@ -178,6 +167,17 @@
                     <view class="item-map-icon" catchtap="onShowReturnRoute">🗺️</view>
                   </view>
                   <text class="item-address">📍 规划起始位置</text>
+                </view>
+              </view>
+
+              <!-- 路程信息段：最后一个景点到返回起点（显示在返程节点下方） -->
+              <view class="route-segment">
+                <view class="route-segment-header" bindtap="toggleRouteDetail" data-index="{{currentDayData.planning.length}}">
+                  <view class="route-icon">{{routeSegmentIcons[currentDayData.planning.length] || '🚗'}}</view>
+                  <view class="route-summary-inline">
+                    <text class="route-distance">{{currentRouteInfo.location_names[currentDayData.planning.length]}} → {{currentRouteInfo.location_names[currentDayData.planning.length + 1] || returnHomeName || '返回起点'}}</text>
+                  </view>
+                  <view class="route-expand-icon">{{expandedRoutes[currentDayData.planning.length] ? '▲' : '▼'}}</view>
                 </view>
               </view>
             </view>
