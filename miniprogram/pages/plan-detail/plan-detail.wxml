@@ -29,7 +29,6 @@
         <view class="trip-meta">
           <text class="meta-tag">{{plan.days}}天</text>
           <text class="meta-tag">{{plan.transportation}}</text>
-          <!-- <text class="meta-tag" wx:if="{{plan.apiVersion}}">{{plan.apiVersion}}</text> -->
         </view>
       </view>
 
@@ -110,8 +109,6 @@
                   <view class="route-summary-inline">
                     <text class="route-distance">{{currentRouteInfo.location_names[itemIndex - 1]}} → {{currentRouteInfo.location_names[itemIndex]}}</text>
                   </view>
-                  <!-- 查看地图图标 -->
-                  <view class="route-map-icon" catchtap="onShowRouteSegment" data-from-index="{{itemIndex - 1}}" data-to-index="{{itemIndex}}">🗺️</view>
                   <view class="route-expand-icon">{{expandedRoutes[itemIndex] ? '▲' : '▼'}}</view>
                 </view>
                 
@@ -139,6 +136,8 @@
                   <view class="item-header">
                     <text class="type-tag" style="background: {{item.typeColor}};">{{item.typeLabel}}</text>
                     <text class="item-name">{{item.name}}</text>
+                    <!-- 查看地图图标 -->
+                    <view class="item-map-icon" catchtap="onShowRouteSegment" data-from-index="{{itemIndex - 1}}" data-to-index="{{itemIndex}}" wx:if="{{currentRouteInfo}}">🗺️</view>
                   </view>
                   <text class="item-address" wx:if="{{item.address}}">📍 {{item.address}}</text>
                   <view class="item-meta">

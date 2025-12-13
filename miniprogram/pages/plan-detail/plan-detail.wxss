@@ -452,6 +452,21 @@
   display: flex;
   align-items: center;
   gap: 12rpx;
+  flex-wrap: nowrap;
+}
+
+/* 景点名称后的地图图标 */
+.item-map-icon {
+  margin-left: auto;
+  font-size: 32rpx;
+  padding: 8rpx 12rpx;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.item-map-icon:active {
+  opacity: 1;
 }
 
 .type-tag {

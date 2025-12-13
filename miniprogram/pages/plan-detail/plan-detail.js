@@ -426,12 +426,52 @@ Page({
             return
         }
 
-        const fromItem = currentDayData.planning[fromIndex]
         const toItem = currentDayData.planning[toIndex]
-
-        if (!fromItem?.location || !toItem?.location) {
-            wx.showToast({ title: '缺少坐标信息', icon: 'none' })
+        if (!toItem?.location) {
+            wx.showToast({ title: '缺少目的地坐标', icon: 'none' })
             return
+        }
+
+        let fromLocation = null
+        let fromName = '起点'
+
+        // 判断是否为第一个景点（fromIndex = -1）
+        if (fromIndex < 0) {
+            // 第一个景点，使用用户起点位置
+            if (plan.userLocation && plan.userLocation.latitude && plan.userLocation.longitude) {
+                // 使用规划时保存的用户位置
+                fromLocation = {
+                    longitude: plan.userLocation.longitude,
+                    latitude: plan.userLocation.latitude
+                }
+                fromName = plan.userLocation.name || '起点'
+            } else {
+                // 尝试从缓存获取当前位置
+                const storage = require('../../utils/storage.js')
+                const cachedLocation = storage.getLocation()
+                if (cachedLocation && cachedLocation.latitude && cachedLocation.longitude) {
+                    fromLocation = {
+                        longitude: cachedLocation.longitude,
+                        latitude: cachedLocation.latitude
+                    }
+                    fromName = cachedLocation.city ? (cachedLocation.city + '(当前位置)') : '当前位置'
+                } else {
+                    wx.showToast({ title: '无法获取起点位置', icon: 'none' })
+                    return
+                }
+            }
+        } else {
+            // 非第一个景点，使用上一个景点位置
+            const fromItem = currentDayData.planning[fromIndex]
+            if (!fromItem?.location) {
+                wx.showToast({ title: '缺少起点坐标', icon: 'none' })
+                return
+            }
+            fromLocation = {
+                longitude: fromItem.location.longitude,
+                latitude: fromItem.location.latitude
+            }
+            fromName = fromItem.name || '起点'
         }
 
         // 根据交通方式设置默认模式
@@ -444,15 +484,12 @@ Page({
 
         this.setData({
             showRouteMapPopup: true,
-            routeMapOrigin: {
-                longitude: fromItem.location.longitude,
-                latitude: fromItem.location.latitude
-            },
+            routeMapOrigin: fromLocation,
             routeMapDestination: {
                 longitude: toItem.location.longitude,
                 latitude: toItem.location.latitude
             },
-            routeMapOriginName: fromItem.name || '起点',
+            routeMapOriginName: fromName,
             routeMapDestinationName: toItem.name || '终点',
             routeMapDefaultMode: defaultMode
         })
