@@ -102,28 +102,6 @@
           
           <view class="planning-timeline">
             <block wx:for="{{currentDayData.planning}}" wx:key="index" wx:for-item="item" wx:for-index="itemIndex">
-              <!-- 路程信息段：第一天显示所有，非第一天只显示非第一个景点 -->
-              <view class="route-segment" wx:if="{{currentRouteInfo && (currentDay === 0 || itemIndex > 0)}}">
-                <view class="route-segment-header" bindtap="toggleRouteDetail" data-index="{{itemIndex}}">
-                  <view class="route-icon">{{routeSegmentIcons[itemIndex] || '🚗'}}</view>
-                  <view class="route-summary-inline">
-                    <text class="route-distance">{{currentRouteInfo.location_names[itemIndex]}} → {{currentRouteInfo.location_names[itemIndex + 1]}}</text>
-                  </view>
-                  <view class="route-expand-icon">{{expandedRoutes[itemIndex] ? '▲' : '▼'}}</view>
-                </view>
-                
-                <!-- 展开的路径详情 -->
-                <view class="route-detail-list" wx:if="{{expandedRoutes[itemIndex]}}">
-                  <block wx:for="{{currentRouteInfo.segments}}" wx:key="segment_index" wx:for-item="seg">
-                    <view class="route-detail-item" wx:if="{{seg.instruction}}">
-                      <text class="route-action-icon">{{seg.actionIcon}}</text>
-                      <text class="route-instruction">{{seg.instruction}}</text>
-                      <text class="route-segment-distance" wx:if="{{seg.distanceText}}">{{seg.distanceText}}</text>
-                    </view>
-                  </block>
-                </view>
-              </view>
-
               <!-- 地点项目 -->
               <view class="timeline-item {{item.typeCategory}}">
                 <view class="timeline-left">
@@ -146,6 +124,28 @@
                     <text class="meta-item category" wx:if="{{item.category}}">{{item.category}}</text>
                   </view>
                   <text class="item-desc" wx:if="{{item.description}}">{{item.description}}</text>
+                </view>
+              </view>
+
+              <!-- 路程信息段（显示在景点下方）：第一天显示所有，非第一天只显示非第一个景点 -->
+              <view class="route-segment" wx:if="{{currentRouteInfo && (currentDay === 0 || itemIndex > 0)}}">
+                <view class="route-segment-header" bindtap="toggleRouteDetail" data-index="{{itemIndex}}">
+                  <view class="route-icon">{{routeSegmentIcons[itemIndex] || '🚗'}}</view>
+                  <view class="route-summary-inline">
+                    <text class="route-distance">{{currentRouteInfo.location_names[itemIndex]}} → {{currentRouteInfo.location_names[itemIndex + 1]}}</text>
+                  </view>
+                  <view class="route-expand-icon">{{expandedRoutes[itemIndex] ? '▲' : '▼'}}</view>
+                </view>
+                
+                <!-- 展开的路径详情 -->
+                <view class="route-detail-list" wx:if="{{expandedRoutes[itemIndex]}}">
+                  <block wx:for="{{currentRouteInfo.segments}}" wx:key="segment_index" wx:for-item="seg">
+                    <view class="route-detail-item" wx:if="{{seg.instruction}}">
+                      <text class="route-action-icon">{{seg.actionIcon}}</text>
+                      <text class="route-instruction">{{seg.instruction}}</text>
+                      <text class="route-segment-distance" wx:if="{{seg.distanceText}}">{{seg.distanceText}}</text>
+                    </view>
+                  </block>
                 </view>
               </view>
             </block>
