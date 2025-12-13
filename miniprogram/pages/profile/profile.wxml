@@ -70,8 +70,8 @@
         <view class="feature-item">
           <text class="feature-icon">🗺️</text>
           <view class="feature-content">
-            <text class="feature-name">智能行程规划</text>
-            <text class="feature-desc">AI 驱动的个性化旅行方案</text>
+            <text class="feature-name">行程规划</text>
+            <text class="feature-desc">个性化旅行方案</text>
           </view>
         </view>
         <view class="feature-item">
@@ -84,7 +84,7 @@
         <view class="feature-item">
           <text class="feature-icon">🖼️</text>
           <view class="feature-content">
-            <text class="feature-name">AI明信片生成</text>
+            <text class="feature-name">明信片生成</text>
             <text class="feature-desc">一键生成专属旅行记忆</text>
           </view>
         </view>
