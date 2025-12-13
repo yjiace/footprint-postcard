@@ -42,7 +42,7 @@
                         <text class="subsection-title">2. 位置信息</text>
                         <view class="item">
                             <text class="item-bullet">•</text>
-                            <text class="item-text">地理位置：用于获取您所在城市、推荐周边景点</text>
+                            <text class="item-text">地理位置：用于获取您所在城市、推荐周边景点、规划行程路线</text>
                         </view>
                         <view class="item">
                             <text class="item-bullet">•</text>
@@ -53,11 +53,11 @@
                         <text class="subsection-title">3. 用户生成内容</text>
                         <view class="item">
                             <text class="item-bullet">•</text>
-                            <text class="item-text">行程记录：您创建的旅行计划</text>
+                            <text class="item-text">行程记录：您创建的旅行计划及相关信息</text>
                         </view>
                         <view class="item">
                             <text class="item-bullet">•</text>
-                            <text class="item-text">明信片：自动生成的电子明信片</text>
+                            <text class="item-text">明信片：系统为您生成的电子明信片</text>
                         </view>
                     </view>
                     <view class="subsection">
@@ -84,6 +84,10 @@
                     <view class="item">
                         <text class="item-bullet">•</text>
                         <text class="item-text">基于位置为您推荐周边景点和目的地</text>
+                    </view>
+                    <view class="item">
+                        <text class="item-bullet">•</text>
+                        <text class="item-text">规划景点间的交通路线</text>
                     </view>
                     <view class="item">
                         <text class="item-bullet">•</text>
@@ -140,7 +144,7 @@
                         <text class="subsection-title">以下情况可能涉及信息共享：</text>
                         <view class="item">
                             <text class="item-bullet">•</text>
-                            <text class="item-text">第三方服务商：高德地图（位置服务）、内容生成服务商（明信片生成）</text>
+                            <text class="item-text">第三方服务商：高德地图（位置服务、路线规划）、内容生成服务商（明信片生成）</text>
                         </view>
                         <view class="item">
                             <text class="item-bullet">•</text>
