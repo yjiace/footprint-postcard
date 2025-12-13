@@ -12,6 +12,7 @@ Page({
         longitude: 0,
         hotDestinations: [],
         nearbyAttractions: [],
+        loadingAttractions: true,  // 周边景点加载状态，默认为加载中
         lastLocationTime: 0,  // 上次定位时间戳，用于频率控制
         currentDestinationIndex: 0  // 热门目的地轮播当前索引
     },
@@ -66,42 +67,34 @@ Page({
 
             console.log('首页定位 - 权限状态:', authSetting.authSetting['scope.userLocation'])
 
-            // 如果用户未授权定位权限，则静默请求授权（带超时）
+            // 如果用户未授权定位权限，则请求授权（不设超时，持续等待用户决定）
             if (!authSetting.authSetting['scope.userLocation']) {
                 console.log('首页定位 - 请求授权')
-                const authResult = await Promise.race([
-                    new Promise((resolve) => {
-                        wx.authorize({
-                            scope: 'scope.userLocation',
-                            success: () => {
-                                console.log('首页定位 - 授权成功')
-                                resolve(true)
-                            },
-                            fail: (err) => {
-                                console.log('首页定位 - 授权失败:', err)
-                                resolve(false)
-                            }
-                        })
-                    }),
-                    // 5秒超时
-                    new Promise((resolve) => {
-                        setTimeout(() => {
-                            console.log('首页定位 - 授权超时')
+                const authResult = await new Promise((resolve) => {
+                    wx.authorize({
+                        scope: 'scope.userLocation',
+                        success: () => {
+                            console.log('首页定位 - 授权成功')
+                            resolve(true)
+                        },
+                        fail: (err) => {
+                            console.log('首页定位 - 授权失败:', err)
                             resolve(false)
-                        }, 5000)
+                        }
                     })
-                ])
+                })
 
                 if (!authResult) {
-                    console.log('用户拒绝定位权限，使用缓存或默认位置')
-                    // 如果没有缓存，设置默认城市
-                    if (!cachedLocation) {
-                        this.setData({
-                            currentCity: '上海',
-                            latitude: 31.2304,
-                            longitude: 121.4737
-                        })
+                    console.log('用户拒绝定位权限，使用缓存位置')
+                    // 用户明确拒绝授权，使用缓存（不设置默认上海，等待后续定位失败再处理）
+                    if (cachedLocation) {
+                        // 已有缓存，保持当前显示
+                        return
                     }
+                    // 没有缓存时，显示提示让用户知道需要授权
+                    this.setData({
+                        currentCity: '请授权定位'
+                    })
                     return
                 }
             }
@@ -494,6 +487,9 @@ Page({
 
     // 加载周边景点
     async loadNearbyAttractions() {
+        // 设置加载状态
+        this.setData({ loadingAttractions: true })
+
         try {
             // ====== 优先读取缓存 ======
             const cachedAttractions = storage.getHomeAttractions()
@@ -519,7 +515,8 @@ Page({
                     if (distance < 3000) {
                         console.log('使用缓存的景点数据（距离<3km且今天的数据）')
                         this.setData({
-                            nearbyAttractions: cachedAttractions.attractions
+                            nearbyAttractions: cachedAttractions.attractions,
+                            loadingAttractions: false
                         })
                         return // 直接返回，不调用API
                     } else {
@@ -554,7 +551,8 @@ Page({
             }))
 
             this.setData({
-                nearbyAttractions: api.proxyImageUrls(attractions)
+                nearbyAttractions: api.proxyImageUrls(attractions),
+                loadingAttractions: false
             })
 
             // 缓存景点数据和位置信息
@@ -569,7 +567,8 @@ Page({
             console.error('加载周边景点失败', err)
             // 显示空数据，不进行模拟
             this.setData({
-                nearbyAttractions: []
+                nearbyAttractions: [],
+                loadingAttractions: false
             })
             util.showError('加载周边景点失败')
         }
