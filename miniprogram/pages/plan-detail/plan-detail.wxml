@@ -102,12 +102,12 @@
           
           <view class="planning-timeline">
             <block wx:for="{{currentDayData.planning}}" wx:key="index" wx:for-item="item" wx:for-index="itemIndex">
-              <!-- 路程信息段（非首项显示） -->
-              <view class="route-segment" wx:if="{{itemIndex > 0 && currentRouteInfo}}">
+              <!-- 路程信息段：第一天显示所有，非第一天只显示非第一个景点 -->
+              <view class="route-segment" wx:if="{{currentRouteInfo && (currentDay === 0 || itemIndex > 0)}}">
                 <view class="route-segment-header" bindtap="toggleRouteDetail" data-index="{{itemIndex}}">
                   <view class="route-icon">{{routeSegmentIcons[itemIndex] || '🚗'}}</view>
                   <view class="route-summary-inline">
-                    <text class="route-distance">{{currentRouteInfo.location_names[itemIndex - 1]}} → {{currentRouteInfo.location_names[itemIndex]}}</text>
+                    <text class="route-distance">{{currentRouteInfo.location_names[itemIndex]}} → {{currentRouteInfo.location_names[itemIndex + 1]}}</text>
                   </view>
                   <view class="route-expand-icon">{{expandedRoutes[itemIndex] ? '▲' : '▼'}}</view>
                 </view>
@@ -136,8 +136,8 @@
                   <view class="item-header">
                     <text class="type-tag" style="background: {{item.typeColor}};">{{item.typeLabel}}</text>
                     <text class="item-name">{{item.name}}</text>
-                    <!-- 查看地图图标：第一天显示所有，其他天只显示非第一个景点 -->
-                    <view class="item-map-icon" catchtap="onShowRouteSegment" data-from-index="{{itemIndex - 1}}" data-to-index="{{itemIndex}}" wx:if="{{currentRouteInfo && (currentDay === 0 || itemIndex > 0)}}">🗺️</view>
+                    <!-- 查看地图图标：第一天显示所有，非第一天只显示非第一个景点 -->
+                    <view class="item-map-icon" catchtap="onShowRouteSegment" data-from-index="{{itemIndex}}" data-to-index="{{itemIndex + 1}}" wx:if="{{currentRouteInfo && (currentDay === 0 || itemIndex > 0)}}">🗺️</view>
                   </view>
                   <text class="item-address" wx:if="{{item.address}}">📍 {{item.address}}</text>
                   <view class="item-meta">
@@ -152,12 +152,12 @@
 
             <!-- 返回起点项目（仅最后一天显示） -->
             <view class="return-home-item" wx:if="{{isLastDay && currentRouteInfo}}">
-              <!-- 路程信息段 -->
+              <!-- 路程信息段：最后一个景点到返回起点 -->
               <view class="route-segment">
                 <view class="route-segment-header" bindtap="toggleRouteDetail" data-index="{{currentDayData.planning.length}}">
                   <view class="route-icon">{{routeSegmentIcons[currentDayData.planning.length] || '🚗'}}</view>
                   <view class="route-summary-inline">
-                    <text class="route-distance">{{currentDayData.planning[currentDayData.planning.length - 1].name}} → 返回起点</text>
+                    <text class="route-distance">{{currentRouteInfo.location_names[currentDayData.planning.length]}} → {{currentRouteInfo.location_names[currentDayData.planning.length + 1] || returnHomeName || '返回起点'}}</text>
                   </view>
                   <view class="route-expand-icon">{{expandedRoutes[currentDayData.planning.length] ? '▲' : '▼'}}</view>
                 </view>

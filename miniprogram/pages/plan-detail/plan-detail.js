@@ -439,54 +439,66 @@ Page({
     },
 
     // 显示路线段地图弹框
+    // fromIndex 和 toIndex 对应 location_names 数组的索引
+    // location_names[0] = 起点，location_names[i+1] = planning[i]
     onShowRouteSegment(e) {
         // 将 dataset 中的字符串转换为数字
         const fromIndex = parseInt(e.currentTarget.dataset.fromIndex, 10)
         const toIndex = parseInt(e.currentTarget.dataset.toIndex, 10)
-        const { currentDayData, plan } = this.data
+        const { currentDayData, currentRouteInfo, plan, currentDay } = this.data
 
-        if (!currentDayData || !currentDayData.planning) {
+        if (!currentDayData || !currentDayData.planning || !currentRouteInfo) {
             wx.showToast({ title: '无法获取位置信息', icon: 'none' })
             return
         }
 
-        const toItem = currentDayData.planning[toIndex]
-        if (!toItem?.location) {
-            wx.showToast({ title: '缺少目的地坐标', icon: 'none' })
-            return
-        }
-
         let fromLocation = null
-        let fromName = '起点'
+        let fromName = currentRouteInfo.location_names[fromIndex] || '起点'
 
-        // 判断是否为第一个景点（fromIndex = -1）
-        if (fromIndex < 0) {
-            // 第一个景点，使用用户起点位置
-            if (plan.userLocation && plan.userLocation.latitude && plan.userLocation.longitude) {
-                // 使用规划时保存的用户位置
-                fromLocation = {
-                    longitude: plan.userLocation.longitude,
-                    latitude: plan.userLocation.latitude
-                }
-                fromName = plan.userLocation.name || '起点'
-            } else {
-                // 尝试从缓存获取当前位置
-                const storage = require('../../utils/storage.js')
-                const cachedLocation = storage.getLocation()
-                if (cachedLocation && cachedLocation.latitude && cachedLocation.longitude) {
+        let toLocation = null
+        let toName = currentRouteInfo.location_names[toIndex] || '终点'
+
+        // 获取起点坐标
+        if (fromIndex === 0) {
+            // fromIndex = 0 表示从起点出发
+            // 第一天的起点是用户位置，其他天的起点是前一天的酒店（也在 planning 中的某个位置）
+            if (currentDay === 0) {
+                // 第一天：使用用户起点位置
+                if (plan.userLocation && plan.userLocation.latitude && plan.userLocation.longitude) {
                     fromLocation = {
-                        longitude: cachedLocation.longitude,
-                        latitude: cachedLocation.latitude
+                        longitude: plan.userLocation.longitude,
+                        latitude: plan.userLocation.latitude
                     }
-                    fromName = cachedLocation.city ? (cachedLocation.city + '(当前位置)') : '当前位置'
+                } else {
+                    // 尝试从缓存获取当前位置
+                    const cachedLocation = storage.getLocation()
+                    if (cachedLocation && cachedLocation.latitude && cachedLocation.longitude) {
+                        fromLocation = {
+                            longitude: cachedLocation.longitude,
+                            latitude: cachedLocation.latitude
+                        }
+                    } else {
+                        wx.showToast({ title: '无法获取起点位置', icon: 'none' })
+                        return
+                    }
+                }
+            } else {
+                // 非第一天：起点是前一天的酒店，这种情况不应该显示路线
+                // 但如果到达这里，尝试使用当天第一个景点的位置
+                const firstItem = currentDayData.planning[0]
+                if (firstItem?.location) {
+                    fromLocation = {
+                        longitude: firstItem.location.longitude,
+                        latitude: firstItem.location.latitude
+                    }
                 } else {
                     wx.showToast({ title: '无法获取起点位置', icon: 'none' })
                     return
                 }
             }
         } else {
-            // 非第一个景点，使用上一个景点位置
-            const fromItem = currentDayData.planning[fromIndex]
+            // fromIndex > 0：使用 planning[fromIndex - 1] 的位置
+            const fromItem = currentDayData.planning[fromIndex - 1]
             if (!fromItem?.location) {
                 wx.showToast({ title: '缺少起点坐标', icon: 'none' })
                 return
@@ -495,7 +507,17 @@ Page({
                 longitude: fromItem.location.longitude,
                 latitude: fromItem.location.latitude
             }
-            fromName = fromItem.name || '起点'
+        }
+
+        // 获取终点坐标：使用 planning[toIndex - 1] 的位置
+        const toItem = currentDayData.planning[toIndex - 1]
+        if (!toItem?.location) {
+            wx.showToast({ title: '缺少终点坐标', icon: 'none' })
+            return
+        }
+        toLocation = {
+            longitude: toItem.location.longitude,
+            latitude: toItem.location.latitude
         }
 
         // 根据交通方式设置默认模式
@@ -509,12 +531,9 @@ Page({
         this.setData({
             showRouteMapPopup: true,
             routeMapOrigin: fromLocation,
-            routeMapDestination: {
-                longitude: toItem.location.longitude,
-                latitude: toItem.location.latitude
-            },
+            routeMapDestination: toLocation,
             routeMapOriginName: fromName,
-            routeMapDestinationName: toItem.name || '终点',
+            routeMapDestinationName: toName,
             routeMapDefaultMode: defaultMode
         })
     },
