@@ -45,6 +45,13 @@
       <text class="no-more" wx:else>共 {{totalCount || postcardList.length}} 张 · 没有更多了</text>
     </view>
 
+    <!-- 登录后暂无明信片 -->
+    <view class="empty-container" wx:elif="{{isLoggedIn && postcardList.length === 0 && !loading}}">
+      <view class="empty-icon">🎴</view>
+      <text class="empty-title">暂无明信片</text>
+      <text class="empty-desc">完成行程后可生成专属明信片</text>
+    </view>
+
     <!-- 底部占位 -->
     <view class="bottom-placeholder"></view>
   </scroll-view>

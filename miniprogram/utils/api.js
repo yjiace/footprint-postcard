@@ -2,7 +2,7 @@
 // API请求工具类
 
 // 根据环境配置不同的API地址
-let BASE_URL = 'https://footprint-postcard-api.smallyoung.cn/api'
+let BASE_URL = 'https://fp.smallyoung.cn/api'
 
 // 开发环境使用本地代理
 // 微信小程序环境判断：使用 wx.getAccountInfoSync() 获取环境信息
@@ -35,7 +35,7 @@ function request(url, data = {}, method = 'GET', header = {}, timeout = 60000) {
         try {
             const accountInfo = wx.getAccountInfoSync()
             if ((accountInfo.miniProgram.envVersion === 'develop' || accountInfo.miniProgram.envVersion === 'trial') && BASE_URL.startsWith('/')) {
-                requestUrl = 'https://footprint-postcard-api.smallyoung.cn/api' + url
+                requestUrl = 'https://fp.smallyoung.cn/api' + url
             }
         } catch (error) {
             // 保持默认配置
@@ -292,7 +292,7 @@ function getProxiedImageUrl(imageUrl) {
     }
 
     // 构建代理URL
-    const proxyBaseUrl = 'https://footprint-postcard-api.smallyoung.cn/api/proxy/image'
+    const proxyBaseUrl = 'https://fp.smallyoung.cn/api/proxy/image'
     return `${proxyBaseUrl}?url=${encodeURIComponent(imageUrl)}`
 }
 
