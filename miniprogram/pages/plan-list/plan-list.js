@@ -17,13 +17,28 @@ const ACCOMMODATION_ICON_MAP = {
     '豪华型酒店': '🏰'
 }
 
-// 为行程列表项添加图标字段
+// 城市图片缓存（避免同一城市每次生成不同图片）
+const CITY_IMAGE_CACHE = {}
+
+// 为行程列表项添加图标字段和城市图片
 function addIconsToList(list) {
-    return list.map(item => ({
-        ...item,
-        transportIcon: TRANSPORT_ICON_MAP[item.transportation] || '🚗',
-        accommodationIcon: ACCOMMODATION_ICON_MAP[item.accommodation] || '🏨'
-    }))
+    return list.map(item => {
+        // 生成或获取城市图片
+        let cityImage = CITY_IMAGE_CACHE[item.city]
+        if (!cityImage) {
+            // 使用城市名作为种子，确保同一城市图片相同
+            const seed = encodeURIComponent(item.city || 'default')
+            cityImage = `https://picsum.photos/seed/${seed}/800/400`
+            CITY_IMAGE_CACHE[item.city] = cityImage
+        }
+
+        return {
+            ...item,
+            cityImage: cityImage,
+            transportIcon: TRANSPORT_ICON_MAP[item.transportation] || '🚗',
+            accommodationIcon: ACCOMMODATION_ICON_MAP[item.accommodation] || '🏨'
+        }
+    })
 }
 
 Page({
@@ -344,8 +359,18 @@ Page({
                         // 显示自定义加载动画
                         this.setData({ showPostcardLoading: true })
 
-                        // 调用生成明信片API
+                        // 调用生成明信片API（异步模式，立即返回 pending 状态）
                         const result = await api.generatePostcardFromPlan(id)
+
+                        if (!result || !result.id) {
+                            throw new Error('生成请求失败')
+                        }
+
+                        const postcardId = result.id
+                        console.log('[明信片] 创建成功，开始轮询状态:', postcardId)
+
+                        // 轮询状态直到完成或失败
+                        const finalResult = await this.pollPostcardStatus(postcardId)
 
                         // 调用组件的完成动画方法
                         const loadingComponent = this.selectComponent('#postcardLoading')
@@ -357,7 +382,7 @@ Page({
                         setTimeout(() => {
                             this.setData({ showPostcardLoading: false })
 
-                            if (result && result.id) {
+                            if (finalResult.status === 'completed') {
                                 wx.showModal({
                                     title: '生成成功',
                                     content: '明信片已生成，是否立即查看？',
@@ -371,16 +396,47 @@ Page({
                                         }
                                     }
                                 })
+                            } else {
+                                util.showError(finalResult.statusMessage || '生成失败')
                             }
                         }, 800)
                     } catch (err) {
                         console.error('生成明信片失败:', err)
                         this.setData({ showPostcardLoading: false })
-                        util.showError('生成失败，请稍后重试')
+                        util.showError(err.message || '生成失败，请稍后重试')
                     }
                 }
             }
         })
+    },
+
+    // 轮询明信片生成状态
+    async pollPostcardStatus(postcardId, maxAttempts = 60, intervalMs = 5000) {
+        for (let i = 0; i < maxAttempts; i++) {
+            try {
+                const status = await api.getPostcardStatus(postcardId)
+                console.log(`[明信片] 轮询状态 (${i + 1}/${maxAttempts}):`, status.status)
+
+                if (status.status === 'completed' || status.status === 'failed') {
+                    return status
+                }
+
+                // 等待后继续轮询
+                await this.sleep(intervalMs)
+            } catch (err) {
+                console.error('[明信片] 轮询状态失败:', err)
+                // 网络错误时继续重试
+                await this.sleep(intervalMs)
+            }
+        }
+
+        // 超时
+        return { status: 'failed', statusMessage: '生成超时，请稍后在明信片页面查看' }
+    },
+
+    // 等待函数
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms))
     },
 
     // 分享

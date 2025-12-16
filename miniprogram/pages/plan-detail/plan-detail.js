@@ -44,7 +44,6 @@ Page({
         currentDayData: null,
         currentWeather: null,
         currentRouteInfo: null,  // 当天路径信息
-        currentDayMapUrl: null,  // 当天静态地图URL
         expandedRoutes: {},      // 展开的路径段索引
         routeSummaryIcon: '🚗',  // 路程概况卡片图标
         routeSegmentIcons: {},   // 各路段图标 { itemIndex: icon }
@@ -89,7 +88,6 @@ Page({
             const currentDayData = this.processDayData(plan.schedule[0], 0)
             const currentWeather = this.getWeatherForDay(plan, 0)
             const currentRouteInfo = this.getRouteInfoForDay(plan, 0)
-            const currentDayMapUrl = this.getStaticMapForDay(plan, 0)
             const routeSummaryIcon = this.getRouteSummaryIcon(plan)
             const routeSegmentIcons = this.getRouteSegmentIcons(plan, currentRouteInfo)
 
@@ -103,7 +101,6 @@ Page({
                 currentDayData: currentDayData,
                 currentWeather: currentWeather,
                 currentRouteInfo: currentRouteInfo,
-                currentDayMapUrl: currentDayMapUrl,
                 expandedRoutes: {},
                 routeSummaryIcon: routeSummaryIcon,
                 routeSegmentIcons: routeSegmentIcons,
@@ -131,7 +128,6 @@ Page({
             const currentDayData = this.processDayData(localPlan.schedule[0], 0)
             const currentWeather = this.getWeatherForDay(localPlan, 0)
             const currentRouteInfo = this.getRouteInfoForDay(localPlan, 0)
-            const currentDayMapUrl = this.getStaticMapForDay(localPlan, 0)
             const routeSummaryIcon = this.getRouteSummaryIcon(localPlan)
             const routeSegmentIcons = this.getRouteSegmentIcons(localPlan, currentRouteInfo)
 
@@ -145,7 +141,6 @@ Page({
                 currentDayData: currentDayData,
                 currentWeather: currentWeather,
                 currentRouteInfo: currentRouteInfo,
-                currentDayMapUrl: currentDayMapUrl,
                 expandedRoutes: {},
                 routeSummaryIcon: routeSummaryIcon,
                 routeSegmentIcons: routeSegmentIcons,
@@ -163,7 +158,6 @@ Page({
                 const currentDayData = this.processDayData(plan.schedule[0], 0)
                 const currentWeather = this.getWeatherForDay(plan, 0)
                 const currentRouteInfo = this.getRouteInfoForDay(plan, 0)
-                const currentDayMapUrl = this.getStaticMapForDay(plan, 0)
                 const routeSummaryIcon = this.getRouteSummaryIcon(plan)
                 const routeSegmentIcons = this.getRouteSegmentIcons(plan, currentRouteInfo)
 
@@ -177,7 +171,6 @@ Page({
                     currentDayData: currentDayData,
                     currentWeather: currentWeather,
                     currentRouteInfo: currentRouteInfo,
-                    currentDayMapUrl: currentDayMapUrl,
                     expandedRoutes: {},
                     routeSummaryIcon: routeSummaryIcon,
                     routeSegmentIcons: routeSegmentIcons,
@@ -335,7 +328,6 @@ Page({
             const currentDayData = this.processDayData(plan.schedule[index], index)
             const currentWeather = this.getWeatherForDay(plan, index)
             const currentRouteInfo = this.getRouteInfoForDay(plan, index)
-            const currentDayMapUrl = this.getStaticMapForDay(plan, index)
             const routeSegmentIcons = this.getRouteSegmentIcons(plan, currentRouteInfo)
 
             const isLastDay = index === plan.schedule.length - 1
@@ -346,7 +338,6 @@ Page({
                 currentDayData: currentDayData,
                 currentWeather: currentWeather,
                 currentRouteInfo: currentRouteInfo,
-                currentDayMapUrl: currentDayMapUrl,
                 expandedRoutes: {},  // 切换天数时重置展开状态
                 routeSegmentIcons: routeSegmentIcons,
                 isLastDay: isLastDay,
@@ -365,11 +356,7 @@ Page({
         })
     },
 
-    // 获取指定天的静态地图URL
-    getStaticMapForDay(plan, dayIndex) {
-        if (!plan || !plan.dayStaticMaps) return null
-        return plan.dayStaticMaps[dayIndex] || null
-    },
+
 
     // 获取路程概况卡片的图标（根据交通方式）
     getRouteSummaryIcon(plan) {

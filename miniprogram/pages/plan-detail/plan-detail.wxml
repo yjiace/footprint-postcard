@@ -52,7 +52,7 @@
           <text class="route-summary-emoji">{{routeSummaryIcon}}</text>
           <text class="route-summary-title">今日路程概况</text>
           <!-- 查看地图按钮 -->
-          <view class="view-map-btn" wx:if="{{currentDayMapUrl}}" bindtap="onViewRouteMap">
+          <view class="view-map-btn" wx:if="{{currentRouteInfo}}" bindtap="onViewRouteMap">
             <text class="map-icon">🗺️</text>
             <text>查看地图</text>
           </view>
@@ -306,7 +306,7 @@
     destination="{{routeMapDestination}}"
     originName="{{routeMapOriginName}}"
     destinationName="{{routeMapDestinationName}}"
-    city="{{plan.city}}"
+    city="{{plan.city || ''}}"
     defaultMode="{{routeMapDefaultMode}}"
     bind:close="onCloseRouteMapPopup"
   ></route-map-popup>

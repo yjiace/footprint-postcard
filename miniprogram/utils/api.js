@@ -221,10 +221,10 @@ function deletePlan(id) {
 }
 
 /**
- * 生成明信片
+ * 生成明信片（使用300秒超时，等待AI生成图片）
  */
 function generatePostcard(params) {
-    return post('/postcard/generate', params)
+    return request('/postcard/generate', params, 'POST', {}, 300000)
 }
 
 /**
@@ -249,10 +249,19 @@ function deletePostcard(id) {
 }
 
 /**
- * 根据行程ID生成明信片（使用180秒超时，等待AI生成）
+ * 根据行程ID生成明信片（异步模式，立即返回 pending 状态）
  */
 function generatePostcardFromPlan(planId) {
-    return request('/postcard/generate', { planId }, 'POST', {}, 180000)
+    // 异步模式下，服务器会立即返回 pending 状态，60秒足够
+    return request('/postcard/generate', { planId }, 'POST', {}, 60000)
+}
+
+/**
+ * 获取明信片生成状态（用于轮询）
+ * @param {String} postcardId 明信片ID
+ */
+function getPostcardStatus(postcardId) {
+    return get('/postcard/status', { id: postcardId })
 }
 
 /**
@@ -370,6 +379,7 @@ module.exports = {
     getPostcardDetail,
     deletePostcard,
     generatePostcardFromPlan,
+    getPostcardStatus,
     uploadImage,
 
     // 图片代理工具
