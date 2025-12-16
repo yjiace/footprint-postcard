@@ -17,6 +17,9 @@ const AMAP_KEY = 'your-amap-web-service-key'
 // N8N 智能旅行规划工作流 webhook 地址
 const N8N_WORKFLOW_URL = 'https://your-n8n-domain/webhook/travel-plan'
 
+// N8N 明信片生成工作流 webhook 地址 (此处配置为Worker代理地址)
+const N8N_POSTCARD_WORKFLOW_URL = 'https://footprint-postcard-api.smallyoung.workers.dev/postcard/proxy'
+
 // 腾讯云 COS 配置（替代 Cloudflare R2）
 const COS_SECRET_ID = 'your-tencent-cloud-secret-id'
 const COS_SECRET_KEY = 'your-tencent-cloud-secret-key'

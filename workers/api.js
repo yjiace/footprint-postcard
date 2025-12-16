@@ -2698,9 +2698,117 @@ const routes = {
 
     // 文件上传
     'POST /upload/image': handleUploadImage,
+    // 代理接口（替代N8N）
+    'POST /postcard/proxy': handlePostcardProxy,
 
     // 图片代理（解决微信小程序域名限制）
     'GET /proxy/image': handleProxyImage
+}
+
+/**
+ * 明信片生成代理（替代N8N工作流）
+ * 接收请求后立即返回，异步调用AI生成图片并回调
+ */
+async function handlePostcardProxy(request, env, ctx) {
+    try {
+        const body = await request.json()
+        const { prompt, apiKey, callback } = body
+
+        if (!prompt || !apiKey || !callback || !callback.url) {
+            return errorResponse('缺少必要参数(prompt, apiKey, callback)', 400)
+        }
+
+        // 异步处理 AI 生成并回调
+        const processPromise = async () => {
+            try {
+                console.log('开始AI生成请求:', prompt.substring(0, 50))
+
+                const aiResponse = await fetch('https://api.kuai.host/v1beta/models/gemini-3-pro-image-preview:generateContent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            role: 'user',
+                            parts: [{
+                                text: prompt
+                            }]
+                        }],
+                        generationConfig: {
+                            responseModalities: ['TEXT', 'IMAGE'],
+                            imageConfig: {
+                                aspectRatio: '3:4',
+                                imageSize: '2K'
+                            }
+                        }
+                    })
+                })
+
+                if (!aiResponse.ok) {
+                    const errText = await aiResponse.text()
+                    console.error('AI API错误:', aiResponse.status, errText)
+                    // 尝试回调错误信息
+                    await fetch(callback.url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            postcardId: callback.postcardId,
+                            openid: callback.openid,
+                            aiResponse: null,
+                            error: `AI API Error: ${aiResponse.status} ${errText}`
+                        })
+                    })
+                    return
+                }
+
+                const aiData = await aiResponse.json()
+                console.log('AI生成成功，准备回调:', callback.url)
+
+                // 回调 EdgeOne
+                const callbackResp = await fetch(callback.url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        postcardId: callback.postcardId,
+                        openid: callback.openid,
+                        aiResponse: aiData
+                    })
+                })
+
+                if (!callbackResp.ok) {
+                    console.error('回调EdgeOne失败:', callbackResp.status)
+                }
+
+            } catch (err) {
+                console.error('异步处理异常:', err)
+                try {
+                    await fetch(callback.url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            postcardId: callback.postcardId,
+                            openid: callback.openid,
+                            aiResponse: null,
+                            error: `Internal Error: ${err.message}`
+                        })
+                    })
+                } catch (e) { console.error('发送错误回调失败', e) }
+            }
+        }
+
+        // 使用 ctx.waitUntil 确保异步任务在响应返回后继续执行
+        ctx.waitUntil(processPromise())
+
+        return jsonResponse({
+            received: true,
+            message: '明信片生成任务已接收(Worker Proxy)'
+        })
+
+    } catch (err) {
+        return errorResponse('代理请求处理失败: ' + err.message, 500)
+    }
 }
 
 /**

@@ -234,17 +234,21 @@ Page({
         }
 
         try {
-            util.showLoading('生成中...')
+            util.showLoading('正在生成明信片...')
 
-            // 调用实际API生成明信片
+            // 调用实际API生成明信片（异步模式）
             const result = await api.generatePostcard({ type: 'track', data: trackList[0] })
 
-            if (result && result.success) {
+            // 检查是否为异步生成状态
+            if (result && result.status === 'generating' && result.id) {
+                console.log('明信片进入生成队列，开始轮询状态')
+                // 开始轮询状态
+                this.pollPostcardStatus(result.id)
+            } else if (result && result.image) {
+                // 同步生成完成（向后兼容）
                 util.hideLoading()
                 util.showSuccess('生成成功')
-
-                // 刷新列表
-                this.loadPostcardList()
+                this.loadPostcardList(true)
             } else {
                 throw new Error('生成失败')
             }
@@ -271,17 +275,21 @@ Page({
         }
 
         try {
-            util.showLoading('生成中...')
+            util.showLoading('正在生成明信片...')
 
-            // 调用实际API生成明信片
+            // 调用实际API生成明信片（异步模式）
             const result = await api.generatePostcard({ type: 'plan', data: planList[0] })
 
-            if (result && result.success) {
+            // 检查是否为异步生成状态
+            if (result && result.status === 'generating' && result.id) {
+                console.log('明信片进入生成队列，开始轮询状态')
+                // 开始轮询状态
+                this.pollPostcardStatus(result.id)
+            } else if (result && result.image) {
+                // 同步生成完成（向后兼容）
                 util.hideLoading()
                 util.showSuccess('生成成功')
-
-                // 刷新列表
-                this.loadPostcardList()
+                this.loadPostcardList(true)
             } else {
                 throw new Error('生成失败')
             }

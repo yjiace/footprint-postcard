@@ -618,7 +618,7 @@ ${stationsText}
 const POSTCARD_WHITELIST = ['orBRy14EIyMRaE6VgyAsGd3nYmMY']
 
 /**
- * AI生成明信片 - 直接调用 AI API（同步模式）
+ * AI生成明信片 - 异步模式（通过N8N工作流）
  * 限制：同一用户每天最多生成3次（白名单用户不受限制）
  */
 async function handleGeneratePostcard(request, env) {
@@ -629,6 +629,11 @@ async function handleGeneratePostcard(request, env) {
     const { planId } = body
 
     if (!planId) return errorResponse('缺少行程ID参数', 400)
+
+    // 检查N8N工作流配置
+    if (!env.N8N_POSTCARD_WORKFLOW_URL) {
+        return errorResponse('服务配置错误：未配置N8N工作流地址', 500)
+    }
 
     // 检查是否为白名单用户
     const isWhitelisted = POSTCARD_WHITELIST.includes(user.openid)
@@ -647,11 +652,6 @@ async function handleGeneratePostcard(request, env) {
         await KV.put(countKey, String(currentCount + 1), { expirationTtl: 86400 })
     }
 
-    // 检查环境变量配置
-    if (!env.KUAI_API_KEY) {
-        return errorResponse('服务配置错误：未配置KUAI_API_KEY', 500)
-    }
-
     try {
         // 1. 根据 planId 查询行程详情
         const planData = await KV.get(`plan:${user.openid}:${planId}`)
@@ -661,129 +661,68 @@ async function handleGeneratePostcard(request, env) {
         // 2. 构建生成提示词
         const prompt = buildPostcardPrompt(plan)
 
-        // 3. 调用 kuai.host API 生成图片
-        const kuaiApiBase = env.KUAI_API_BASE || 'https://api.kuai.host'
-        const modelName = env.KUAI_MODEL || 'gemini-3-pro-image-preview'
-        const apiUrl = `${kuaiApiBase}/v1beta/models/${modelName}:generateContent`
-
-        const imageResponse = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${env.KUAI_API_KEY}`
-            },
-            body: JSON.stringify({
-                contents: [{
-                    role: 'user',
-                    parts: [{
-                        text: prompt
-                    }]
-                }],
-                generationConfig: {
-                    responseModalities: ['TEXT', 'IMAGE'],
-                    imageConfig: {
-                        aspectRatio: '3:4',
-                        imageSize: '2K'
-                    }
-                }
-            })
-        })
-
-        if (!imageResponse.ok) {
-            const errorText = await imageResponse.text()
-            console.error('kuai.host API 错误:', imageResponse.status, errorText)
-            return errorResponse('AI生成图片失败，请稍后重试', 500)
-        }
-
-        const imageResult = await imageResponse.json()
-
-        // 4. 解析响应获取图片数据
-        let imageUrl = null
-        let imageData = null
-
-        if (imageResult.candidates && imageResult.candidates[0]) {
-            const candidate = imageResult.candidates[0]
-            const parts = candidate.content?.parts
-
-            if (parts && Array.isArray(parts)) {
-                for (const part of parts) {
-                    if (part.inlineData && part.inlineData.data) {
-                        imageData = part.inlineData.data
-                        break
-                    }
-                    if (part.inline_data && part.inline_data.data) {
-                        imageData = part.inline_data.data
-                        break
-                    }
-                    if (part.text) {
-                        const urlMatch = part.text.match(/(https?:\/\/[^\s"']+\.(png|jpg|jpeg|webp|gif))/i)
-                        if (urlMatch) imageUrl = urlMatch[1]
-                    }
-                }
-            }
-        }
-
-        // 5. 上传图片到 COS
-        const timestamp = Date.now()
+        // 3. 生成明信片ID
         const postcardId = generateId('postcard_')
 
-        if (imageData) {
-            const cosPath = `postcards/${user.openid}/${timestamp}.png`
-
-            // 将 base64 转换为 ArrayBuffer
-            const binaryString = atob(imageData)
-            const bytes = new Uint8Array(binaryString.length)
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i)
-            }
-
-            imageUrl = await uploadToCOS(env, cosPath, bytes.buffer, 'image/png')
-        }
-
-        // 如果没有获取到图片，使用默认图片
-        if (!imageUrl) {
-            console.warn('未获取到AI生成的图片，使用默认图片')
-            imageUrl = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600'
-        }
-
-        // 6. 生成明信片记录
-        const thumbnailUrl = getThumbnailUrl(imageUrl, 400, 80)
-        const postcard = {
+        // 4. 创建pending状态的明信片记录
+        const pendingPostcard = {
             id: postcardId,
             planId: planId,
             title: `${plan.city}之旅`,
-            image: imageUrl,
-            thumbnail: thumbnailUrl,
             city: plan.city,
             date: plan.date,
             endDate: plan.endDate,
             days: plan.days,
             description: `${plan.city} ${plan.days}天${plan.days - 1}晚精彩旅程`,
+            status: 'generating',
+            statusMessage: '正在生成明信片...',
+            prompt: prompt,  // 保存提示词（不返回给前端）
             createdAt: Date.now()
         }
 
-        // 7. 保存明信片详情到 KV
-        await KV.put(`postcard:${user.openid}:${postcardId}`, JSON.stringify(postcard))
+        // 5. 保存明信片详情到 KV
+        await KV.put(`postcard:${user.openid}:${postcardId}`, JSON.stringify(pendingPostcard))
 
-        // 8. 更新用户明信片列表
+        // 6. 更新用户明信片列表
         const listKey = `postcard_list:${user.openid}`
         const existingList = await KV.get(listKey)
         const postcardList = existingList ? JSON.parse(existingList) : []
         postcardList.unshift({
             id: postcardId,
-            title: postcard.title,
-            image: postcard.image,
-            thumbnail: postcard.thumbnail,
-            city: postcard.city,
-            date: postcard.date,
-            createdAt: postcard.createdAt
+            title: pendingPostcard.title,
+            city: pendingPostcard.city,
+            date: pendingPostcard.date,
+            status: 'generating',
+            createdAt: pendingPostcard.createdAt
         })
         await KV.put(listKey, JSON.stringify(postcardList))
 
-        return jsonResponse(postcard)
+        // 7. 构建回调URL
+        const callbackUrl = new URL(request.url)
+        callbackUrl.pathname = '/api/postcard/callback'
+
+        // 8. 异步调用N8N工作流（不等待响应）
+        fetch(env.N8N_POSTCARD_WORKFLOW_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: prompt,
+                apiKey: env.KUAI_API_KEY, // 传递 AI API Key
+                callback: {
+                    url: callbackUrl.toString(),
+                    postcardId: postcardId,
+                    openid: user.openid
+                }
+            })
+        }).catch(e => console.error('N8N工作流请求失败:', e))
+
+        // 9. 立即返回pending状态的明信片（移除prompt字段）
+        const { prompt: _, ...postcardResponse } = pendingPostcard
+        return jsonResponse(postcardResponse)
+
     } catch (err) {
-        console.error('生成明信片失败:', err)
-        return errorResponse('生成明信片失败: ' + err.message, 500)
+        console.error('创建明信片失败:', err)
+        return errorResponse('创建明信片失败: ' + err.message, 500)
     }
 }
 
@@ -993,6 +932,68 @@ async function handleProxyImage(request) {
     } catch { return errorResponse('图片代理失败', 500) }
 }
 
+/**
+ * 测试超时接口
+ * 用于验证 EdgeOne 超时配置（300秒）是否能够解决15秒超时问题
+ * 使用内部延时测试 EdgeOne 函数能否运行超过默认的 15 秒限制
+ */
+async function handleTestTimeout(request, env) {
+    const url = new URL(request.url)
+    const sleepSeconds = parseInt(url.searchParams.get('sleep') || '60')
+    const maxSleep = 300 // 最大允许休眠 300 秒
+
+    if (sleepSeconds > maxSleep) {
+        return errorResponse(`休眠时间不能超过 ${maxSleep} 秒`, 400)
+    }
+
+    const startTime = Date.now()
+
+    try {
+        console.log(`开始测试超时：休眠 ${sleepSeconds} 秒`)
+        console.log(`开始时间: ${new Date(startTime).toISOString()}`)
+
+        // 使用内部延时测试 EdgeOne 函数能否运行超过 15 秒
+        await new Promise(resolve => setTimeout(resolve, sleepSeconds * 1000))
+
+        const endTime = Date.now()
+        const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2)
+
+        console.log(`测试完成`)
+        console.log(`结束时间: ${new Date(endTime).toISOString()}`)
+        console.log(`实际耗时: ${elapsedSeconds} 秒`)
+
+        return jsonResponse({
+            success: true,
+            message: `成功完成 ${sleepSeconds} 秒的超时测试`,
+            sleepSeconds,
+            elapsedSeconds: parseFloat(elapsedSeconds),
+            startTime: new Date(startTime).toISOString(),
+            endTime: new Date(endTime).toISOString(),
+            description: 'EdgeOne 函数成功运行超过默认 15 秒超时限制'
+        })
+
+
+    } catch (err) {
+        const endTime = Date.now()
+        const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2)
+
+        console.error('测试超时失败:', err.message)
+        console.error(`失败时间: ${new Date(endTime).toISOString()}`)
+        console.error(`已耗时: ${elapsedSeconds} 秒`)
+
+        return jsonResponse({
+            success: false,
+            message: '超时测试失败',
+            error: err.message,
+            errorStack: err.stack,
+            sleepSeconds,
+            elapsedSeconds: parseFloat(elapsedSeconds),
+            startTime: new Date(startTime).toISOString(),
+            endTime: new Date(endTime).toISOString()
+        }, 500, '测试失败')
+    }
+}
+
 // ==================== 路由表 ====================
 
 const routes = {
@@ -1009,10 +1010,13 @@ const routes = {
     'GET /plan/detail': handleGetPlanDetail,
     'DELETE /plan/delete': handleDeletePlan,
     'POST /postcard/generate': handleGeneratePostcard,
+    'POST /postcard/callback': handlePostcardCallback,
+    'GET /postcard/status': handleGetPostcardStatus,
     'GET /postcard/list': handleGetPostcardList,
     'GET /postcard/detail': handleGetPostcardDetail,
     'DELETE /postcard/delete': handleDeletePostcard,
-    'GET /proxy/image': handleProxyImage
+    'GET /proxy/image': handleProxyImage,
+    'GET /test/timeout': handleTestTimeout  // 测试超时配置接口
 }
 
 // ==================== Pages Functions 入口 ====================
