@@ -1,0 +1,15 @@
+{
+  "name": "scf-postcard-generate",
+  "version": "1.0.0",
+  "description": "腾讯云云函数 - 明信片生成服务",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["scf", "postcard", "ai"],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

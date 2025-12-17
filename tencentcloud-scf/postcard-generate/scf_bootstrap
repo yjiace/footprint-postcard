@@ -1,0 +1,8 @@
+#!/bin/bash
+# 腾讯云 Web 函数启动脚本
+
+# 设置环境变量
+export PORT=9000
+
+# 启动 Node.js 服务
+exec node index.js
