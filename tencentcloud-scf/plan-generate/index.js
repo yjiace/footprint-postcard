@@ -784,7 +784,17 @@ async function callbackEdgeOne(callbackUrl, data) {
 
             res.on('end', () => {
                 console.log('EdgeOne回调响应状态码:', res.statusCode);
-                resolve(responseData);
+
+                // 检查HTTP状态码,只有2xx才算成功
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    console.log('EdgeOne回调成功');
+                    resolve(responseData);
+                } else {
+                    const errorMsg = `EdgeOne回调失败: HTTP ${res.statusCode}`;
+                    console.error(errorMsg);
+                    console.error('EdgeOne响应内容:', responseData.substring(0, 500));
+                    reject(new Error(errorMsg));
+                }
             });
         });
 

@@ -25,6 +25,32 @@ async function generateToken(payload, secret) {
     return `${data}.${encodedSignature}`
 }
 
+// 统一的中国城市中英文映射表
+const CITY_NAME_MAP = {
+    '北京': 'Beijing', '上海': 'Shanghai', '天津': 'Tianjin', '重庆': 'Chongqing',
+    '广州': 'Guangzhou', '深圳': 'Shenzhen', '杭州': 'Hangzhou', '南京': 'Nanjing',
+    '成都': 'Chengdu', '武汉': 'Wuhan', '西安': 'Xian', '长沙': 'Changsha',
+    '郑州': 'Zhengzhou', '济南': 'Jinan', '青岛': 'Qingdao', '大连': 'Dalian',
+    '沈阳': 'Shenyang', '哈尔滨': 'Harbin', '长春': 'Changchun', '福州': 'Fuzhou',
+    '厦门': 'Xiamen', '南昌': 'Nanchang', '合肥': 'Hefei', '石家庄': 'Shijiazhuang',
+    '太原': 'Taiyuan', '昆明': 'Kunming', '贵阳': 'Guiyang', '南宁': 'Nanning',
+    '海口': 'Haikou', '三亚': 'Sanya', '拉萨': 'Lhasa', '乌鲁木齐': 'Urumqi',
+    '兰州': 'Lanzhou', '西宁': 'Xining', '银川': 'Yinchuan', '呼和浩特': 'Hohhot',
+    '桂林': 'Guilin', '丽江': 'Lijiang', '大理': 'Dali', '苏州': 'Suzhou',
+    '无锡': 'Wuxi', '扬州': 'Yangzhou', '黄山': 'Huangshan', '张家界': 'Zhangjiajie',
+    '九寨沟': 'Jiuzhaigou', '敦煌': 'Dunhuang', '洛阳': 'Luoyang', '开封': 'Kaifeng',
+    '泰安': 'Taian', '威海': 'Weihai', '烟台': 'Yantai', '秦皇岛': 'Qinhuangdao',
+    '珠海': 'Zhuhai', '汕头': 'Shantou', '佛山': 'Foshan', '东莞': 'Dongguan',
+    '宁波': 'Ningbo', '温州': 'Wenzhou', '绍兴': 'Shaoxing', '嘉兴': 'Jiaxing',
+    '香港': 'Hong Kong', '澳门': 'Macau', '台北': 'Taipei', '高雄': 'Kaohsiung'
+}
+
+// 路段颜色配置
+const SEGMENT_COLORS = [
+    '#8b5cf6', '#10b981', '#f59e0b', '#ef4444',
+    '#6366f1', '#ec4899', '#14b8a6', '#f97316'
+]
+
 async function verifyToken(token, secret) {
     try {
         const [encodedHeader, encodedPayload, encodedSignature] = token.split('.')
@@ -161,6 +187,69 @@ async function searchNearbyPOI(lng, lat, radius, keywords, env, types = '风景�
     return { pois: data.pois || [], total: parseInt(data.count) || 0 }
 }
 
+async function downloadAndSaveCityImage(city, planId, env) {
+    try {
+        // 1. 获取图片 URL
+        let imageUrl = await searchCityImage(city, env)
+        if (!imageUrl) {
+            // 回退到 Picsum
+            imageUrl = `https://picsum.photos/seed/${encodeURIComponent(city)}/800/600`
+        }
+
+        // 2. 下载图片
+        const res = await fetch(imageUrl)
+        if (!res.ok) throw new Error('图片下载失败')
+        const buffer = await res.arrayBuffer()
+
+        // 3. 上传到 COS
+        // path: city-covers/{planId}_{timestamp}.jpg
+        const timestamp = Date.now()
+        const path = `city-covers/${planId}_${timestamp}.jpg`
+
+        // uploadToCOS 参数: env, path, data, contentType
+        const cosUrl = await uploadToCOS(env, path, buffer, 'image/jpeg')
+        return cosUrl
+    } catch (err) {
+        console.error('下载保存城市图片失败:', err)
+        // 失败返回 Picsum URL 作为兜底
+        return `https://picsum.photos/seed/${encodeURIComponent(city)}/800/600`
+    }
+}
+
+async function searchCityLandmark(city, keywords, env) {
+    if (!env.AMAP_KEY) return null
+    try {
+        const params = new URLSearchParams({
+            key: env.AMAP_KEY, keywords, city, citylimit: 'true', types: '风景名胜',
+            offset: '1', page: '1', extensions: 'base', output: 'json'
+        })
+        const res = await fetch(`https://restapi.amap.com/v3/place/text?${params}`)
+        const data = await res.json()
+        if (data.status !== '1' || !data.pois?.length) return null
+        const poi = data.pois[0]
+        const loc = poi.location ? poi.location.split(',') : null
+        return {
+            poiName: poi.name, address: poi.address || '',
+            latitude: loc ? parseFloat(loc[1]) : null, longitude: loc ? parseFloat(loc[0]) : null
+        }
+    } catch { return null }
+}
+
+async function searchCityImage(city, env) {
+    if (!env.UNSPLASH_ACCESS_KEY) return null
+    try {
+        const englishName = CITY_NAME_MAP[city] || city
+        const query = `${englishName} city landmark skyline`
+        const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=3&orientation=landscape`, {
+            headers: { 'Authorization': `Client-ID ${env.UNSPLASH_ACCESS_KEY}`, 'Accept-Version': 'v1' }
+        })
+        if (!res.ok) return null
+        const data = await res.json()
+        if (!data.results?.length) return null
+        return data.results[Math.floor(Math.random() * Math.min(3, data.results.length))].urls.small
+    } catch { return null }
+}
+
 function parsePolyline(str) {
     if (!str) return []
     return str.split(';').map(p => {
@@ -246,19 +335,37 @@ async function handleGetCityByLocation(request, env) {
 
 async function handleGetHotDestinations(request, env) {
     try {
-        // 检查 KV 是否可用（EdgeOne 中 KV 是全局变量）
-        if (typeof KV === 'undefined') {
-            return errorResponse('KV 存储未配置，请在 EdgeOne 控制台绑定 KV 命名空间', 500)
-        }
+        if (typeof KV === 'undefined') return errorResponse('KV未配置', 500)
+
         const cached = await KV.get('hot_destinations')
         if (cached) return jsonResponse(JSON.parse(cached))
-        const destinations = HOT_CITIES.map((c, i) => ({
-            id: i + 1, name: c.name, image: `https://picsum.photos/seed/${c.name}/800/400`, description: c.description, landmark: c.keywords
-        }))
+
+        const destinationPromises = HOT_CITIES.map(async (c, i) => {
+            const [landmark, imageUrl] = await Promise.all([
+                searchCityLandmark(c.name, c.keywords, env),
+                searchCityImage(c.name, env)
+            ])
+            return {
+                id: i + 1, name: c.name,
+                image: imageUrl || `https://picsum.photos/seed/${c.name}/800/400`,
+                description: c.description,
+                landmark: landmark ? landmark.poiName : c.keywords,
+                latitude: landmark ? landmark.latitude : null,
+                longitude: landmark ? landmark.longitude : null
+            }
+        })
+
+        const destinations = await Promise.all(destinationPromises)
         await KV.put('hot_destinations', JSON.stringify(destinations), { expirationTtl: 604800 })
         return jsonResponse(destinations)
     } catch (err) {
-        return errorResponse(`热门目的地获取失败: ${err.message}`, 500)
+        // 降级策略
+        console.error('获取热门目的地失败:', err)
+        const fallback = HOT_CITIES.map((c, i) => ({
+            id: i + 1, name: c.name, image: `https://picsum.photos/seed/${c.name}/800/400`,
+            description: c.description, landmark: c.keywords
+        }))
+        return jsonResponse(fallback)
     }
 }
 
@@ -266,12 +373,15 @@ async function handleGetNearbyAttractions(request, env) {
     const url = new URL(request.url)
     const lat = parseFloat(url.searchParams.get('latitude'))
     const lng = parseFloat(url.searchParams.get('longitude'))
+    if (!lat || !lng) return errorResponse('缺少经纬度参数', 400)
+
+    // 参数获取
     const radius = parseInt(url.searchParams.get('radius') || '10')
     const keywords = url.searchParams.get('keywords') || '景点'
     const types = url.searchParams.get('types') || '风景名胜|公园广场'
     const page = parseInt(url.searchParams.get('page') || '1')
     const pageSize = parseInt(url.searchParams.get('pageSize') || '20')
-    if (!lat || !lng) return errorResponse('缺少经纬度参数', 400)
+
     try {
         const result = await searchNearbyPOI(lng, lat, radius * 1000, keywords, env, types, page, pageSize)
         const list = result.pois.map((p, i) => {
@@ -280,11 +390,23 @@ async function handleGetNearbyAttractions(request, env) {
                 id: p.id || String(i + 1), name: p.name || '未知景点',
                 image: p.photos?.[0]?.url || 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400',
                 tags: p.type || '景点', distance: p.distance ? `${(p.distance / 1000).toFixed(1)}km` : '未知',
-                address: p.address || '', latitude: parseFloat(loc[1]), longitude: parseFloat(loc[0])
+                address: p.address || '',
+                rating: p.biz_ext?.rating || null, tel: p.tel || '',
+                latitude: parseFloat(loc[1]), longitude: parseFloat(loc[0])
             }
         })
         return jsonResponse({ list, total: result.total, page, pageSize, hasMore: list.length >= pageSize })
-    } catch (err) { return errorResponse(err.message, 500) }
+    } catch (err) {
+        console.error('获取周边景点失败:', err)
+        // Mock 兜底数据
+        const mockData = [{
+            id: 'mock_1', name: '通过 Mock 返回的模拟景点',
+            image: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400',
+            tags: '5A级景区', distance: '1.0km', address: '模拟地址',
+            latitude: lat + 0.01, longitude: lng + 0.01
+        }]
+        return jsonResponse({ list: mockData, total: 1, page: 1, pageSize, hasMore: false })
+    }
 }
 
 async function handleRouteDriving(request, env) {
@@ -315,116 +437,388 @@ async function handleRouteTransit(request, env) {
     catch (err) { return errorResponse(err.message, 500) }
 }
 
+async function handleGetDayPath(request, env) {
+    const user = await getUserFromRequest(request, env)
+    if (!user) return errorResponse('未登录', 401)
+
+    const url = new URL(request.url)
+    const planId = url.searchParams.get('planId')
+    const dayIndex = parseInt(url.searchParams.get('dayIndex') || '0')
+    const mode = url.searchParams.get('mode') || 'driving'
+    if (!planId) return errorResponse('缺少planId', 400)
+
+    // 缓存检查
+    // EdgeOne 使用全局 KV
+    const cacheKey = `day_path:${planId}:${dayIndex}:${mode}`
+    const cached = await KV.get(cacheKey)
+    if (cached) return jsonResponse(JSON.parse(cached))
+
+    try {
+        const planData = await KV.get(`plan:${user.openid}:${planId}`)
+        if (!planData) return errorResponse('行程不存在', 404)
+        const plan = JSON.parse(planData)
+        const schedule = plan.schedule || []
+        if (dayIndex >= schedule.length) return errorResponse('天数索引超出范围', 400)
+
+        const planning = schedule[dayIndex].planning || []
+        const locations = []
+
+        // 起点
+        if (dayIndex === 0 && plan.userLocation) {
+            locations.push({
+                id: 0, name: '出发点', type: 'start',
+                latitude: plan.userLocation.latitude, longitude: plan.userLocation.longitude
+            })
+        }
+        // 途经点
+        planning.forEach((item, idx) => {
+            if (item.location?.latitude && item.location?.longitude) {
+                locations.push({
+                    id: locations.length, name: item.name || `地点${idx + 1}`, type: item.type || 'attraction',
+                    latitude: item.location.latitude, longitude: item.location.longitude
+                })
+            }
+        })
+        // 终点
+        if (dayIndex === schedule.length - 1 && plan.userLocation) {
+            locations.push({
+                id: locations.length, name: '返回起点', type: 'end',
+                latitude: plan.userLocation.latitude, longitude: plan.userLocation.longitude
+            })
+        }
+
+        if (locations.length < 2) {
+            return jsonResponse({
+                markers: locations.map((loc, idx) => ({ ...loc, label: loc.type === 'start' ? '起' : loc.type === 'end' ? '终' : String(idx) })),
+                polylines: [], totalDistance: 0, totalDuration: 0, mode, message: '坐标点不足'
+            })
+        }
+
+        const polylines = []
+        let totalDistance = 0, totalDuration = 0
+
+        for (let i = 0; i < locations.length - 1; i++) {
+            const from = locations[i]
+            const to = locations[i + 1]
+            try {
+                let routeRes
+                if (mode === 'walking') routeRes = await getRouteWalking(`${from.longitude},${from.latitude}`, `${to.longitude},${to.latitude}`, env)
+                else if (mode === 'transit') routeRes = await getRouteTransit(`${from.longitude},${from.latitude}`, `${to.longitude},${to.latitude}`, plan.city || '', env)
+                else routeRes = await getRouteDriving(`${from.longitude},${from.latitude}`, `${to.longitude},${to.latitude}`, env)
+
+                const dist = routeRes.distance || 0
+                polylines.push({
+                    fromId: from.id, toId: to.id, fromName: from.name, toName: to.name,
+                    points: routeRes.polyline || [], distance: dist, duration: routeRes.duration || 0,
+                    distanceText: dist >= 1000 ? `${(dist / 1000).toFixed(1)}km` : `${dist}m`,
+                    color: SEGMENT_COLORS[i % SEGMENT_COLORS.length], width: 6, arrowLine: true
+                })
+                totalDistance += dist
+                totalDuration += routeRes.duration || 0
+            } catch (e) {
+                console.error(`路径规划失败 ${from.name}->${to.name}:`, e)
+                polylines.push({
+                    fromId: from.id, toId: to.id, fromName: from.name, toName: to.name,
+                    points: [], distance: 0, duration: 0, distanceText: '0m', color: SEGMENT_COLORS[i % SEGMENT_COLORS.length], error: e.message
+                })
+            }
+        }
+
+        const result = {
+            markers: locations.map((loc, idx) => ({
+                ...loc, label: loc.type === 'start' ? '起' : loc.type === 'end' ? '终' : String(idx),
+                color: loc.type === 'start' ? '#10b981' : loc.type === 'end' ? '#ef4444' : '#3b82f6'
+            })),
+            polylines, totalDistance, totalDuration,
+            totalDistanceText: totalDistance >= 1000 ? `${(totalDistance / 1000).toFixed(1)}km` : `${totalDistance}m`,
+            totalDurationText: totalDuration > 0 ? `约${totalDuration}分钟` : '',
+            mode, dayIndex
+        }
+
+        await KV.put(cacheKey, JSON.stringify(result), { expirationTtl: 86400 })
+        return jsonResponse(result)
+    } catch (err) { return errorResponse(err.message, 500) }
+}
+
 // ==================== 行程相关 ====================
 
-async function handleGeneratePlan(request, env) {
+async function handleGeneratePlan(request, env, context) {
     const user = await getUserFromRequest(request, env)
     if (!user) return errorResponse('未登录', 401)
 
     const { city, date, days, poiTypes, notes, transportation, accommodation, apiVersion, userLocation } = await request.json()
     if (!city || !date || !days) return errorResponse('缺少必要参数', 400)
-    if (!env.N8N_WORKFLOW_URL) return errorResponse('服务配置错误', 500)
 
+    // 检查云函数配置
+    if (!env.PLAN_SERVICE_URL) return errorResponse('服务配置错误：未配置行程规划服务地址', 500)
+
+    // 计算结束日期
     const startDate = new Date(date)
     const endDate = new Date(startDate)
     endDate.setDate(endDate.getDate() + days - 1)
     const endDateStr = endDate.toISOString().split('T')[0]
 
+    // 生成行程ID
     const planId = generateId('plan_')
-    const prefMap = { 'any': '不限', 'nature': '自然风光', 'history': '历史古迹', 'museum': '博物馆', 'amusement': '游乐园', 'food': '美食探店' }
-    const transMap = { 'public': '公共交通', 'drive': '自驾', 'walk': '步行为主' }
-    const accomMap = { 'budget': '经济型酒店', 'comfort': '舒适型酒店', 'luxury': '豪华型酒店' }
 
-    const translatedPoiTypes = (poiTypes || []).filter(t => t !== 'any').map(t => prefMap[t] || t)
-    const translatedTransport = transMap[transportation] || transportation || '公共交通'
-    const translatedAccom = accomMap[accommodation] || accommodation || '经济型酒店'
+    // ====== 翻译偏好设置（在创建pendingPlan之前，确保所有地方使用相同的翻译值）======
 
+    // 翻译景点类型
+    const preferenceMap = {
+        'any': '不限',
+        'nature': '自然风光',
+        'history': '历史古迹',
+        'museum': '博物馆',
+        'amusement': '游乐园',
+        'food': '美食探店'
+    }
+    // 翻译后的景点类型（过滤掉"不限"）
+    const translatedPoiTypes = (poiTypes || [])
+        .filter(type => type !== 'any')
+        .map(type => preferenceMap[type] || type)
+
+    // 翻译交通方式
+    const transportMap = {
+        'public': '公共交通',
+        'drive': '自驾',
+        'walk': '步行为主'
+    }
+    const translatedTransport = transportMap[transportation] || transportation || '公共交通'
+
+    // 翻译住宿偏好
+    const accommodationMap = {
+        'budget': '经济型酒店',
+        'comfort': '舒适型酒店',
+        'luxury': '豪华型酒店'
+    }
+    const translatedAccommodation = accommodationMap[accommodation] || accommodation || '经济型酒店'
+
+    // 创建"生成中"状态的行程记录（使用翻译后的值）
     const pendingPlan = {
-        id: planId, openid: user.openid, city, date, endDate: endDateStr, days,
-        transportation: translatedTransport, accommodation: translatedAccom, poiTypes: translatedPoiTypes,
-        notes, status: 'generating', statusMessage: '正在生成行程...', schedule: [], userLocation, createdAt: Date.now()
+        id: planId,
+        openid: user.openid,  // 用于回调时识别用户
+        city: city,
+        date: date,
+        endDate: endDateStr,
+        days: days,
+        transportation: translatedTransport,
+        accommodation: translatedAccommodation,
+        poiTypes: translatedPoiTypes,  // 翻译后的景点类型
+        notes: notes,
+        apiVersion: apiVersion || null,
+        // 状态字段
+        status: 'generating',  // generating | completed | failed
+        statusMessage: '正在生成行程，请稍候...',
+        // 空的详情数据
+        schedule: [],
+        weatherInfo: [],
+        budget: {},
+        overallSuggestions: '',
+        routeInfo: [],
+        routeSummary: null,
+        // 用户起点坐标（用于导航）
+        userLocation: userLocation || null,
+        createdAt: Date.now()
     }
 
     try {
+        // 下载并保存城市封面图片到COS（在创建时就保存，避免列表无图）
+        const cityImage = await downloadAndSaveCityImage(city, planId, env)
+        pendingPlan.cityImage = cityImage
+
+        // 立即保存"生成中"状态的记录
         await KV.put(`plan:${user.openid}:${planId}`, JSON.stringify(pendingPlan))
 
+        // 更新用户的行程列表（带状态）
         const listKey = `plan_list:${user.openid}`
-        const existing = await KV.get(listKey)
-        const planList = existing ? JSON.parse(existing) : []
-        planList.unshift({ id: planId, city, date, endDate: endDateStr, days, status: 'generating', transportation: translatedTransport, accommodation: translatedAccom, poiTypes: translatedPoiTypes, createdAt: pendingPlan.createdAt })
+        const existingList = await KV.get(listKey)
+        const planList = existingList ? JSON.parse(existingList) : []
+        planList.unshift({
+            id: planId,
+            city: pendingPlan.city,
+            date: pendingPlan.date,
+            endDate: pendingPlan.endDate,
+            days: pendingPlan.days,
+            status: 'generating',
+            cityImage: cityImage,  // 创建时就有封面图
+            transportation: translatedTransport,
+            accommodation: translatedAccommodation,
+            poiTypes: translatedPoiTypes,
+            createdAt: pendingPlan.createdAt
+        })
         await KV.put(listKey, JSON.stringify(planList))
 
+
+        // 用于云函数的偏好参数（使用翻译后的景点类型）
+        const preferences = translatedPoiTypes.length > 0 ? translatedPoiTypes : ['休闲']
+
+
+        // 构建回调URL（云函数完成后调用此接口更新状态）
         const callbackUrl = new URL(request.url)
         callbackUrl.pathname = '/api/plan/callback'
 
-        let n8nUrl = env.N8N_WORKFLOW_URL
-        if (apiVersion) n8nUrl = n8nUrl.replace(/\/$/, '') + '/' + apiVersion
+        // 构建云函数请求参数（包含回调信息）
+        const cloudFunctionRequest = {
+            city: city,
+            start_date: date,
+            end_date: endDateStr,
+            travel_days: days,
+            transportation: transportation || '公共交通',
+            accommodation: accommodation || '经济型酒店',
+            preferences: preferences.length > 0 ? preferences : ['休闲'],
+            free_text_input: notes || '',
+            // 用户起点坐标（用于规划起点到第一个景点、最后一个景点回起点的路线）
+            user_location: userLocation || null,
+            // 传递敏感数据（EdgeOne传递）
+            amapKey: env.AMAP_KEY,
+            deepseekKey: env.DEEPSEEK_API_KEY,
+            // 回调信息
+            callback: {
+                url: callbackUrl.toString(),
+                planId: planId,
+                openid: user.openid
+            }
+        }
 
-        fetch(n8nUrl, {
+        // 根据版本参数构建云函数URL（如果需要）
+        let cloudFunctionUrl = env.PLAN_SERVICE_URL
+        if (apiVersion) {
+            cloudFunctionUrl = cloudFunctionUrl.replace(/\/$/, '') + '/' + apiVersion
+        }
+        console.log('发送云函数请求，回调模式，URL:', cloudFunctionUrl)
+
+        // 发送请求到云函数（fire-and-forget，不等待响应）
+        // EdgeOne 不支持 waitUntil，直接使用 fetch 并 catch 错误
+        fetch(cloudFunctionUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                city, start_date: date, end_date: endDateStr, travel_days: days,
-                transportation: transportation || '公共交通', accommodation: accommodation || '经济型酒店',
-                preferences: translatedPoiTypes.length > 0 ? translatedPoiTypes : ['休闲'],
-                free_text_input: notes || '', user_location: userLocation,
-                callback: { url: callbackUrl.toString(), planId, openid: user.openid }
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'EdgeOne-Function/1.0'
+            },
+            body: JSON.stringify(cloudFunctionRequest)
+        }).then(response => {
+            console.log('云函数请求已发送，状态码:', response.status)
+            return response.text().then(text => {
+                console.log('云函数响应:', text.substring(0, 200))
             })
-        }).catch(e => console.error('N8N请求失败:', e))
+        }).catch(err => {
+            console.error('发送云函数请求失败:', err)
+        })
 
+        // 立即返回"生成中"的行程
         return jsonResponse(pendingPlan)
-    } catch (err) { return errorResponse('创建行程失败: ' + err.message, 500) }
+
+    } catch (err) {
+        console.error('创建行程记录失败:', err)
+        return errorResponse('创建行程失败: ' + err.message, 500)
+    }
 }
 
 async function handlePlanCallback(request, env) {
-    const { planId, openid, success, data, message } = await request.json()
-    if (!planId || !openid) return errorResponse('缺少参数', 400)
+    try {
+        const body = await request.json()
+        const { planId, openid, success, data, message } = body
 
-    if (!success) {
-        const planKey = `plan:${openid}:${planId}`
-        const planData = await KV.get(planKey)
-        if (planData) {
-            const plan = JSON.parse(planData)
-            plan.status = 'failed'
-            plan.statusMessage = message || 'AI生成失败'
-            await KV.put(planKey, JSON.stringify(plan))
+        if (!planId || !openid) {
+            return errorResponse('缺少必要参数', 400)
         }
-        return jsonResponse({ received: true, status: 'failed' })
+
+        if (!success) {
+            // 生成失败
+            const planKey = `plan:${openid}:${planId}`
+            const planData = await KV.get(planKey)
+            if (planData) {
+                const plan = JSON.parse(planData)
+                plan.status = 'failed'
+                plan.statusMessage = message || 'AI生成失败'
+                await KV.put(planKey, JSON.stringify(plan))
+            }
+
+            // 更新列表状态
+            const listKey = `plan_list:${openid}`
+            const listData = await KV.get(listKey)
+            if (listData) {
+                const list = JSON.parse(listData)
+                const item = list.find(p => p.id === planId)
+                if (item) {
+                    item.status = 'failed'
+                    await KV.put(listKey, JSON.stringify(list))
+                }
+            }
+
+            return jsonResponse({ received: true, status: 'failed' })
+        }
+
+        // 生成成功，更新行程数据
+        const planKey = `plan:${openid}:${planId}`
+        const existingData = await KV.get(planKey)
+
+        if (!existingData) {
+            return errorResponse('行程不存在', 404)
+        }
+
+        const existingPlan = JSON.parse(existingData)
+        const tripPlan = data
+
+        // 使用创建时已保存的城市封面图片
+        const cityName = tripPlan.city || existingPlan.city
+        const cityImage = existingPlan.cityImage || `https://picsum.photos/seed/${encodeURIComponent(cityName)}/800/600`
+
+        // EdgeOne 不需要静态地图，已删除 generateStaticMapUrl 调用
+        const days = tripPlan.days || []
+
+        // 更新行程记录为完成状态
+        const completedPlan = {
+            ...existingPlan,
+            city: cityName,
+            date: tripPlan.start_date || existingPlan.date,
+            endDate: tripPlan.end_date || existingPlan.endDate,
+            // 城市封面图片
+            cityImage: cityImage,
+            // 状态更新为已完成
+            status: 'completed',
+            statusMessage: '',
+            // 云函数返回的详细数据
+            schedule: days,
+            weatherInfo: tripPlan.weather_info || [],
+            budget: tripPlan.budget || {},
+            overallSuggestions: tripPlan.overall_suggestions || '',
+            routeInfo: tripPlan.route_info || body.route_info || [],
+            routeSummary: tripPlan.route_summary || body.summary || null,
+            completedAt: Date.now()
+        }
+
+        // 保存完成的行程
+        await KV.put(planKey, JSON.stringify(completedPlan))
+
+        // 构建列表项额外信息（用于显示标签）
+        const listItemInfo = {
+            cityImage: cityImage,
+            transportation: existingPlan.transportation || '公共交通',
+            accommodation: existingPlan.accommodation || '经济型酒店',
+            poiTypes: existingPlan.poiTypes || []
+        }
+
+        // 更新列表中的状态和额外信息
+        const listKey = `plan_list:${openid}`
+        const listData = await KV.get(listKey)
+        if (listData) {
+            const list = JSON.parse(listData)
+            const item = list.find(p => p.id === planId)
+            if (item) {
+                item.status = 'completed'
+                // 添加额外信息
+                Object.assign(item, listItemInfo)
+                await KV.put(listKey, JSON.stringify(list))
+            }
+        }
+
+        return jsonResponse({ received: true, status: 'completed' })
+
+    } catch (err) {
+        console.error('处理回调失败:', err)
+        return errorResponse('回调处理失败: ' + err.message, 500)
     }
-
-    const planKey = `plan:${openid}:${planId}`
-    const existingData = await KV.get(planKey)
-    if (!existingData) return errorResponse('行程不存在', 404)
-
-    const existingPlan = JSON.parse(existingData)
-    const tripPlan = data
-
-    const completedPlan = {
-        ...existingPlan,
-        city: tripPlan.city || existingPlan.city,
-        date: tripPlan.start_date || existingPlan.date,
-        endDate: tripPlan.end_date || existingPlan.endDate,
-        status: 'completed', statusMessage: '',
-        schedule: tripPlan.days || [],
-        weatherInfo: tripPlan.weather_info || [],
-        budget: tripPlan.budget || {},
-        overallSuggestions: tripPlan.overall_suggestions || '',
-        routeInfo: tripPlan.route_info || [],
-        completedAt: Date.now()
-    }
-
-    await KV.put(planKey, JSON.stringify(completedPlan))
-
-    const listKey = `plan_list:${openid}`
-    const listData = await KV.get(listKey)
-    if (listData) {
-        const list = JSON.parse(listData)
-        const item = list.find(p => p.id === planId)
-        if (item) item.status = 'completed'
-        await KV.put(listKey, JSON.stringify(list))
-    }
-
-    return jsonResponse({ received: true, status: 'completed' })
 }
 
 async function handleGetPlanList(request, env) {
@@ -618,10 +1012,10 @@ ${stationsText}
 const POSTCARD_WHITELIST = ['orBRy14EIyMRaE6VgyAsGd3nYmMY']
 
 /**
- * AI生成明信片 - 异步模式（通过N8N工作流）
- * 限制：同一用户每天最多生成3次（白名单用户不受限制）
+ * AI生成明信片 - 异步模式（通过腾讯云函数）
+ * 完整复制Worker逻辑：云函数完成所有处理，直接返回结果
  */
-async function handleGeneratePostcard(request, env) {
+async function handleGeneratePostcard(request, env, context) {
     const user = await getUserFromRequest(request, env)
     if (!user) return errorResponse('未登录', 401)
 
@@ -630,9 +1024,9 @@ async function handleGeneratePostcard(request, env) {
 
     if (!planId) return errorResponse('缺少行程ID参数', 400)
 
-    // 检查N8N工作流配置
-    if (!env.N8N_POSTCARD_WORKFLOW_URL) {
-        return errorResponse('服务配置错误：未配置N8N工作流地址', 500)
+    // 检查云函数配置
+    if (!env.POSTCARD_SERVICE_URL) {
+        return errorResponse('服务配置错误：未配置明信片生成服务地址', 500)
     }
 
     // 检查是否为白名单用户
@@ -658,13 +1052,8 @@ async function handleGeneratePostcard(request, env) {
         if (!planData) return errorResponse('行程不存在', 404)
         const plan = JSON.parse(planData)
 
-        // 2. 构建生成提示词
-        const prompt = buildPostcardPrompt(plan)
-
-        // 3. 生成明信片ID
+        // 2. 创建pending状态的明信片记录
         const postcardId = generateId('postcard_')
-
-        // 4. 创建pending状态的明信片记录
         const pendingPostcard = {
             id: postcardId,
             planId: planId,
@@ -676,14 +1065,13 @@ async function handleGeneratePostcard(request, env) {
             description: `${plan.city} ${plan.days}天${plan.days - 1}晚精彩旅程`,
             status: 'generating',
             statusMessage: '正在生成明信片...',
-            prompt: prompt,  // 保存提示词（不返回给前端）
             createdAt: Date.now()
         }
 
-        // 5. 保存明信片详情到 KV
+        // 3. 保存明信片详情到 KV
         await KV.put(`postcard:${user.openid}:${postcardId}`, JSON.stringify(pendingPostcard))
 
-        // 6. 更新用户明信片列表
+        // 4. 更新用户明信片列表
         const listKey = `postcard_list:${user.openid}`
         const existingList = await KV.get(listKey)
         const postcardList = existingList ? JSON.parse(existingList) : []
@@ -697,28 +1085,33 @@ async function handleGeneratePostcard(request, env) {
         })
         await KV.put(listKey, JSON.stringify(postcardList))
 
-        // 7. 构建回调URL
+        // 5. 异步调用云函数（fire-and-forget，不等待响应）
         const callbackUrl = new URL(request.url)
         callbackUrl.pathname = '/api/postcard/callback'
 
-        // 8. 异步调用N8N工作流（不等待响应）
-        fetch(env.N8N_POSTCARD_WORKFLOW_URL, {
+        fetch(env.POSTCARD_SERVICE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                prompt: prompt,
-                apiKey: env.KUAI_API_KEY, // 传递 AI API Key
+                planId, openid: user.openid, planData: plan,
+                kuaiApiKey: env.KUAI_API_KEY,
+                kuaiApiBase: env.KUAI_API_BASE || 'https://api.kuai.host',
+                kuaiModel: env.KUAI_MODEL || 'gemini-3-pro-image-preview',
+                cosConfig: {
+                    bucket: env.COS_BUCKET, region: env.COS_REGION,
+                    secretId: env.COS_SECRET_ID, secretKey: env.COS_SECRET_KEY,
+                    domain: env.COS_DOMAIN
+                },
                 callback: {
                     url: callbackUrl.toString(),
-                    postcardId: postcardId,
-                    openid: user.openid
+                    postcardId, openid: user.openid
                 }
             })
-        }).catch(e => console.error('N8N工作流请求失败:', e))
+        }).catch(e => console.error('云函数请求失败:', e))
 
-        // 9. 立即返回pending状态的明信片（移除prompt字段）
-        const { prompt: _, ...postcardResponse } = pendingPostcard
-        return jsonResponse(postcardResponse)
+
+        // 6. 立即返回pending状态
+        return jsonResponse(pendingPostcard)
 
     } catch (err) {
         console.error('创建明信片失败:', err)
@@ -729,12 +1122,12 @@ async function handleGeneratePostcard(request, env) {
 
 
 /**
- * 明信片生成回调接口（N8N 完成后调用）
- * N8N 直接传递 AI API 的原始响应
+ * 明信片生成回调接口（云函数完成后调用）
+ * 云函数直接传递完整的明信片数据
  */
 async function handlePostcardCallback(request, env) {
     try {
-        const { postcardId, openid, aiResponse } = await request.json()
+        const { postcardId, openid, success, data, error } = await request.json()
         if (!postcardId || !openid) return errorResponse('缺少参数', 400)
 
         const postcardKey = `postcard:${openid}:${postcardId}`
@@ -743,93 +1136,49 @@ async function handlePostcardCallback(request, env) {
 
         const postcard = JSON.parse(postcardData)
 
-        // 检查 AI 响应是否有效
-        if (!aiResponse || !aiResponse.candidates || aiResponse.candidates.length === 0) {
-            // AI 生成失败
+        if (!success) {
+            // 生成失败
             postcard.status = 'failed'
-            postcard.statusMessage = 'AI生成失败：无有效响应'
+            postcard.statusMessage = error || 'AI生成失败'
             await KV.put(postcardKey, JSON.stringify(postcard))
             await updatePostcardListStatus(openid, postcardId, 'failed')
-            return jsonResponse({ received: true, status: 'failed', message: 'AI生成失败' })
+            return jsonResponse({ received: true, status: 'failed' })
         }
 
-        // 从 AI 响应中提取图片数据
-        const parts = aiResponse.candidates[0].content?.parts || []
-        let imageData = null
+        // 生成成功，云函数已上传COS并返回URL
+        const imageUrl = data.image
+        const thumbnailUrl = getThumbnailUrl(imageUrl, 400, 80) // 使用COS图片处理生成缩略图
 
-        for (const part of parts) {
-            // 尝试多种可能的字段名
-            if (part.inlineData && part.inlineData.data) {
-                imageData = part.inlineData.data
-                break
-            }
-            if (part.inline_data && part.inline_data.data) {
-                imageData = part.inline_data.data
-                break
-            }
-            if (part.blob && part.blob.data) {
-                imageData = part.blob.data
-                break
-            }
+        // 更新明信片详情（保存提示词，但不返回给前端）
+        const completedPostcard = {
+            ...postcard,
+            ...data,
+            thumbnail: thumbnailUrl,
+            status: 'completed',
+            statusMessage: '',
+            completedAt: Date.now()
         }
 
-        if (!imageData) {
-            // 未找到图片数据
-            postcard.status = 'failed'
-            postcard.statusMessage = 'AI生成失败：未返回图片数据'
-            await KV.put(postcardKey, JSON.stringify(postcard))
-            await updatePostcardListStatus(openid, postcardId, 'failed')
-            return jsonResponse({ received: true, status: 'failed', message: '未找到图片数据' })
+        await KV.put(postcardKey, JSON.stringify(completedPostcard))
+
+        // 更新列表
+        const listKey = `postcard_list:${openid}`
+        const listData = await KV.get(listKey)
+        if (listData) {
+            const list = JSON.parse(listData)
+            const item = list.find(p => p.id === postcardId)
+            if (item) {
+                item.status = 'completed'
+                item.image = imageUrl
+                item.thumbnail = thumbnailUrl
+            }
+            await KV.put(listKey, JSON.stringify(list))
         }
 
-        // 上传到 COS
-        try {
-            const timestamp = Date.now()
-            const cosPath = `postcards/${openid}/${timestamp}.png`
+        return jsonResponse({ received: true, status: 'completed', imageUrl, thumbnailUrl })
 
-            // 将 base64 转换为 ArrayBuffer
-            const binaryString = atob(imageData)
-            const bytes = new Uint8Array(binaryString.length)
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i)
-            }
-
-            const imageUrl = await uploadToCOS(env, cosPath, bytes.buffer, 'image/png')
-            const thumbnailUrl = getThumbnailUrl(imageUrl, 400, 80)
-
-            // 更新明信片状态为完成
-            postcard.image = imageUrl
-            postcard.thumbnail = thumbnailUrl
-            postcard.status = 'completed'
-            postcard.statusMessage = ''
-            postcard.completedAt = Date.now()
-
-            await KV.put(postcardKey, JSON.stringify(postcard))
-
-            // 更新列表
-            const listKey = `postcard_list:${openid}`
-            const listData = await KV.get(listKey)
-            if (listData) {
-                const list = JSON.parse(listData)
-                const item = list.find(p => p.id === postcardId)
-                if (item) {
-                    item.status = 'completed'
-                    item.image = imageUrl
-                    item.thumbnail = thumbnailUrl
-                }
-                await KV.put(listKey, JSON.stringify(list))
-            }
-
-            return jsonResponse({ received: true, status: 'completed', imageUrl })
-        } catch (uploadError) {
-            // COS 上传失败
-            postcard.status = 'failed'
-            postcard.statusMessage = 'COS上传失败: ' + uploadError.message
-            await KV.put(postcardKey, JSON.stringify(postcard))
-            await updatePostcardListStatus(openid, postcardId, 'failed')
-            return jsonResponse({ received: true, status: 'failed', message: 'COS上传失败' })
-        }
     } catch (err) {
+        console.error('回调处理失败:', err)
         return errorResponse('回调处理失败: ' + err.message, 500)
     }
 }
@@ -885,14 +1234,44 @@ async function handleGetPostcardStatus(request, env) {
 async function handleGetPostcardList(request, env) {
     const user = await getUserFromRequest(request, env)
     if (!user) return errorResponse('未登录', 401)
+
     const url = new URL(request.url)
     const page = parseInt(url.searchParams.get('page')) || 1
     const pageSize = parseInt(url.searchParams.get('pageSize')) || 10
-    const data = await KV.get(`postcard_list:${user.openid}`)
-    const allList = data ? JSON.parse(data) : []
-    const total = allList.length
-    const list = allList.slice((page - 1) * pageSize, page * pageSize)
-    return jsonResponse({ list, total, page, pageSize, totalPages: Math.ceil(total / pageSize), hasMore: page < Math.ceil(total / pageSize) })
+
+    try {
+        const listKey = `postcard_list:${user.openid}`
+        const data = await KV.get(listKey)
+        const allList = data ? JSON.parse(data) : []
+        const total = allList.length
+        const list = allList.slice((page - 1) * pageSize, page * pageSize)
+
+        // 自动修复缺失缩略图逻辑 (利用 COS 动态参数)
+        let needUpdate = false
+        list.forEach(item => {
+            if (!item.thumbnail && item.image && item.status === 'completed') {
+                // 如果没有缩略图，但有原图，且原图是COS地址，则尝试构造缩略图
+                if (item.image.includes('.myqcloud.com')) {
+                    item.thumbnail = getThumbnailUrl(item.image, 400, 80)
+                    needUpdate = true
+                }
+            }
+        })
+
+        if (needUpdate) {
+            // 异步更新回 KV，不阻塞当前响应
+            const updatedAllList = allList.map(item => {
+                if (!item.thumbnail && item.image && item.status === 'completed' && item.image.includes('.myqcloud.com')) {
+                    return { ...item, thumbnail: getThumbnailUrl(item.image, 400, 80) }
+                }
+                return item
+            })
+            // 这里不 await，让它在后台跑（EdgeOne 可能需要用 ctx.waitUntil，但此处简化处理直接发起）
+            KV.put(listKey, JSON.stringify(updatedAllList)).catch(console.error)
+        }
+
+        return jsonResponse({ list, total, page, pageSize, totalPages: Math.ceil(total / pageSize), hasMore: page < Math.ceil(total / pageSize) })
+    } catch { return errorResponse('获取明信片列表失败', 500) }
 }
 
 async function handleGetPostcardDetail(request, env) {
@@ -932,68 +1311,6 @@ async function handleProxyImage(request) {
     } catch { return errorResponse('图片代理失败', 500) }
 }
 
-/**
- * 测试超时接口
- * 用于验证 EdgeOne 超时配置（300秒）是否能够解决15秒超时问题
- * 使用内部延时测试 EdgeOne 函数能否运行超过默认的 15 秒限制
- */
-async function handleTestTimeout(request, env) {
-    const url = new URL(request.url)
-    const sleepSeconds = parseInt(url.searchParams.get('sleep') || '60')
-    const maxSleep = 300 // 最大允许休眠 300 秒
-
-    if (sleepSeconds > maxSleep) {
-        return errorResponse(`休眠时间不能超过 ${maxSleep} 秒`, 400)
-    }
-
-    const startTime = Date.now()
-
-    try {
-        console.log(`开始测试超时：休眠 ${sleepSeconds} 秒`)
-        console.log(`开始时间: ${new Date(startTime).toISOString()}`)
-
-        // 使用内部延时测试 EdgeOne 函数能否运行超过 15 秒
-        await new Promise(resolve => setTimeout(resolve, sleepSeconds * 1000))
-
-        const endTime = Date.now()
-        const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2)
-
-        console.log(`测试完成`)
-        console.log(`结束时间: ${new Date(endTime).toISOString()}`)
-        console.log(`实际耗时: ${elapsedSeconds} 秒`)
-
-        return jsonResponse({
-            success: true,
-            message: `成功完成 ${sleepSeconds} 秒的超时测试`,
-            sleepSeconds,
-            elapsedSeconds: parseFloat(elapsedSeconds),
-            startTime: new Date(startTime).toISOString(),
-            endTime: new Date(endTime).toISOString(),
-            description: 'EdgeOne 函数成功运行超过默认 15 秒超时限制'
-        })
-
-
-    } catch (err) {
-        const endTime = Date.now()
-        const elapsedSeconds = ((endTime - startTime) / 1000).toFixed(2)
-
-        console.error('测试超时失败:', err.message)
-        console.error(`失败时间: ${new Date(endTime).toISOString()}`)
-        console.error(`已耗时: ${elapsedSeconds} 秒`)
-
-        return jsonResponse({
-            success: false,
-            message: '超时测试失败',
-            error: err.message,
-            errorStack: err.stack,
-            sleepSeconds,
-            elapsedSeconds: parseFloat(elapsedSeconds),
-            startTime: new Date(startTime).toISOString(),
-            endTime: new Date(endTime).toISOString()
-        }, 500, '测试失败')
-    }
-}
-
 // ==================== 路由表 ====================
 
 const routes = {
@@ -1004,6 +1321,7 @@ const routes = {
     'GET /route/driving': handleRouteDriving,
     'GET /route/walking': handleRouteWalking,
     'GET /route/transit': handleRouteTransit,
+    'GET /route/day-path': handleGetDayPath, // 新增排期路线接口
     'POST /plan/generate': handleGeneratePlan,
     'POST /plan/callback': handlePlanCallback,
     'GET /plan/list': handleGetPlanList,
@@ -1015,8 +1333,7 @@ const routes = {
     'GET /postcard/list': handleGetPostcardList,
     'GET /postcard/detail': handleGetPostcardDetail,
     'DELETE /postcard/delete': handleDeletePostcard,
-    'GET /proxy/image': handleProxyImage,
-    'GET /test/timeout': handleTestTimeout  // 测试超时配置接口
+    'GET /proxy/image': handleProxyImage
 }
 
 // ==================== Pages Functions 入口 ====================
@@ -1037,8 +1354,14 @@ export async function onRequest(context) {
 
     try {
         const url = new URL(request.url)
-        // 从 /api/xxx 中提取 /xxx
-        const path = url.pathname.replace(/^\/api/, '')
+        // 1. 从 /api/xxx 中提取 /xxx
+        let path = url.pathname.replace(/^\/api/, '')
+
+        // 2. 去除末尾斜杠 (Normalize path)
+        if (path.length > 1 && path.endsWith('/')) {
+            path = path.slice(0, -1)
+        }
+
         const routeKey = `${request.method} ${path}`
 
         const handler = routes[routeKey]
@@ -1046,9 +1369,10 @@ export async function onRequest(context) {
             return await handler(request, env, context)
         }
 
-        return errorResponse('接口不存在', 404)
+        // 返回包含调试信息的 404
+        return errorResponse(`接口不存在 (Route: ${routeKey})`, 404)
     } catch (err) {
         console.error('函数错误:', err)
-        return errorResponse('服务器内部错误', 500)
+        return errorResponse('服务器内部错误: ' + err.message, 500)
     }
 }
