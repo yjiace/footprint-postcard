@@ -29,7 +29,7 @@
           <swiper-item wx:for="{{hotDestinations}}" wx:key="id">
             <view class="destination-item" bindtap="onDestinationTap" data-item="{{item}}">
               <view class="destination-image-wrapper">
-                <image class="destination-image" src="{{item.image}}" mode="aspectFill" lazy-load></image>
+                <image class="destination-image" src="{{item.image}}" mode="aspectFill"></image>
                 <view class="destination-overlay">
                   <text class="destination-name">{{item.name}}</text>
                   <text class="destination-desc" wx:if="{{item.description}}">{{item.description}}</text>
