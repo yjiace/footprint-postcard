@@ -180,6 +180,13 @@ Component({
             })
         },
 
+        // 切换地图折叠状态
+        toggleMapCollapse() {
+            this.setData({
+                mapCollapsed: !this.data.mapCollapsed
+            })
+        },
+
         // ======= 全天路径获取 =======
         async fetchDayPath() {
             const { planId, dayIndex, mode, city } = this.data

@@ -76,7 +76,11 @@
     </view>
 
     <!-- 地图区域 -->
-    <view class="map-container {{isFullscreen ? 'fullscreen' : ''}}" wx:elif="{{routeData || markers.length > 0}}">
+    <view class="map-container {{isFullscreen ? 'fullscreen' : ''}} {{mapCollapsed ? 'collapsed' : ''}}" wx:elif="{{routeData || markers.length > 0}}">
+      <!-- 折叠/展开按钮（左上角） -->
+      <view class="map-collapse-btn" bindtap="toggleMapCollapse" wx:if="{{!isFullscreen}}">
+        <text>{{mapCollapsed ? '📍 展开地图' : '📍 折叠地图'}}</text>
+      </view>
       <!-- 全屏/关闭按钮（右上角） -->
       <view class="map-action-btn" bindtap="{{isFullscreen ? 'toggleFullscreen' : 'toggleFullscreen'}}">
         <text>{{isFullscreen ? '✕' : '⛶'}}</text>
