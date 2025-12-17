@@ -19,7 +19,19 @@
     "bigPackageSizeSupport": false,
     "useIsolateContext": true
   },
-  "condition": {},
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "pages/plan-detail/plan-detail",
+          "pathName": "pages/plan-detail/plan-detail",
+          "query": "id=plan_1765970629468_13jzuk5hr",
+          "scene": null,
+          "launchMode": "default"
+        }
+      ]
+    }
+  },
   "libVersion": "3.12.1",
   "projectname": "miniprogram"
 }

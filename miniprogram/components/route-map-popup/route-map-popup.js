@@ -80,7 +80,12 @@ Component({
         // 全屏模式
         isFullscreen: false,
         statusBarHeight: 20,
-        fullscreenTop: 64
+        fullscreenTop: 64,
+        // 交通模式禁用控制
+        walkingDisabled: false,
+        walkingDisableReason: '',
+        transitDisabled: false,
+        transitDisableReason: ''
     },
 
     lifetimes: {
@@ -144,20 +149,38 @@ Component({
         // 切换交通方式
         switchMode(e) {
             const mode = e.currentTarget.dataset.mode
-            if (mode !== this.data.mode) {
-                this.setData({ mode })
-                // 根据模式重新获取数据
-                if (this.data.displayMode === 'day') {
-                    this.fetchDayPath()
-                } else {
-                    this.fetchRoute()
-                }
+            if (mode === this.data.mode) return
+
+            this.setData({ mode })
+
+            if (this.data.displayMode === 'day') {
+                this.fetchDayPath()
+            } else {
+                this.fetchRoute()
             }
+        },
+
+        // 点击禁用的步行按钮时提示
+        onWalkingDisabledTap() {
+            wx.showToast({
+                title: this.data.walkingDisableReason,
+                icon: 'none',
+                duration: 2000
+            })
+        },
+
+        // 点击禁用的公交按钮时提示
+        onTransitDisabledTap() {
+            wx.showToast({
+                title: this.data.transitDisableReason,
+                icon: 'none',
+                duration: 2000
+            })
         },
 
         // ======= 全天路径获取 =======
         async fetchDayPath() {
-            const { planId, dayIndex, mode } = this.data
+            const { planId, dayIndex, mode, city } = this.data
 
             if (!planId) {
                 this.setData({ error: '缺少行程ID' })
@@ -172,6 +195,12 @@ Component({
 
             try {
                 const result = await api.getDayPath(planId, dayIndex, mode)
+
+                // 检测交通模式可用性（禁用不适合的模式）
+                this.checkModeAvailability(result)
+
+                // 检查是否有空路径段，如果有则前端重新请求
+                await this.retryEmptyPolylines(result, mode, city || this.properties.city)
 
                 // 生成地图数据
                 const mapData = this.generateDayMapData(result)
@@ -196,6 +225,149 @@ Component({
                     loading: false,
                     error: err.message || '获取路径失败，请重试'
                 })
+            }
+        },
+
+        // 检测交通模式可用性
+        checkModeAvailability(result) {
+            if (!result.markers || result.markers.length < 2) return
+
+            let maxDistance = 0
+            let minDistance = Infinity
+            let longSegmentInfo = ''
+            let shortSegmentInfo = ''
+
+            // 检查所有路径段的距离
+            for (let i = 0; i < result.markers.length - 1; i++) {
+                const from = result.markers[i]
+                const to = result.markers[i + 1]
+
+                const distance = this.calculateDistance(
+                    from.latitude, from.longitude,
+                    to.latitude, to.longitude
+                )
+
+                if (distance > maxDistance) {
+                    maxDistance = distance
+                    longSegmentInfo = `${from.name} → ${to.name}`
+                }
+                if (distance < minDistance) {
+                    minDistance = distance
+                    shortSegmentInfo = `${from.name} → ${to.name}`
+                }
+            }
+
+            // 步行模式：如果有超过100km的路径段，禁用
+            if (maxDistance > 100000) {
+                this.setData({
+                    walkingDisabled: true,
+                    walkingDisableReason: `距离过远(${(maxDistance / 1000).toFixed(0)}km)，不适合步行`
+                })
+                console.log(`[步行禁用] ${longSegmentInfo}: ${(maxDistance / 1000).toFixed(1)}km`)
+            } else {
+                this.setData({
+                    walkingDisabled: false,
+                    walkingDisableReason: ''
+                })
+            }
+
+            // 公交模式：如果所有路径段都小于1km，禁用
+            // （全部都是短距离，步行更合适）
+            if (maxDistance < 1500) {
+                this.setData({
+                    transitDisabled: true,
+                    transitDisableReason: `距离过近(${maxDistance.toFixed(0)}m)，建议步行`
+                })
+                console.log(`[公交禁用] 最远路径段${shortSegmentInfo}: ${maxDistance.toFixed(0)}m`)
+            } else {
+                this.setData({
+                    transitDisabled: false,
+                    transitDisableReason: ''
+                })
+            }
+        },
+
+        // 重新请求空路径段
+        async retryEmptyPolylines(result, mode, city) {
+            if (!result.polylines || !result.markers) return
+
+            const emptyPolylines = result.polylines
+                .map((pl, idx) => ({ ...pl, index: idx }))
+                .filter(pl => !pl.points || pl.points.length === 0)
+
+            if (emptyPolylines.length === 0) return
+
+            console.log(`[降级] 发现${emptyPolylines.length}条空路径，开始重新请求...`)
+            console.log(`[降级] 当前模式: ${mode}, 城市: ${city || '未指定'}`)
+
+            for (const pl of emptyPolylines) {
+                try {
+                    // 从markers中找到起点和终点
+                    const fromMarker = result.markers.find(m => m.id === pl.fromId)
+                    const toMarker = result.markers.find(m => m.id === pl.toId)
+
+                    if (!fromMarker || !toMarker) {
+                        console.error(`[降级] 无法找到marker: fromId=${pl.fromId}, toId=${pl.toId}`)
+                        continue
+                    }
+
+                    // 计算直线距离估算
+                    const distance = this.calculateDistance(
+                        fromMarker.latitude, fromMarker.longitude,
+                        toMarker.latitude, toMarker.longitude
+                    )
+
+                    console.log(`[降级] 重新请求路径: ${pl.fromName} -> ${pl.toName}, 估算距离: ${(distance / 1000).toFixed(1)}km`)
+
+                    // ========= 智能模式自适应 =========
+                    let actualMode = mode
+
+                    // 1. 距离太远：步行不适用
+                    if (distance > 100000 && mode === 'walking') {
+                        console.warn(`  ⚠️ 距离过远(${(distance / 1000).toFixed(1)}km)，步行不适用，跳过`)
+                        continue
+                    }
+
+                    // 2. 距离太近：公交自动改用步行
+                    if (distance < 1000 && mode === 'transit') {
+                        console.warn(`  ⚠️ 距离过近(${distance.toFixed(0)}m)，公交不适用，自动改用步行`)
+                        actualMode = 'walking'
+                    }
+
+                    const originStr = `${fromMarker.longitude},${fromMarker.latitude}`
+                    const destinationStr = `${toMarker.longitude},${toMarker.latitude}`
+
+                    let routeResult
+                    if (actualMode === 'driving') {
+                        routeResult = await api.getRouteDriving(originStr, destinationStr)
+                    } else if (actualMode === 'walking') {
+                        routeResult = await api.getRouteWalking(originStr, destinationStr)
+                    } else if (actualMode === 'transit') {
+                        if (!city) {
+                            console.error(`  ❌ 公交模式需要城市参数`)
+                            continue
+                        }
+                        console.log(`  调用公交API，城市: "${city}"`)
+                        routeResult = await api.getRouteTransit(originStr, destinationStr, city)
+                    }
+
+                    if (routeResult && routeResult.polyline && routeResult.polyline.length > 0) {
+                        // 更新result中的polyline数据
+                        result.polylines[pl.index].points = routeResult.polyline
+                        result.polylines[pl.index].distance = routeResult.distance
+                        result.polylines[pl.index].duration = routeResult.duration
+                        result.polylines[pl.index].distanceText = routeResult.distance >= 1000
+                            ? `${(routeResult.distance / 1000).toFixed(1)}km`
+                            : `${routeResult.distance}m`
+                        console.log(`  ✅ 成功获取路径，points数: ${routeResult.polyline.length}`)
+                    } else {
+                        console.warn(`  ⚠️ API返回空路径或无polyline`)
+                    }
+
+                } catch (err) {
+                    console.error(`[降级] 重新请求失败: ${pl.fromName} -> ${pl.toName}`)
+                    console.error(`  错误详情:`, err)
+                }
             }
         },
 
@@ -231,14 +403,25 @@ Component({
             }))
 
             // 多条线段
-            const polyline = (result.polylines || []).map(pl => ({
-                points: pl.points || [],
-                color: pl.color || '#8b5cf6',
-                width: pl.width || 6,
-                arrowLine: pl.arrowLine !== false,
-                borderColor: this.darkenColor(pl.color || '#8b5cf6'),
-                borderWidth: 1
-            }))
+            const polyline = (result.polylines || []).map((pl, idx) => {
+                const hasPoints = pl.points && pl.points.length > 0
+                console.log(`[调试] polyline[${idx}]: ${pl.fromName} -> ${pl.toName}, points: ${pl.points?.length || 0}`)
+                if (!hasPoints) {
+                    console.warn(`  ⚠️ 路径段仍然为空（前端重试可能也失败了）`)
+                }
+
+                return {
+                    points: pl.points || [],
+                    color: pl.color || '#8b5cf6',
+                    width: pl.width || 6,
+                    arrowLine: pl.arrowLine !== false,
+                    borderColor: this.darkenColor(pl.color || '#8b5cf6'),
+                    borderWidth: 1
+                }
+            })
+
+            console.log('[调试] 总polyline数量:', polyline.length)
+            console.log('[调试] 有效polyline数量:', polyline.filter(p => p.points.length > 0).length)
 
             // 计算中心点
             let mapCenter = { latitude: 39.9, longitude: 116.4 }
@@ -290,12 +473,45 @@ Component({
                 const originStr = `${origin.longitude},${origin.latitude}`
                 const destinationStr = `${destination.longitude},${destination.latitude}`
 
+                // ========= 计算距离并智能选择模式 =========
+                const distance = this.calculateDistance(
+                    origin.latitude, origin.longitude,
+                    destination.latitude, destination.longitude
+                )
+
+                const fromName = this.properties.originName || '起点'
+                const toName = this.properties.destinationName || '终点'
+
+                // 创建临时result用于检测模式可用性
+                const tempResult = {
+                    markers: [
+                        { id: 0, latitude: origin.latitude, longitude: origin.longitude, name: fromName },
+                        { id: 1, latitude: destination.latitude, longitude: destination.longitude, name: toName }
+                    ]
+                }
+                this.checkModeAvailability(tempResult)
+
+                let actualMode = mode
+
+                // 距离太远且选择步行：跳过（按钮已禁用）
+                if (distance > 100000 && mode === 'walking') {
+                    console.warn(`[单段路线] 距离过远，步行模式已禁用`)
+                    this.setData({ loading: false })
+                    return
+                }
+
+                // 距离太近：公交自动改用步行
+                if (distance < 1000 && mode === 'transit') {
+                    console.warn(`[单段路线] 距离过近(${distance.toFixed(0)}m)，公交不适用，自动改用步行`)
+                    actualMode = 'walking'
+                }
+
                 let result
-                if (mode === 'driving') {
+                if (actualMode === 'driving') {
                     result = await api.getRouteDriving(originStr, destinationStr)
-                } else if (mode === 'walking') {
+                } else if (actualMode === 'walking') {
                     result = await api.getRouteWalking(originStr, destinationStr)
-                } else if (mode === 'transit') {
+                } else if (actualMode === 'transit') {
                     if (!city) {
                         this.setData({
                             loading: false,

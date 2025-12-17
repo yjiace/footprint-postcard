@@ -42,13 +42,23 @@
         <text class="mode-icon">🚗</text>
         <text class="mode-label">驾车</text>
       </view>
-      <view class="mode-tab {{mode === 'transit' ? 'active' : ''}}" bindtap="switchMode" data-mode="transit">
+      <view class="mode-tab {{mode === 'transit' ? 'active' : ''}} {{transitDisabled ? 'disabled' : ''}}" 
+            bindtap="{{transitDisabled ? 'onTransitDisabledTap' : 'switchMode'}}" 
+            data-mode="transit">
         <text class="mode-icon">🚌</text>
         <text class="mode-label">公交</text>
+        <view class="disabled-overlay" wx:if="{{transitDisabled}}">
+          <text class="disabled-text">{{transitDisableReason}}</text>
+        </view>
       </view>
-      <view class="mode-tab {{mode === 'walking' ? 'active' : ''}}" bindtap="switchMode" data-mode="walking">
+      <view class="mode-tab {{mode === 'walking' ? 'active' : ''}} {{walkingDisabled ? 'disabled' : ''}}" 
+            bindtap="{{walkingDisabled ? 'onWalkingDisabledTap' : 'switchMode'}}" 
+            data-mode="walking">
         <text class="mode-icon">🚶</text>
         <text class="mode-label">步行</text>
+        <view class="disabled-overlay" wx:if="{{walkingDisabled}}">
+          <text class="disabled-text">{{walkingDisableReason}}</text>
+        </view>
       </view>
     </view>
 

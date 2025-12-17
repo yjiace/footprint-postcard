@@ -114,8 +114,8 @@
                   <view class="item-header">
                     <text class="type-tag" style="background: {{item.typeColor}};">{{item.typeLabel}}</text>
                     <text class="item-name">{{item.name}}</text>
-                    <!-- 查看地图图标：第一天显示所有，非第一天只显示非第一个景点 -->
-                    <view class="item-map-icon" catchtap="onShowRouteSegment" data-from-index="{{itemIndex}}" data-to-index="{{itemIndex + 1}}" wx:if="{{currentRouteInfo && (currentDay === 0 || itemIndex > 0)}}">🗺️</view>
+                    <!-- 查看地图图标 -->
+                    <view class="item-map-icon" catchtap="onShowRouteSegment" data-from-index="{{itemIndex}}" data-to-index="{{itemIndex + 1}}" wx:if="{{currentRouteInfo}}">🗺️</view>
                   </view>
                   <text class="item-address" wx:if="{{item.address}}">📍 {{item.address}}</text>
                   <view class="item-meta">
@@ -127,8 +127,8 @@
                 </view>
               </view>
 
-              <!-- 路程信息段（显示在景点下方）：第一天显示所有，非第一天只显示非第一个景点 -->
-              <view class="route-segment" wx:if="{{currentRouteInfo && (currentDay === 0 || itemIndex > 0)}}">
+              <!-- 路程信息段（显示在景点下方） -->
+              <view class="route-segment" wx:if="{{currentRouteInfo}}">
                 <view class="route-segment-header" bindtap="toggleRouteDetail" data-index="{{itemIndex}}">
                   <view class="route-icon">{{routeSegmentIcons[itemIndex] || '🚗'}}</view>
                   <view class="route-summary-inline">
@@ -178,6 +178,17 @@
                     <text class="route-distance">{{currentRouteInfo.location_names[currentDayData.planning.length]}} → {{currentRouteInfo.location_names[currentDayData.planning.length + 1] || returnHomeName || '返回起点'}}</text>
                   </view>
                   <view class="route-expand-icon">{{expandedRoutes[currentDayData.planning.length] ? '▲' : '▼'}}</view>
+                </view>
+                
+                <!-- 展开的路径详情 -->
+                <view class="route-detail-list" wx:if="{{expandedRoutes[currentDayData.planning.length]}}">
+                  <block wx:for="{{currentRouteInfo.segments}}" wx:key="segment_index" wx:for-item="seg">
+                    <view class="route-detail-item" wx:if="{{seg.instruction}}">
+                      <text class="route-action-icon">{{seg.actionIcon}}</text>
+                      <text class="route-instruction">{{seg.instruction}}</text>
+                      <text class="route-segment-distance" wx:if="{{seg.distanceText}}">{{seg.distanceText}}</text>
+                    </view>
+                  </block>
                 </view>
               </view>
             </view>

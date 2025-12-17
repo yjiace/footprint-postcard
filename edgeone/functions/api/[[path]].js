@@ -304,9 +304,26 @@ async function getRouteWalking(origin, destination, env) {
 
 async function getRouteTransit(origin, destination, city, env) {
     const params = new URLSearchParams({ key: env.AMAP_KEY, origin, destination, city, cityd: city, strategy: '0', output: 'json' })
-    const res = await fetch(`https://restapi.amap.com/v3/direction/transit/integrated?${params}`)
+    const url = `https://restapi.amap.com/v3/direction/transit/integrated?${params}`
+
+    console.log('[公交路径] 请求参数:', { origin, destination, city })
+
+    const res = await fetch(url)
     const data = await res.json()
-    if (data.status !== '1' || !data.route?.transits?.length) throw new Error('公交路径规划失败')
+
+    console.log('[公交路径] 高德API响应status:', data.status)
+    console.log('[公交路径] 高德API响应info:', data.info)
+
+    if (data.status !== '1') {
+        console.error('[公交路径] 高德API错误:', data.info || data.infocode)
+        throw new Error(`公交路径规划失败: ${data.info || '高德API返回错误'}`)
+    }
+
+    if (!data.route?.transits?.length) {
+        console.error('[公交路径] 无可用公交方案')
+        throw new Error('公交路径规划失败: 无可用公交方案')
+    }
+
     const transit = data.route.transits[0]
     let polyline = []
     const steps = []
@@ -321,6 +338,11 @@ async function getRouteTransit(origin, destination, city, env) {
             const bus = seg.bus.buslines[0]
             if (bus.polyline) polyline = polyline.concat(parsePolyline(bus.polyline))
             steps.push({ type: 'bus', instruction: `乘坐 ${bus.name}`, lineName: bus.name, distance: parseInt(bus.distance) || 0, duration: Math.round((parseInt(bus.duration) || 0) / 60) })
+        }
+        // 处理火车/高铁段
+        if (seg.railway) {
+            if (seg.railway.polyline) polyline = polyline.concat(parsePolyline(seg.railway.polyline))
+            steps.push({ type: 'railway', instruction: `乘坐 ${seg.railway.name || '火车'}`, lineName: seg.railway.name, distance: parseInt(seg.railway.distance) || 0, duration: Math.round((parseInt(seg.railway.time) || 0) / 60) })
         }
     }
     return { distance: parseInt(transit.distance) || 0, duration: Math.round((parseInt(transit.duration) || 0) / 60), polyline, steps }
