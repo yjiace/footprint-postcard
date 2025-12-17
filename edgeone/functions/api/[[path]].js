@@ -132,7 +132,23 @@ async function uploadToCOS(env, path, data, contentType = 'image/jpeg') {
     })
 
     if (!response.ok) throw new Error('COS上传失败')
-    return `https://${env.COS_DOMAIN || host}/${path}`
+
+    // 修复：检查 COS_DOMAIN 是否已包含协议
+    let publicUrl
+    if (env.COS_DOMAIN) {
+        // 如果已经包含协议（http:// 或 https://），直接使用
+        if (env.COS_DOMAIN.startsWith('http://') || env.COS_DOMAIN.startsWith('https://')) {
+            publicUrl = `${env.COS_DOMAIN}/${path}`
+        } else {
+            // 否则添加 https://
+            publicUrl = `https://${env.COS_DOMAIN}/${path}`
+        }
+    } else {
+        // 使用默认的 COS host
+        publicUrl = `https://${host}/${path}`
+    }
+
+    return publicUrl
 }
 
 function getThumbnailUrl(url, width = 400, quality = 80) {

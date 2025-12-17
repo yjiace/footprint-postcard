@@ -462,7 +462,20 @@ async function uploadToCOS(cosConfig, filePath, fileBuffer, contentType) {
 
             res.on('end', () => {
                 if (res.statusCode === 200) {
-                    const publicUrl = `https://${domain || host}/${filePath}`;
+                    // 修复：检查 domain 是否已包含协议
+                    let publicUrl;
+                    if (domain) {
+                        // 如果 domain 已经包含协议（http:// 或 https://），直接使用
+                        if (domain.startsWith('http://') || domain.startsWith('https://')) {
+                            publicUrl = `${domain}/${filePath}`;
+                        } else {
+                            // 否则添加 https://
+                            publicUrl = `https://${domain}/${filePath}`;
+                        }
+                    } else {
+                        // 使用默认的 COS host
+                        publicUrl = `https://${host}/${filePath}`;
+                    }
                     resolve(publicUrl);
                 } else {
                     reject(new Error(`COS upload failed: ${res.statusCode}`));
