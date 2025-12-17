@@ -99,6 +99,12 @@
     <scroll-view class="segments-container" scroll-y wx:if="{{displayMode === 'day' && routeData && routeData.polylines && routeData.polylines.length > 0}}">
       <view class="segments-title">路段详情</view>
       <view class="segment-item" wx:for="{{routeData.polylines}}" wx:key="index">
+        <view class="segment-mode-icon">
+          <text wx:if="{{item.mode === 'driving'}}">🚗</text>
+          <text wx:elif="{{item.mode === 'transit'}}">🚌</text>
+          <text wx:elif="{{item.mode === 'walking'}}">🚶</text>
+          <text wx:else>🚗</text>
+        </view>
         <view class="segment-color" style="background-color: {{item.color}};"></view>
         <view class="segment-info">
           <text class="segment-route">{{item.fromName}} → {{item.toName}}</text>

@@ -85,7 +85,9 @@ Component({
         walkingDisabled: false,
         walkingDisableReason: '',
         transitDisabled: false,
-        transitDisableReason: ''
+        transitDisableReason: '',
+        // 地图折叠状态
+        mapCollapsed: false
     },
 
     lifetimes: {
@@ -201,6 +203,14 @@ Component({
 
                 // 检查是否有空路径段，如果有则前端重新请求
                 await this.retryEmptyPolylines(result, mode, city || this.properties.city)
+
+                // 为每个路段添加mode字段（如果后端没有提供）
+                if (result.polylines) {
+                    result.polylines = result.polylines.map(pl => ({
+                        ...pl,
+                        mode: pl.mode || mode  // 使用路段自带的mode或当前选择的mode
+                    }))
+                }
 
                 // 生成地图数据
                 const mapData = this.generateDayMapData(result)
@@ -410,10 +420,24 @@ Component({
                     console.warn(`  ⚠️ 路径段仍然为空（前端重试可能也失败了）`)
                 }
 
+                // 获取交通方式（从数据中或使用当前模式）
+                const mode = pl.mode || this.data.mode
+
+                // 根据交通方式设置线条样式（保留原有颜色用于顺序区分）
+                let lineStyle = {}
+                if (mode === 'walking') {
+                    lineStyle = { width: 4, dottedLine: true }
+                } else if (mode === 'transit') {
+                    lineStyle = { width: 5, dottedLine: false }
+                } else { // driving
+                    lineStyle = { width: 6, dottedLine: false }
+                }
+
                 return {
                     points: pl.points || [],
-                    color: pl.color || '#8b5cf6',
-                    width: pl.width || 6,
+                    color: pl.color || '#8b5cf6',  // 保留原有颜色
+                    width: lineStyle.width,
+                    dottedLine: lineStyle.dottedLine,
                     arrowLine: pl.arrowLine !== false,
                     borderColor: this.darkenColor(pl.color || '#8b5cf6'),
                     borderWidth: 1
@@ -604,11 +628,22 @@ Component({
                 }
             ]
 
-            // 路线 polyline
+            // 路线 polyline - 根据交通方式设置线条样式
+            const mode = this.data.mode
+            let lineStyle = {}
+            if (mode === 'walking') {
+                lineStyle = { width: 4, dottedLine: true }
+            } else if (mode === 'transit') {
+                lineStyle = { width: 5, dottedLine: false }
+            } else { // driving
+                lineStyle = { width: 6, dottedLine: false }
+            }
+
             const polylineData = [{
                 points: polyline || [],
-                color: '#8b5cf6',
-                width: 6,
+                color: '#8b5cf6',  // 保留原有颜色
+                width: lineStyle.width,
+                dottedLine: lineStyle.dottedLine,
                 arrowLine: true,
                 borderColor: '#6366f1',
                 borderWidth: 1
