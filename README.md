@@ -1,5 +1,7 @@
 # 足迹明信片 (Footprint Postcard)
 
+![小程序](/miniprogram.jpg)
+
 一款基于微信小程序的旅行规划与明信片生成应用。
 
 ## ✨ 功能特性
