@@ -1,6 +1,6 @@
-/* pages/plan/plan.wxss */
+/* pages/plan/plan.wxss - 聊天式A2UI行程规划样式 */
 
-/* 固定背景层 - 覆盖整个屏幕，不随滚动移动 */
+/* 固定背景层 */
 .bg-gradient {
   position: fixed;
   top: 0;
@@ -18,224 +18,691 @@
   overflow: hidden;
 }
 
-.content-scroll {
+/* 聊天滚动区域 */
+.chat-scroll {
   flex: 1;
   min-height: 0;
-  padding: 50rpx 32rpx 24rpx;
+  padding: 24rpx 24rpx 0;
 }
 
-/* 表单容器 */
-.form-container {
+.chat-container {
   display: flex;
   flex-direction: column;
-  gap: 40rpx;
+  gap: 24rpx;
+  padding-bottom: 32rpx;
 }
 
-.form-item {
+/* 消息行 */
+.message-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+}
+
+.message-row.ai {
+  justify-content: flex-start;
+}
+
+.message-row.user {
+  justify-content: flex-end;
+}
+
+/* 头像 */
+.avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  flex-shrink: 0;
+}
+
+.ai-avatar {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+/* 消息内容容器 */
+.message-content {
+  max-width: 85%;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+/* 消息气泡 - 半透明玻璃风格 */
+.message-bubble {
+  padding: 28rpx 32rpx;
+  border-radius: 28rpx;
+  max-width: 100%;
+  word-break: break-word;
+  backdrop-filter: blur(20rpx);
+}
+
+.ai-bubble {
+  background: rgba(255, 255, 255, 0.5);
+  border-top-left-radius: 8rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.08);
+  border: 1rpx solid rgba(255, 255, 255, 0.5);
+}
+
+.user-bubble {
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.9) 0%, rgba(96, 165, 250, 0.9) 100%);
+  color: #FFFFFF;
+  border-top-right-radius: 8rpx;
+  box-shadow: 0 8rpx 24rpx rgba(167, 139, 250, 0.35);
+}
+
+.message-text {
+  font-size: 30rpx;
+  line-height: 1.7;
+  color: #1C1C1E;
+}
+
+.user-bubble .message-text {
+  color: #FFFFFF;
+}
+
+/* A2UI 按钮组 - 半透明玻璃风格 */
+.a2ui-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.a2ui-btn {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 20rpx 32rpx;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(16rpx);
+  border-radius: 44rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.6);
+  transition: all 0.25s ease;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.a2ui-btn:active {
+  transform: scale(0.95);
+  background: rgba(167, 139, 250, 0.2);
+  border-color: rgba(167, 139, 250, 0.4);
+}
+
+.a2ui-btn.selected {
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.9) 0%, rgba(96, 165, 250, 0.9) 100%);
+  border-color: transparent;
+  box-shadow: 0 6rpx 20rpx rgba(167, 139, 250, 0.4);
+}
+
+.a2ui-btn.selected .btn-label,
+.a2ui-btn.selected .btn-icon {
+  color: #FFFFFF;
+}
+
+.a2ui-btn.primary {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(52, 211, 153, 0.9) 100%);
+  border-color: transparent;
+  box-shadow: 0 6rpx 20rpx rgba(16, 185, 129, 0.35);
+}
+
+.a2ui-btn.primary .btn-label,
+.a2ui-btn.primary .btn-icon {
+  color: #FFFFFF;
+}
+
+.a2ui-btn.secondary {
+  background: rgba(255, 255, 255, 0.5);
+  border: 2rpx dashed rgba(156, 163, 175, 0.6);
+}
+
+.btn-icon {
+  font-size: 32rpx;
+}
+
+.btn-label {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+/* 日期选择器区域 */
+.date-picker-area {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 12rpx;
+}
+
+.date-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 18rpx 24rpx;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16rpx;
+  border: 2rpx solid rgba(167, 139, 250, 0.3);
+}
+
+.date-picker-btn .btn-icon {
+  font-size: 28rpx;
+}
+
+.date-picker-btn .btn-label {
+  font-size: 26rpx;
+  color: #374151;
+}
+
+.date-separator {
+  font-size: 26rpx;
+  color: #6b7280;
+}
+
+/* 行程概要卡片 - 半透明玻璃风格 */
+.summary-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20rpx);
+  border-radius: 28rpx;
+  padding: 32rpx;
+  margin-top: 16rpx;
+  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.1);
+  border: 1rpx solid rgba(255, 255, 255, 0.6);
+}
+
+.summary-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.08);
+  margin-bottom: 24rpx;
+}
+
+.summary-city {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #1C1C1E;
+}
+
+.summary-days {
+  font-size: 26rpx;
+  color: #a78bfa;
+  font-weight: 600;
+  padding: 8rpx 20rpx;
+  background: rgba(167, 139, 250, 0.15);
+  border-radius: 24rpx;
+}
+
+.summary-body {
   display: flex;
   flex-direction: column;
   gap: 20rpx;
 }
 
-.form-label {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #FFFFFF;
-  padding-left: 4rpx;
-}
-
-/* 城市选择 */
-.city-input-container {
+.summary-item {
   display: flex;
   align-items: center;
-  background-color: rgba(255, 255, 255, 0.85);
-  border-radius: 24rpx;
-  padding: 24rpx 32rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
-  height: 96rpx;
-  box-sizing: border-box;
+  gap: 16rpx;
+  font-size: 28rpx;
+  color: #4b5563;
+  padding: 8rpx 0;
 }
 
-.city-picker {
+.summary-icon {
+  font-size: 28rpx;
+  width: 44rpx;
+  text-align: center;
+}
+
+.summary-footer {
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid rgba(0, 0, 0, 0.08);
+}
+
+.summary-tip {
+  font-size: 24rpx;
+  color: #9ca3af;
+}
+
+.adjust-prefs-btn {
+  margin-top: 24rpx;
+  text-align: center;
+  padding: 20rpx;
+  background: rgba(167, 139, 250, 0.12);
+  border-radius: 20rpx;
+  font-size: 28rpx;
+  color: #a78bfa;
+  font-weight: 500;
+}
+
+.adjust-prefs-btn:active {
+  background: rgba(167, 139, 250, 0.25);
+}
+
+/* 加载动画 */
+.loading-bubble {
+  padding: 20rpx 32rpx;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 8rpx;
+}
+
+.dot {
+  width: 12rpx;
+  height: 12rpx;
+  background: #a78bfa;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(1) { animation-delay: -0.32s; }
+.dot:nth-child(2) { animation-delay: -0.16s; }
+.dot:nth-child(3) { animation-delay: 0s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* 滚动锚点 */
+.chat-bottom-anchor {
+  height: 24rpx;
+}
+
+/* 底部输入区域 */
+.input-area {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 24rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  background: transparent;
+}
+
+.input-wrapper {
   flex: 1;
-  min-width: 0;
-}
-
-.city-input {
   display: flex;
   align-items: center;
-  height: 100%;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16rpx);
+  border-radius: 48rpx;
+  padding: 8rpx 16rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.1);
+  border: 1rpx solid rgba(255, 255, 255, 0.6);
+}
+
+.chat-input {
+  flex: 1;
+  height: 80rpx;
+  padding: 0 16rpx;
+  font-size: 28rpx;
+  color: #1C1C1E;
 }
 
 .location-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 60rpx;
+  height: 60rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(167, 139, 250, 0.15);
-  border-radius: 16rpx;
-  margin-left: 16rpx;
-  flex-shrink: 0;
-  transition: all 0.3s;
+  font-size: 28rpx;
 }
 
 .location-btn:active {
-  background-color: rgba(167, 139, 250, 0.3);
-  transform: scale(0.95);
+  background: rgba(167, 139, 250, 0.2);
 }
 
-.icon-location {
-  width: 40rpx;
-  height: 40rpx;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a78bfa'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-}
-
-/* 日期选择 */
-.date-range-wrapper {
-  display: flex;
-  align-items: center;
-  background-color: rgba(255, 255, 255, 0.85);
-  border-radius: 24rpx;
-  padding: 24rpx 32rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
-  height: 96rpx;
-  box-sizing: border-box;
-}
-
-.date-picker-half {
-  flex: 1;
-  min-width: 0;
-}
-
-.date-half-input {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  padding: 0 60rpx;
-  width: 300rpx;
-}
-
-.date-separator {
-  padding: 0 16rpx;
-  font-size: 26rpx;
-  color: #9ca3af;
+/* 城市选择器按钮 */
+.city-picker-trigger {
   flex-shrink: 0;
 }
 
-.date-days-tag {
-  margin-left: 16rpx;
-  padding: 8rpx 20rpx;
-  border-radius: 20rpx;
+.city-btn {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  background: rgba(96, 165, 250, 0.15);
+  border-radius: 50%;
+  margin-right: 8rpx;
+}
+
+.city-btn:active {
+  background: rgba(96, 165, 250, 0.25);
+}
+
+/* 日期选择器按钮 */
+.date-picker-trigger {
+  flex-shrink: 0;
+}
+
+.date-btn {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  background: rgba(167, 139, 250, 0.1);
+  border-radius: 50%;
+  margin-right: 8rpx;
+}
+
+.date-btn:active {
+  background: rgba(167, 139, 250, 0.2);
+}
+
+.send-btn {
+  padding: 20rpx 32rpx;
   background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
-  font-size: 24rpx;
-  font-weight: 500;
-  color: #FFFFFF;
-  flex-shrink: 0;
-}
-
-/* Picker样式 */
-.picker-value {
+  border-radius: 40rpx;
   font-size: 28rpx;
-  color: #1C1C1E;
-  font-weight: 500;
-  height: 130rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+  transition: all 0.3s;
 }
 
-.picker-placeholder {
+.send-btn:active {
+  opacity: 0.8;
+  transform: scale(0.96);
+}
+
+.send-btn.active {
+  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+  color: #FFFFFF;
+}
+
+.send-btn.disabled {
+  background: rgba(156, 163, 175, 0.5);
+  color: rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+
+/* 自定义日期选择器弹窗 */
+.date-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1100;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.date-picker-overlay.show {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+}
+
+.date-picker-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.date-picker-popup {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20rpx);
+  border-radius: 32rpx 32rpx 0 0;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  box-shadow: 0 -8rpx 32rpx rgba(0, 0, 0, 0.15);
+}
+
+.date-picker-overlay.show .date-picker-popup {
+  transform: translateY(0);
+}
+
+.date-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx;
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.08);
+}
+
+.date-picker-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1C1C1E;
+}
+
+.date-picker-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 28rpx;
   color: #9ca3af;
-  height: 120rpx;
+  background: #f5f5f5;
+  border-radius: 50%;
 }
 
-/* 类型标签 */
-.type-tags {
+.date-picker-view {
+  display: none;
+}
+
+.date-select-btn {
+  display: flex;
+  align-items: center;
+  padding: 32rpx;
+  margin: 24rpx;
+  background: rgba(167, 139, 250, 0.1);
+  border-radius: 24rpx;
+  border: 2rpx dashed rgba(167, 139, 250, 0.3);
+}
+
+.date-select-icon {
+  font-size: 40rpx;
+  margin-right: 16rpx;
+}
+
+.date-select-text {
+  flex: 1;
+  font-size: 32rpx;
+  color: #374151;
+  font-weight: 500;
+}
+
+.date-select-arrow {
+  font-size: 36rpx;
+  color: #a78bfa;
+}
+
+.date-picker-footer {
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+}
+
+.date-cancel-btn {
+  text-align: center;
+  padding: 20rpx;
+  font-size: 28rpx;
+  color: #9ca3af;
+}
+
+/* 偏好设置弹窗 - 重构样式 */
+.prefs-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.prefs-overlay.show {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+}
+
+.prefs-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.prefs-popup {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 0;
+  background: #FFFFFF;
+  border-radius: 32rpx 32rpx 0 0;
+  max-height: 75vh;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  box-shadow: 0 -8rpx 32rpx rgba(0, 0, 0, 0.15);
+}
+
+.prefs-overlay.show .prefs-popup {
+  transform: translateY(0);
+}
+
+.prefs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 32rpx 24rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.prefs-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1C1C1E;
+}
+
+.prefs-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #9ca3af;
+  background: #f5f5f5;
+  border-radius: 50%;
+}
+
+.prefs-close:active {
+  background: #e5e5e5;
+}
+
+.prefs-content {
+  flex: 1;
+  min-height: 0;
+  max-height: 50vh;
+  padding: 24rpx 32rpx;
+}
+
+.prefs-section {
+  margin-bottom: 32rpx;
+}
+
+.prefs-section:last-child {
+  margin-bottom: 0;
+}
+
+.prefs-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.prefs-options {
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;
 }
 
-.type-tag {
-  padding: 16rpx 32rpx;
-  background-color: rgba(255, 255, 255, 0.25);
-  border-radius: 24rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
-  transition: all 0.3s;
-}
-
-.type-tag text {
-  font-size: 28rpx;
-  color: #ffffff;
-  font-weight: 500;
-}
-
-.type-tag-active {
-  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
-  box-shadow: 0 6rpx 16rpx rgba(167, 139, 250, 0.3);
-}
-
-.type-tag-active text {
-  color: #FFFFFF;
-}
-
-/* 文本域 */
-.textarea-input {
-  width: 100%;
-  min-height: 180rpx;
-  background-color: rgba(255, 255, 255, 0.85);
-  border-radius: 24rpx;
-  padding: 24rpx 32rpx;
-  font-size: 28rpx;
-  color: #1C1C1E;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
-  box-sizing: border-box;
-  line-height: 1.6;
-}
-
-.textarea-placeholder {
-  color: #9ca3af;
-}
-
-/* 生成按钮 */
-.generate-btn-container {
-  margin-top: 16rpx;
+.pref-option {
   display: flex;
-  flex-direction: column;
-  gap: 16rpx;
+  align-items: center;
+  gap: 8rpx;
+  padding: 20rpx 28rpx;
+  background: #f5f5f7;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  color: #4b5563;
+  transition: all 0.2s ease;
+  border: 2rpx solid transparent;
 }
 
-.generate-btn {
-  width: 100%;
-  height: 100rpx;
-  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+.pref-option.selected {
+  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
   color: #FFFFFF;
-  font-size: 32rpx;
-  font-weight: 600;
-  border: none;
-  border-radius: 24rpx;
-  box-shadow: 0 12rpx 32rpx rgba(167, 139, 250, 0.3);
+  border-color: transparent;
+  box-shadow: 0 4rpx 12rpx rgba(167, 139, 250, 0.3);
+}
+
+.pref-option:active {
+  transform: scale(0.96);
+}
+
+.pref-icon {
+  font-size: 28rpx;
+}
+
+.pref-name {
+  font-size: 28rpx;
+}
+
+.prefs-footer {
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid #f0f0f0;
+  background: #FFFFFF;
+}
+
+.prefs-confirm-btn {
+  width: 100%;
+  height: 96rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
+  background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);
+  border-radius: 48rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+  box-shadow: 0 8rpx 24rpx rgba(167, 139, 250, 0.3);
 }
 
-.generate-btn:active {
+.prefs-confirm-btn:active {
   transform: scale(0.98);
-  box-shadow: 0 8rpx 24rpx rgba(167, 139, 250, 0.2);
+  opacity: 0.9;
 }
 
-.bottom-tip {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.8);
-  text-align: center;
-  line-height: 1.5;
-}
-
-/* 底部占位 */
-.bottom-placeholder {
-  height: 64rpx;
-}

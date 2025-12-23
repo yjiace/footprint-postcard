@@ -1,476 +1,690 @@
-// pages/plan/plan.js
+// pages/plan/plan.js - A2UI协议聊天式行程规划
 const app = getApp()
 const api = require('../../utils/api.js')
 const storage = require('../../utils/storage.js')
 const util = require('../../utils/util.js')
 const mapUtil = require('../../utils/map.js')
 
+// 消息ID生成器
+let msgIdCounter = 0
+const genMsgId = () => `msg_${++msgIdCounter}_${Date.now()}`
+
+// ================ A2UI 组件目录 ================
+// 定义客户端支持渲染的安全组件类型
+const COMPONENT_CATALOG = {
+    'Button': true,      // 按钮组件
+    'Text': true,        // 文本组件
+    'ButtonGroup': true, // 按钮组
+    'Card': true,        // 卡片组件
+    'DatePicker': true   // 日期选择器
+}
+
 Page({
     data: {
-        // 城市
-        cityRegion: [],
-        city: '',
+        // ===== 消息列表 =====
+        messages: [],
+        scrollToView: '',
+        isLoading: false,
+        isGenerating: false,  // 行程生成中状态
+        showDatePicker: false,  // 自定义日期选择器
 
-        // 日期
-        startDate: '',
-        endDate: '',
+        // ===== 对话状态 =====
+        stage: 'city',  // city -> date -> summary -> confirm
+
+        // ===== 对话上下文（A2UI DataModel）=====
+        conversationContext: {
+            city: '',
+            dateChoice: '',
+            days: 0,
+            startDate: '',
+            endDate: ''
+        },
+
+        // ===== 对话历史（发送给AI）=====
+        chatHistory: [],
+
+        // ===== 预设数据 =====
+        hotCities: [
+            { id: 'beijing', label: '北京', icon: '🏛️' },
+            { id: 'shanghai', label: '上海', icon: '🏙️' },
+            { id: 'hangzhou', label: '杭州', icon: '🌸' },
+            { id: 'chengdu', label: '成都', icon: '🐼' },
+            { id: 'xiamen', label: '厦门', icon: '🏝️' },
+            { id: 'xian', label: '西安', icon: '🏯' },
+            { id: 'suzhou', label: '苏州', icon: '🏞️' },
+            { id: 'nanjing', label: '南京', icon: '🍂' }
+        ],
+
+        // 今日日期
         todayDate: '',
-        maxStartDate: '', // 开始日期的最大值（无限制）
-        maxEndDate: '', // 结束日期的最大值（开始日期+10天）
-        tripDays: 0, // 行程天数
 
-        // 交通方式
+        // 偏好设置
         transportTypes: [
-            { id: 'public', name: '公共交通', selected: true },
-            { id: 'drive', name: '自驾', selected: false },
-            { id: 'walk', name: '步行为主', selected: false }
+            { id: 'public', name: '公共交通', icon: '🚇', selected: true },
+            { id: 'drive', name: '自驾', icon: '🚗', selected: false },
+            { id: 'walk', name: '步行为主', icon: '🚶', selected: false }
         ],
-
-        // 住宿偏好
         accommodationTypes: [
-            { id: 'budget', name: '经济型酒店', selected: true },
-            { id: 'comfort', name: '舒适型酒店', selected: false },
-            { id: 'luxury', name: '豪华型酒店', selected: false }
+            { id: 'budget', name: '经济型', icon: '💰', selected: true },
+            { id: 'comfort', name: '舒适型', icon: '🏨', selected: false },
+            { id: 'luxury', name: '豪华型', icon: '✨', selected: false }
         ],
-
-        // 景点类型
         poiTypes: [
-            { id: 'any', name: '不限', selected: true },
-            { id: 'nature', name: '自然风光', selected: false },
-            { id: 'history', name: '历史古迹', selected: false },
-            { id: 'museum', name: '博物馆', selected: false },
-            { id: 'amusement', name: '游乐园', selected: false },
-            { id: 'food', name: '美食探店', selected: false }
+            { id: 'any', name: '不限', icon: '🎯', selected: true },
+            { id: 'nature', name: '自然风光', icon: '🌄', selected: false },
+            { id: 'history', name: '历史古迹', icon: '🏛️', selected: false },
+            { id: 'museum', name: '博物馆', icon: '🖼️', selected: false },
+            { id: 'food', name: '美食探店', icon: '🍜', selected: false }
         ],
 
-        // 备注
-        notes: ''
+        // 偏好弹窗
+        showPrefsPopup: false
     },
 
     onLoad() {
-        // 设置今天的日期
+        // 设置今天日期
         const today = new Date()
         const todayStr = util.formatDate(today)
-        this.setData({
-            todayDate: todayStr
-        })
+        this.setData({ todayDate: todayStr })
 
-        // 从全局数据获取当前城市
+        // 从全局获取当前城市
         if (app.globalData.location && app.globalData.location.city) {
             this.setData({
-                city: app.globalData.location.city
+                'conversationContext.city': app.globalData.location.city
             })
+        }
+
+        // 初始化欢迎消息（本地，不调用AI）
+        this.initWelcomeLocal()
+    },
+
+    // ================ 初始化欢迎消息（本地）================
+    initWelcomeLocal() {
+        // A2UI格式：组件描述 + 数据模型
+        const welcomeMsg = {
+            id: genMsgId(),
+            role: 'ai',
+            content: '👋 你好！我是行程规划助手。\n想去哪个城市玩呢？点击选择或输入城市名~',
+            // A2UI组件数组
+            components: this.data.hotCities.map((city, idx) => ({
+                id: `city_${city.id}`,
+                component: {
+                    Button: {
+                        label: city.label,
+                        icon: city.icon,
+                        action: { name: 'selectCity', payload: { cityId: city.id, cityName: city.label } }
+                    }
+                }
+            })),
+            // 额外的定位按钮
+            extraButtons: [
+                {
+                    id: 'use_location',
+                    label: '使用当前位置',
+                    icon: '📍',
+                    type: 'secondary',
+                    action: { name: 'useLocation' }
+                }
+            ]
+        }
+
+        this.setData({ messages: [welcomeMsg] })
+    },
+
+    // ================ 滚动到底部 ================
+    scrollToBottom() {
+        setTimeout(() => {
+            this.setData({ scrollToView: 'chat-bottom' })
+        }, 100)
+    },
+
+    // ================ 消息管理 ================
+    addMessage(msg) {
+        const messages = [...this.data.messages, msg]
+        this.setData({ messages }, () => this.scrollToBottom())
+    },
+
+    addUserMessage(content) {
+        const msg = {
+            id: genMsgId(),
+            role: 'user',
+            content
+        }
+        this.addMessage(msg)
+
+        // 添加到对话历史
+        const chatHistory = [...this.data.chatHistory, { role: 'user', content }]
+        this.setData({ chatHistory })
+
+        return msg.id
+    },
+
+    addLoadingMessage() {
+        const msg = {
+            id: genMsgId(),
+            role: 'loading'
+        }
+        this.addMessage(msg)
+        return msg.id
+    },
+
+    removeMessage(msgId) {
+        const messages = this.data.messages.filter(m => m.id !== msgId)
+        this.setData({ messages })
+    },
+
+    // ================ A2UI 渲染器 ================
+    // 解析AI返回的A2UI组件描述，转换为小程序可渲染格式
+    parseA2UIResponse(response) {
+        // 从AI响应中提取组件
+        const components = response.buttons || response.components || []
+
+        // 验证组件是否在目录中
+        const validComponents = components.filter(comp => {
+            const type = comp.component ? Object.keys(comp.component)[0] : 'Button'
+            return COMPONENT_CATALOG[type] || COMPONENT_CATALOG['Button']
+        })
+
+        return {
+            content: response.reply || '',
+            components: validComponents.length > 0 ? validComponents : components,
+            dataModel: response.context || response.dataModel || {}
         }
     },
 
-    // 使用当前位置
-    async useCurrentLocation() {
+    // ================ AI 对话调用 ================
+    async callAI(userMessage) {
+        if (this.data.isLoading) return
+
+        this.setData({ isLoading: true })
+        const loadingId = this.addLoadingMessage()
+
         try {
-            // 检查定位权限
-            const authSetting = await new Promise((resolve) => {
-                wx.getSetting({
-                    success: resolve
-                })
-            })
-
-            // 如果用户未授权定位权限，则请求授权
-            if (!authSetting.authSetting['scope.userLocation']) {
-                const authResult = await new Promise((resolve) => {
-                    wx.authorize({
-                        scope: 'scope.userLocation',
-                        success: () => resolve(true),
-                        fail: () => resolve(false)
-                    })
-                })
-
-                if (!authResult) {
-                    // 用户拒绝授权，显示提示
-                    wx.showModal({
-                        title: '定位权限申请',
-                        content: '需要获取您的位置信息来为您推荐合适的行程路线',
-                        confirmText: '去设置',
-                        cancelText: '取消',
-                        success: (res) => {
-                            if (res.confirm) {
-                                wx.openSetting()
-                            }
-                        }
-                    })
-                    return
-                }
+            // 构建请求参数
+            const requestData = {
+                message: userMessage,
+                context: this.data.conversationContext,
+                stage: this.data.stage,
+                history: this.data.chatHistory.slice(-6) // 最近6条对话
             }
 
-            // 获取位置信息
-            const location = await new Promise((resolve, reject) => {
-                wx.getLocation({
-                    type: 'gcj02',
-                    success: resolve,
-                    fail: reject
-                })
-            })
+            const response = await api.planChat(
+                requestData.message,
+                requestData.context,
+                requestData.stage
+            )
 
-            // ====== 距离判断逻辑 ======
-            // 先检查缓存的位置
-            const cachedLocation = storage.getLocation()
-            if (cachedLocation && cachedLocation.latitude && cachedLocation.longitude) {
-                const distance = mapUtil.calculateDistance(
-                    cachedLocation.latitude,
-                    cachedLocation.longitude,
-                    location.latitude,
-                    location.longitude
-                )
-                console.log('位置变化距离:', mapUtil.formatDistance(distance))
+            console.log('=== AI响应 ===', response)
 
-                // 距离小于3000米(3公里)，使用缓存数据，不调用API
-                if (distance < 3000) {
-                    console.log('位置变化小于3km，使用缓存城市')
-                    this.setData({
-                        city: cachedLocation.city
-                    })
-                    wx.showToast({
-                        title: '已使用当前位置',
-                        icon: 'success'
-                    })
-                    return // 直接返回，不调用API
-                }
+            // 移除加载状态
+            this.removeMessage(loadingId)
 
-                console.log('位置变化超过3km，重新获取城市信息')
+            // 解析A2UI响应
+            const parsed = this.parseA2UIResponse(response)
+
+            // 更新对话上下文
+            if (response.context) {
+                const newContext = { ...this.data.conversationContext, ...response.context }
+                this.setData({ conversationContext: newContext })
             }
 
-            // ====== 需要更新数据时才调用API ======
-            // 调用后端API获取城市信息
-            const cityInfo = await api.getCityByLocation(location.latitude, location.longitude)
+            // 判断是否进入summary阶段
+            const nextStage = response.nextStage || this.data.stage
+            const shouldShowSummary = nextStage === 'summary' ||
+                (this.data.conversationContext.city && response.context?.days)
 
-            // 根据新的API数据结构适配
-            const cityData = cityInfo.data || {}
-            const cityName = cityData.city || cityData.formattedAddress || '未知城市'
+            // 构建AI消息
+            const aiMsg = {
+                id: genMsgId(),
+                role: 'ai',
+                content: parsed.content,
+                components: parsed.components,
+                summary: shouldShowSummary ? this.buildSummary() : null
+            }
+            this.addMessage(aiMsg)
 
-            this.setData({
-                city: cityName
-            })
+            // 更新阶段
+            if (nextStage !== this.data.stage) {
+                this.setData({ stage: nextStage })
+            }
 
-            wx.showToast({
-                title: '已使用当前位置',
-                icon: 'success'
-            })
+            // 添加到对话历史
+            const chatHistory = [...this.data.chatHistory, { role: 'assistant', content: parsed.content }]
+            this.setData({ chatHistory })
 
         } catch (err) {
-            console.error('获取位置失败:', err)
-            if (err.message && err.message.includes('权限')) {
-                wx.showToast({
-                    title: '请授权定位权限',
-                    icon: 'none'
+            console.error('AI调用失败:', err)
+            this.removeMessage(loadingId)
+            this.showLocalFallback()
+        } finally {
+            this.setData({ isLoading: false })
+        }
+    },
+
+    // ================ 本地降级响应 ================
+    showLocalFallback() {
+        const stage = this.data.stage
+        const ctx = this.data.conversationContext
+
+        let content = '请选择一个选项继续~'
+        let components = []
+
+        if (stage === 'date' && ctx.city) {
+            content = `去${ctx.city}！选择出行时间和天数：`
+            components = [
+                { id: 'date_weekend_3', label: '本周末3天', icon: '📅' },
+                { id: 'date_nextweek_5', label: '下周5天', icon: '🗓️' },
+                { id: 'date_3days', label: '3天行程', icon: '🎯' },
+                { id: 'date_5days', label: '5天行程', icon: '✨' }
+            ]
+        } else if (stage === 'summary') {
+            content = `${ctx.city}${ctx.days || 3}天之旅，确认开始规划？`
+            components = [
+                { id: 'confirm', label: '开始规划', icon: '✅', action: { name: 'confirmPlan' } },
+                { id: 'restart', label: '重新选择', icon: '🔄', action: { name: 'restart' } }
+            ]
+        }
+
+        const aiMsg = {
+            id: genMsgId(),
+            role: 'ai',
+            content,
+            components,
+            summary: stage === 'summary' ? this.buildSummary() : null
+        }
+        this.addMessage(aiMsg)
+    },
+
+    // ================ 构建行程概要 ================
+    buildSummary() {
+        const ctx = this.data.conversationContext
+        const transport = this.data.transportTypes.find(t => t.selected)
+        const accommodation = this.data.accommodationTypes.find(a => a.selected)
+        const poiTypesSelected = this.data.poiTypes.filter(p => p.selected).map(p => p.name).join('、')
+
+        return {
+            city: ctx.city || '未选择',
+            days: ctx.days || 3,
+            dateChoice: ctx.dateChoice || '待定',
+            startDate: ctx.startDate,
+            endDate: ctx.endDate,
+            transport: transport ? transport.name : '公共交通',
+            accommodation: accommodation ? accommodation.name : '经济型',
+            poiTypes: poiTypesSelected || '不限'
+        }
+    },
+
+    // ================ 按钮点击处理 ================
+    onButtonTap(e) {
+        const dataset = e.currentTarget.dataset
+        const { msgId, btnIndex, label, icon, action } = dataset
+
+        console.log('按钮点击:', dataset)
+
+        // 解析action
+        let actionName = ''
+        let payload = {}
+
+        if (action) {
+            try {
+                const actionObj = typeof action === 'string' ? JSON.parse(action) : action
+                actionName = actionObj.name || ''
+                payload = actionObj.payload || {}
+            } catch (e) {
+                actionName = action
+            }
+        }
+
+        // 根据action分发处理
+        switch (actionName) {
+            case 'selectCity':
+                this.handleCitySelect(payload.cityId, payload.cityName || label)
+                break
+            case 'useLocation':
+                this.useCurrentLocation()
+                break
+            case 'confirmPlan':
+                this.onGenerate()
+                break
+            case 'restart':
+                this.onRestart()
+                break
+            case 'adjustPrefs':
+                this.onShowPrefsPopup()
+                break
+            case 'goToList':
+                this.goToList()
+                break
+            case 'customDate':
+            case 'selectCustomDate':
+                // 触发日期选择器
+                this.showCustomDatePicker()
+                break
+            default:
+                // 检查是否是自定义日期/时间相关的按钮
+                const customDateKeywords = ['其他时间', '其他日期', '自定义', '自定义日期', '自定义天数', 'custom']
+                const isCustomDate = customDateKeywords.some(kw =>
+                    label?.toLowerCase().includes(kw.toLowerCase())
+                )
+
+                if (isCustomDate) {
+                    this.showCustomDatePicker()
+                } else if (label) {
+                    // 通用处理：将按钮文本作为用户输入发送给AI
+                    const displayText = `${icon || ''} ${label}`.trim()
+                    this.addUserMessage(displayText)
+                    this.callAI(label)
+                }
+        }
+    },
+
+    // ================ 城市选择 ================
+    handleCitySelect(cityId, cityName) {
+        const city = this.data.hotCities.find(c => c.id === cityId)
+        const name = cityName || (city ? city.label : cityId)
+        const iconEmoji = city ? city.icon : '📍'
+
+        // 更新上下文
+        this.setData({
+            'conversationContext.city': name,
+            stage: 'date'
+        })
+
+        // 添加用户消息
+        this.addUserMessage(`${iconEmoji} ${name}`)
+
+        // 调用AI获取日期选择
+        this.callAI(`我想去${name}旅行`)
+    },
+
+    // ================ 使用当前位置 ================
+    async useCurrentLocation() {
+        util.showLoading('获取位置中...')
+
+        try {
+            const location = await mapUtil.getCurrentLocation()
+            const cityInfo = await api.getCityByLocation(location.latitude, location.longitude)
+
+            util.hideLoading()
+
+            if (cityInfo && cityInfo.city) {
+                const cityName = cityInfo.city.replace('市', '')
+                this.setData({
+                    'conversationContext.city': cityName,
+                    stage: 'date'
                 })
+                this.addUserMessage(`📍 ${cityName}（当前位置）`)
+                this.callAI(`我想去${cityName}旅行`)
             } else {
-                wx.showToast({
-                    title: '获取位置失败',
-                    icon: 'none'
+                util.showError('无法获取城市信息')
+            }
+        } catch (err) {
+            util.hideLoading()
+            util.showError('获取位置失败')
+            console.error('定位失败:', err)
+        }
+    },
+
+    // 城市选择器变化
+    onCityPickerChange(e) {
+        const region = e.detail.value  // [省, 市, 区] 或 [省, 市]
+        // 取市级名称，去掉"市"后缀
+        let cityName = region[1] || region[0]
+        cityName = cityName.replace('市', '').replace('地区', '').replace('自治州', '')
+
+        this.setData({
+            'conversationContext.city': cityName,
+            stage: 'date'
+        })
+        this.addUserMessage(`🏙️ ${cityName}`)
+        this.callAI(`我想去${cityName}旅行`)
+    },
+
+    // ================ 输入框处理 ================
+    onInputChange(e) {
+        this.setData({ inputValue: e.detail.value })
+    },
+
+    onInputConfirm(e) {
+        const value = this.data.inputValue?.trim() || e?.detail?.value?.trim()
+        if (!value) return
+
+        this.setData({ inputValue: '' })
+
+        if (this.data.stage === 'city') {
+            // 城市输入
+            this.setData({
+                'conversationContext.city': value,
+                stage: 'date'
+            })
+            this.addUserMessage(`📍 ${value}`)
+            this.callAI(`我想去${value}旅行`)
+        } else if (this.data.stage === 'date') {
+            // 日期/天数阶段 - 解析用户输入的天数
+            const daysMatch = value.match(/(\d+)\s*(天|日)/)
+            if (daysMatch) {
+                const days = parseInt(daysMatch[1])
+                this.setData({
+                    'conversationContext.days': days,
+                    'conversationContext.dateChoice': value
                 })
             }
-        }
-    },
-
-    // 选择城市
-    onCityChange(e) {
-        const region = e.detail.value
-        const city = region[1] // 取市级
-        this.setData({
-            cityRegion: region,
-            city: city
-        })
-    },
-
-    // 选择开始日期
-    onStartDateChange(e) {
-        const startDate = e.detail.value
-        let endDate = this.data.endDate
-
-        // 计算结束日期的最大值（开始日期+10天）
-        const startDateObj = new Date(startDate)
-        const maxEndDateObj = new Date(startDateObj)
-        maxEndDateObj.setDate(maxEndDateObj.getDate() + 9) // +9天，共10天
-        const maxEndDate = util.formatDate(maxEndDateObj)
-
-        // 如果结束日期早于开始日期或超过10天，清空结束日期
-        if (endDate && (endDate < startDate || endDate > maxEndDate)) {
-            endDate = ''
-        }
-
-        // 计算天数
-        let tripDays = 0
-        if (endDate) {
-            tripDays = this.calculateDays(startDate, endDate)
-        }
-
-        this.setData({
-            startDate: startDate,
-            endDate: endDate,
-            maxEndDate: maxEndDate,
-            tripDays: tripDays
-        })
-    },
-
-    // 选择结束日期
-    onEndDateChange(e) {
-        const endDate = e.detail.value
-        const startDate = this.data.startDate
-
-        // 检查是否超过10天
-        if (startDate) {
-            const days = this.calculateDays(startDate, endDate)
-            if (days > 10) {
-                util.showError('行程日期间隔不能超过10天')
-                return
-            }
-            this.setData({
-                endDate: endDate,
-                tripDays: days
-            })
+            this.addUserMessage(value)
+            this.callAI(value)
         } else {
-            this.setData({
-                endDate: endDate
-            })
+            // 其他阶段，直接发送给AI
+            this.addUserMessage(value)
+            this.callAI(value)
         }
     },
 
-    // 计算两个日期之间的天数
-    calculateDays(startDate, endDate) {
-        const start = new Date(startDate)
-        const end = new Date(endDate)
-        return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
-    },
-
-    // 切换景点类型
-    onPoiTypeToggle(e) {
-        const index = e.currentTarget.dataset.index
-        const poiTypes = this.data.poiTypes
-
-        // 如果点击的是"不限",取消其他选项
-        if (index === 0) {
-            poiTypes.forEach((item, i) => {
-                item.selected = i === 0
-            })
-        } else {
-            // 取消"不限"选项
-            poiTypes[0].selected = false
-            // 切换当前选项
-            poiTypes[index].selected = !poiTypes[index].selected
-
-            // 如果没有任何选项,自动选中"不限"
-            const hasSelected = poiTypes.slice(1).some(item => item.selected)
-            if (!hasSelected) {
-                poiTypes[0].selected = true
-            }
-        }
-
+    // 日期选择器变化
+    onDatePickerChange(e) {
+        const selectedDate = e.detail.value
         this.setData({
-            poiTypes
+            'conversationContext.startDate': selectedDate
         })
+        this.addUserMessage(`📅 ${selectedDate}`)
+        this.callAI(`我选择${selectedDate}出发`)
     },
 
-    // 切换交通方式
-    onTransportToggle(e) {
-        const index = e.currentTarget.dataset.index
-        const transportTypes = this.data.transportTypes
-        transportTypes.forEach((item, i) => {
-            item.selected = i === index
+    // 显示自定义日期选择器
+    showCustomDatePicker() {
+        this.setData({ showDatePicker: true })
+    },
+
+    // 自定义日期确认
+    onCustomDateConfirm(e) {
+        const selectedDate = e.detail.value
+        this.setData({
+            showDatePicker: false,
+            'conversationContext.startDate': selectedDate
         })
+        this.addUserMessage(`📅 自定义日期：${selectedDate}`)
+        this.callAI(`我选择${selectedDate}出发，请问多少天？`)
+    },
+
+    // 取消日期选择
+    onCustomDateCancel() {
+        this.setData({ showDatePicker: false })
+    },
+
+    // ================ 重新开始 ================
+    onRestart() {
+        this.setData({
+            messages: [],
+            stage: 'city',
+            conversationContext: {
+                city: '',
+                dateChoice: '',
+                days: 0,
+                startDate: '',
+                endDate: ''
+            },
+            chatHistory: []
+        })
+        this.initWelcomeLocal()
+    },
+
+    // ================ 偏好设置弹窗 ================
+    onShowPrefsPopup() {
+        this.setData({ showPrefsPopup: true })
+    },
+
+    onClosePrefsPopup() {
+        this.setData({ showPrefsPopup: false })
+        // 更新概要卡片中的数据
+        this.updateSummaryCard()
+    },
+
+    // 更新概要卡片
+    updateSummaryCard() {
+        const messages = this.data.messages.map(msg => {
+            if (msg.summary) {
+                return {
+                    ...msg,
+                    summary: this.buildSummary()
+                }
+            }
+            return msg
+        })
+        this.setData({ messages })
+    },
+
+    // 阻止事件冒泡
+    preventBubble() {
+        // 空函数，用于阻止catchtap冒泡到遮罩层
+    },
+
+    onTransportSelect(e) {
+        const id = e.currentTarget.dataset.id
+        const transportTypes = this.data.transportTypes.map(t => ({
+            ...t,
+            selected: t.id === id
+        }))
         this.setData({ transportTypes })
     },
 
-    // 切换住宿偏好
-    onAccommodationToggle(e) {
-        const index = e.currentTarget.dataset.index
-        const accommodationTypes = this.data.accommodationTypes
-        accommodationTypes.forEach((item, i) => {
-            item.selected = i === index
-        })
+    onAccommodationSelect(e) {
+        const id = e.currentTarget.dataset.id
+        const accommodationTypes = this.data.accommodationTypes.map(a => ({
+            ...a,
+            selected: a.id === id
+        }))
         this.setData({ accommodationTypes })
     },
 
-    // 备注输入
-    onNotesChange(e) {
-        this.setData({
-            notes: e.detail.value
-        })
+    onPoiTypeSelect(e) {
+        const id = e.currentTarget.dataset.id
+        let poiTypes
+
+        if (id === 'any') {
+            // 选择"不限"，取消所有其他选择
+            poiTypes = this.data.poiTypes.map(p => ({
+                ...p,
+                selected: p.id === 'any'
+            }))
+        } else {
+            // 选择其他类型，取消"不限"
+            poiTypes = this.data.poiTypes.map(p => {
+                if (p.id === 'any') {
+                    return { ...p, selected: false }
+                }
+                return {
+                    ...p,
+                    selected: p.id === id ? !p.selected : p.selected
+                }
+            })
+            // 如果没有选中任何类型，自动选中"不限"
+            const hasSelected = poiTypes.some(p => p.selected && p.id !== 'any')
+            if (!hasSelected) {
+                poiTypes = poiTypes.map(p => ({
+                    ...p,
+                    selected: p.id === 'any'
+                }))
+            }
+        }
+        this.setData({ poiTypes })
     },
 
-    // 规划行程
+    // ================ 生成行程 ================
     async onGenerate() {
-        // 检查用户是否已登录
-        if (!storage.isLoggedIn()) {
-            console.log('用户未登录，显示登录提示')
-            this.showLoginGuide('规划行程')
+        const ctx = this.data.conversationContext
+
+        if (!ctx.city) {
+            util.showError('请先选择目的地城市')
             return
         }
 
-        // 验证表单
-        if (!this.data.city) {
-            util.showError('请选择城市')
-            return
-        }
+        // 构建行程参数 - 参数名需与后端一致
+        const transport = this.data.transportTypes.find(t => t.selected)
+        const accommodation = this.data.accommodationTypes.find(a => a.selected)
+        const poiTypesSelected = this.data.poiTypes.filter(p => p.selected && p.id !== 'any').map(p => p.id)
 
-        if (!this.data.startDate) {
-            util.showError('请选择开始日期')
-            return
-        }
-
-        if (!this.data.endDate) {
-            util.showError('请选择结束日期')
-            return
-        }
-
-        // 计算天数
-        const startDate = new Date(this.data.startDate)
-        const endDate = new Date(this.data.endDate)
-        const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
-
-        if (days < 1 || days > 30) {
-            util.showError('行程天数应在1-30天之间')
-            return
-        }
-
-        // 获取选中的景点类型
-        const selectedTypes = this.data.poiTypes
-            .filter(item => item.selected)
-            .map(item => item.id)
-
-        // 获取选中的交通方式
-        const transportMap = {
-            'public': '公共交通',
-            'drive': '自驾',
-            'walk': '步行为主'
-        }
-        const selectedTransport = this.data.transportTypes.find(item => item.selected)
-        const transportation = selectedTransport ? transportMap[selectedTransport.id] : '公共交通'
-
-        // 获取选中的住宿偏好
-        const accommodationMap = {
-            'budget': '经济型酒店',
-            'comfort': '舒适型酒店',
-            'luxury': '豪华型酒店'
-        }
-        const selectedAccommodation = this.data.accommodationTypes.find(item => item.selected)
-        const accommodation = selectedAccommodation ? accommodationMap[selectedAccommodation.id] : '经济型酒店'
-
-        // 构建请求参数
+        // 后端需要: city, date, days, transportation, accommodation, poiTypes
         const params = {
-            city: this.data.city,
-            date: this.data.startDate,
-            endDate: this.data.endDate,
-            days: days,
-            poiTypes: selectedTypes,
-            notes: this.data.notes,
-            transportation: transportation,
-            accommodation: accommodation,
-            // 用户起点坐标（用于规划从起点到第一个景点、最后一个景点回起点的路线）
-            userLocation: null,
-            apiVersion: 'v3'
+            city: ctx.city,
+            date: ctx.startDate || this.data.todayDate,
+            days: ctx.days || 3,
+            transportation: transport?.id || 'public',
+            accommodation: accommodation?.id || 'budget',
+            poiTypes: poiTypesSelected.length > 0 ? poiTypesSelected : ['any'],
+            notes: ''
         }
 
-        // 尝试获取用户当前位置作为起点
-        try {
-            const cachedLocation = storage.getLocation()
-            if (cachedLocation && cachedLocation.latitude && cachedLocation.longitude) {
-                params.userLocation = {
-                    latitude: cachedLocation.latitude,
-                    longitude: cachedLocation.longitude,
-                    name: cachedLocation.city ? (cachedLocation.city + '(起点)') : '起点'
-                }
-                console.log('使用用户起点坐标:', params.userLocation)
-            }
-        } catch (e) {
-            console.log('获取用户位置失败，将不使用起点规划:', e)
-        }
+        console.log('生成行程参数:', params)
+
+        // 显示加载
+        this.addUserMessage('✅ 开始规划行程')
+        const loadingId = this.addLoadingMessage()
 
         try {
-            util.showLoading('正在提交规划请求...')
-
-            // 调用实际API规划行程（异步模式，立即返回生成中状态）
             const result = await api.generatePlan(params)
+            this.removeMessage(loadingId)
 
-            // API返回的是"生成中"状态的行程
-            const plan = result
+            if (result && (result.id || result.planId)) {
+                // 设置生成中状态，禁用所有交互
+                this.setData({ isGenerating: true })
 
-            // 保存到本地存储（带状态）
-            storage.addPlan(plan)
-
-            util.hideLoading()
-
-            // 根据状态显示不同的提示
-            if (plan.status === 'generating') {
-                wx.showModal({
-                    title: '规划已提交',
-                    content: '行程正在后台生成中，通常需要1-2分钟，请稍后在列表中刷新查看。',
-                    confirmText: '查看列表',
-                    showCancel: false,
-                    success: () => {
-                        // 跳转到行程列表页
-                        wx.switchTab({
-                            url: '/pages/plan-list/plan-list'
-                        })
-                    }
-                })
+                // 添加生成中提示消息
+                const generatingMsg = {
+                    id: genMsgId(),
+                    role: 'ai',
+                    content: `⏳ ${ctx.city}${params.days}天行程正在生成中...\n\n⚠️ 预计需要2-3分钟，请耐心等待。\n\n生成完成后可在行程列表中查看。`,
+                    components: [
+                        { id: 'goToList', label: '查看行程列表', icon: '📋', action: { name: 'goToList' } },
+                        { id: 'restart', label: '重新选择', icon: '🔄', action: { name: 'restart' } }
+                    ]
+                }
+                this.addMessage(generatingMsg)
             } else {
-                // 已完成状态（向后兼容）
-                util.showSuccess('行程规划成功')
-                setTimeout(() => {
-                    wx.navigateTo({
-                        url: `/pages/plan-detail/plan-detail?id=${plan.id}`
-                    })
-                }, 1000)
+                throw new Error('生成失败')
             }
-
         } catch (err) {
-            console.error('行程规划失败', err)
-            util.hideLoading()
+            this.removeMessage(loadingId)
+            console.error('生成行程失败:', err)
 
-            // 显示具体的错误信息
-            if (err.errMsg && err.errMsg.includes('fail')) {
-                util.showError('网络连接失败，请检查网络后重试')
-            } else if (err.statusCode && err.statusCode >= 500) {
-                util.showError('服务器繁忙，请稍后重试')
-            } else {
-                util.showError('行程规划失败，请重试')
+            const errorMsg = {
+                id: genMsgId(),
+                role: 'ai',
+                content: '😔 抱歉，行程生成失败，请重试。',
+                components: [
+                    { id: 'retry', label: '重试', icon: '🔄', action: { name: 'confirmPlan' } },
+                    { id: 'restart', label: '重新选择', icon: '↩️', action: { name: 'restart' } }
+                ]
             }
+            this.addMessage(errorMsg)
         }
     },
 
-    // 显示登录引导
-    showLoginGuide(action = '行程规划') {
-        wx.showModal({
-            title: '登录提示',
-            content: `您需要登录后才能${action}`,
-            confirmText: '去登录',
-            cancelText: '稍后再说',
-            success: (res) => {
-                if (res.confirm) {
-                    // 跳转到登录页面，并传递回调页面
-                    wx.redirectTo({
-                        url: '/pages/login/login?redirect=/pages/plan/plan'
-                    })
-                }
+    // 跳转到行程列表
+    goToList() {
+        console.log('goToList被调用')
+        wx.switchTab({
+            url: '/pages/plan-list/plan-list',
+            fail: (err) => {
+                console.error('switchTab失败:', err)
             }
         })
-    },
-
-    // 返回
-    onBack() {
-        wx.navigateBack({
-            fail: () => {
-                wx.switchTab({
-                    url: '/pages/plan-list/plan-list'
-                })
-            }
-        })
-    },
-
-    // 分享
-    onShareAppMessage() {
-        return util.shareToWeChat(
-            '来一起规划旅行吧',
-            '/images/share.jpg',
-            '/pages/plan/plan'
-        )
     }
 })

@@ -2,7 +2,7 @@
 // API请求工具类
 
 // 根据环境配置不同的API地址
-let BASE_URL = 'https://fp.smallyoung.cn/api'
+let BASE_URL = 'https://fp-dev.smallyoung.cn/api'
 
 // 开发环境使用本地代理
 // 微信小程序环境判断：使用 wx.getAccountInfoSync() 获取环境信息
@@ -35,7 +35,7 @@ function request(url, data = {}, method = 'GET', header = {}, timeout = 60000) {
         try {
             const accountInfo = wx.getAccountInfoSync()
             if ((accountInfo.miniProgram.envVersion === 'develop' || accountInfo.miniProgram.envVersion === 'trial') && BASE_URL.startsWith('/')) {
-                requestUrl = 'https://fp.smallyoung.cn/api' + url
+                requestUrl = 'https://fp-dev.smallyoung.cn/api' + url
             }
         } catch (error) {
             // 保持默认配置
@@ -221,6 +221,16 @@ function deletePlan(id) {
 }
 
 /**
+ * AI对话规划接口
+ * @param {String} message 用户消息
+ * @param {Object} context 当前对话上下文 { city, startDate, endDate, ... }
+ * @param {String} stage 当前对话阶段 (city/date/summary)
+ */
+function planChat(message, context = {}, stage = 'city') {
+    return post('/plan/chat', { message, context, stage })
+}
+
+/**
  * 生成明信片（使用300秒超时，等待AI生成图片）
  */
 function generatePostcard(params) {
@@ -301,7 +311,7 @@ function getProxiedImageUrl(imageUrl) {
     }
 
     // 构建代理URL
-    const proxyBaseUrl = 'https://fp.smallyoung.cn/api/proxy/image'
+    const proxyBaseUrl = 'https://fp-dev.smallyoung.cn/api/proxy/image'
     return `${proxyBaseUrl}?url=${encodeURIComponent(imageUrl)}`
 }
 
@@ -373,6 +383,7 @@ module.exports = {
     getPlanList,
     getPlanDetail,
     deletePlan,
+    planChat,
 
     generatePostcard,
     getPostcardList,

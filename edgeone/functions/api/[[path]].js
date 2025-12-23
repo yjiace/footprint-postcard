@@ -578,6 +578,197 @@ async function handleGetDayPath(request, env) {
     } catch (err) { return errorResponse(err.message, 500) }
 }
 
+// ==================== AI 对话规划 ====================
+
+/**
+ * AI对话规划接口 - 动态生成A2UI响应
+ * 接收用户消息和当前对话上下文，返回AI回复和A2UI选项
+ */
+async function handlePlanChat(request, env) {
+    const user = await getUserFromRequest(request, env)
+    if (!user) return errorResponse('未登录', 401)
+
+    try {
+        const { message, context, stage } = await request.json()
+
+        // context 包含已收集的信息：{ city, startDate, endDate, transport, accommodation, poiTypes }
+        const currentContext = context || {}
+        const currentStage = stage || 'city'
+
+        // 构建系统提示词（A2UI协议兼容）
+        const systemPrompt = `你是一个友好的AI行程规划助手。通过对话帮助用户规划旅行行程。
+
+## 当前状态
+- 阶段: ${currentStage}
+- 已收集: ${JSON.stringify(currentContext)}
+
+## 返回格式（必须是纯JSON，严格遵守）
+{
+  "reply": "简洁友好的回复（不超过40字）",
+  "buttons": [{ "id": "唯一ID", "label": "按钮文字", "icon": "emoji" }],
+  "nextStage": "city或date或summary",
+  "context": { "city": "城市名", "dateChoice": "日期描述", "days": 天数 }
+}
+
+## 阶段流程（严格遵守，这是核心逻辑）
+
+### 当前是date阶段时的规则：
+1. 如果用户选择了包含天数的选项（如"本周末3天"、"5天行程"）：
+   - 提取days数字，设置context.days
+   - 设置context.dateChoice为用户选择
+   - nextStage必须设为"summary"
+   
+2. 如果用户只选了日期没有天数（如"本周末"）：
+   - 询问天数，提供天数按钮
+   - nextStage保持"date"
+   
+3. 如果用户只选了天数（如"3天"）：
+   - 提取days数字
+   - nextStage设为"summary"（因为日期可以默认为近期）
+
+### summary阶段规则：
+- 不再询问，直接展示确认
+- 按钮必须包含action字段：
+  { "id": "confirm", "label": "开始规划", "icon": "✅", "action": { "name": "confirmPlan" } }
+  { "id": "restart", "label": "重新选择", "icon": "🔄", "action": { "name": "restart" } }
+
+## 按钮规则
+- 每次提供3-5个选项
+- icon必须使用emoji
+- date阶段优先提供组合选项如"本周末3天"
+- summary阶段的按钮必须有action字段
+
+## 关键：确保context正确更新
+每次响应的context必须包含所有已知信息，不能丢失之前的数据。
+如果context中已有city和days（days>0），nextStage必须是summary。`
+
+        // 用户消息
+        const userMessage = message || '开始规划'
+
+        // 调用DeepSeek API
+        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${env.DEEPSEEK_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userMessage }
+                ],
+                temperature: 0.7,
+                max_tokens: 500,
+                response_format: { type: 'json_object' }
+            })
+        })
+
+        if (!response.ok) {
+            throw new Error(`DeepSeek API错误: ${response.status}`)
+        }
+
+        const data = await response.json()
+        const aiContent = data.choices?.[0]?.message?.content
+
+        if (!aiContent) {
+            throw new Error('AI返回内容为空')
+        }
+
+        // 解析AI返回的JSON
+        let aiResponse
+        try {
+            aiResponse = JSON.parse(aiContent)
+        } catch (e) {
+            // 如果解析失败，使用降级策略
+            console.error('AI响应解析失败:', aiContent)
+            aiResponse = getFallbackResponse(currentStage, currentContext)
+        }
+
+        // 确保响应格式正确，合并上下文
+        const mergedContext = {
+            ...currentContext,
+            ...(aiResponse.context || aiResponse.updatedContext || {})
+        }
+
+        // 智能判断：如果有city和days，强制进入summary
+        let nextStage = aiResponse.nextStage || currentStage
+        if (mergedContext.city && mergedContext.days && mergedContext.days > 0) {
+            nextStage = 'summary'
+        }
+
+        const result = {
+            reply: aiResponse.reply || '请选择一个选项继续~',
+            buttons: aiResponse.buttons || [],
+            nextStage: nextStage,
+            context: mergedContext
+        }
+
+        return jsonResponse(result)
+
+    } catch (err) {
+        console.error('AI对话失败:', err)
+        // 降级策略：返回预设响应
+        const fallback = getFallbackResponse(stage || 'city', context || {})
+        return jsonResponse(fallback)
+    }
+}
+
+/**
+ * 降级策略：当AI调用失败时返回预设响应
+ */
+function getFallbackResponse(stage, context) {
+    // 智能判断：如果已有city和days，应该进入summary
+    if (context.city && context.days) {
+        return {
+            reply: `好的，${context.city}${context.days}天之旅！确认开始规划吗？`,
+            buttons: [
+                { id: 'confirm', label: '开始规划', icon: '✅', action: 'confirmPlan' },
+                { id: 'restart', label: '重新选择', icon: '🔄', action: 'restart' }
+            ],
+            nextStage: 'summary',
+            context: { ...context, showSummary: true }
+        }
+    }
+
+    const responses = {
+        city: {
+            reply: '👋 你好！想去哪个城市玩呢？',
+            buttons: [
+                { id: 'shanghai', label: '上海', icon: '🏙️' },
+                { id: 'beijing', label: '北京', icon: '🏛️' },
+                { id: 'hangzhou', label: '杭州', icon: '🌸' },
+                { id: 'chengdu', label: '成都', icon: '🐼' },
+                { id: 'xiamen', label: '厦门', icon: '🏝️' },
+                { id: 'xian', label: '西安', icon: '🏯' }
+            ],
+            nextStage: 'city',
+            context: context
+        },
+        date: {
+            reply: `好的，去${context.city || '旅行'}！选择日期和天数：`,
+            buttons: [
+                { id: 'weekend_3', label: '本周末3天', icon: '📅' },
+                { id: 'nextweek_5', label: '下周5天', icon: '🗓️' },
+                { id: 'custom', label: '自定义', icon: '✏️' }
+            ],
+            nextStage: 'date',
+            context: context
+        },
+        summary: {
+            reply: '确认行程信息：',
+            buttons: [
+                { id: 'confirm', label: '开始规划', icon: '✅', action: 'confirmPlan' },
+                { id: 'restart', label: '重新选择', icon: '🔄', action: 'restart' }
+            ],
+            nextStage: 'summary',
+            context: context
+        }
+    }
+
+    return responses[stage] || responses.city
+}
+
 // ==================== 行程相关 ====================
 
 async function handleGeneratePlan(request, env, context) {
@@ -1217,6 +1408,7 @@ const routes = {
     'GET /route/walking': handleRouteWalking,
     'GET /route/transit': handleRouteTransit,
     'GET /route/day-path': handleGetDayPath, // 新增排期路线接口
+    'POST /plan/chat': handlePlanChat,       // AI对话规划接口
     'POST /plan/generate': handleGeneratePlan,
     'POST /plan/callback': handlePlanCallback,
     'GET /plan/list': handleGetPlanList,

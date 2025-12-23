@@ -1,122 +1,265 @@
-<!--pages/plan/plan.wxml-->
+<!--pages/plan/plan.wxml - A2UI协议聊天式行程规划-->
 <view class="page-container">
   <!-- 固定渐变背景层 -->
   <view class="bg-gradient"></view>
 
-  <!-- 导航栏带返回按钮和标题 -->
-  <custom-navbar title="新增规划" showBack="{{true}}"></custom-navbar>
+  <!-- 导航栏 -->
+  <custom-navbar title="规划助手" showBack="{{true}}"></custom-navbar>
 
-  <scroll-view class="content-scroll" scroll-y>
-    <view class="form-container">
-      <!-- 选择城市 -->
-      <view class="form-item">
-        <text class="form-label">选择城市</text>
-        <view class="city-input-container">
-          <picker mode="region" value="{{cityRegion}}" bindchange="onCityChange" class="city-picker">
-            <view class="city-input">
-              <text class="{{city ? 'picker-value' : 'picker-placeholder'}}">
-                {{city || '例如:上海'}}
-              </text>
+  <!-- 聊天消息区域 -->
+  <scroll-view 
+    class="chat-scroll" 
+    scroll-y 
+    scroll-into-view="{{scrollToView}}"
+    scroll-with-animation="{{true}}"
+  >
+    <view class="chat-container">
+      <!-- 消息循环 -->
+      <block wx:for="{{messages}}" wx:for-item="msg" wx:key="id">
+        
+        <!-- AI消息 -->
+        <view wx:if="{{msg.role === 'ai'}}" class="message-row ai" id="msg-{{msg.id}}">
+          <image class="avatar ai-avatar" src="/images/logo.png" mode="aspectFill"></image>
+          <view class="message-content">
+            <!-- 消息气泡 -->
+            <view class="message-bubble ai-bubble">
+              <text class="message-text">{{msg.content}}</text>
             </view>
-          </picker>
-          <view class="location-btn" bindtap="useCurrentLocation" catchtap="useCurrentLocation">
-            <view class="icon icon-location"></view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 出行日期 -->
-      <view class="form-item">
-        <text class="form-label">出行日期</text>
-        <view class="date-range-wrapper">
-          <picker mode="date" value="{{startDate}}" start="{{todayDate}}" end="{{maxStartDate}}" bindchange="onStartDateChange" class="date-picker-half">
-            <view class="date-half-input">
-              <text class="{{startDate ? 'picker-value' : 'picker-placeholder'}}">
-                {{startDate || '开始日期'}}
-              </text>
+            
+            <!-- A2UI 按钮组：通过components渲染 -->
+            <view wx:if="{{msg.components && msg.components.length}}" class="a2ui-buttons">
+              <view 
+                wx:for="{{msg.components}}" 
+                wx:for-item="comp" 
+                wx:for-index="compIdx"
+                wx:key="id"
+                class="a2ui-btn {{comp.type || ''}}"
+                bindtap="onButtonTap"
+                data-msg-id="{{msg.id}}"
+                data-btn-index="{{compIdx}}"
+                data-label="{{comp.component.Button.label || comp.label}}"
+                data-icon="{{comp.component.Button.icon || comp.icon}}"
+                data-action="{{comp.component.Button.action || comp.action}}"
+              >
+                <text class="btn-icon" wx:if="{{comp.component.Button.icon || comp.icon}}">{{comp.component.Button.icon || comp.icon}}</text>
+                <text class="btn-label">{{comp.component.Button.label || comp.label}}</text>
+              </view>
             </view>
-          </picker>
-          <text class="date-separator">至</text>
-          <picker mode="date" value="{{endDate}}" start="{{startDate || todayDate}}" end="{{maxEndDate}}" bindchange="onEndDateChange" class="date-picker-half">
-            <view class="date-half-input">
-              <text class="{{endDate ? 'picker-value' : 'picker-placeholder'}}">
-                {{endDate || '结束日期'}}
-              </text>
+
+            <!-- 额外按钮（如定位按钮） -->
+            <view wx:if="{{msg.extraButtons && msg.extraButtons.length}}" class="a2ui-buttons extra-buttons">
+              <view 
+                wx:for="{{msg.extraButtons}}" 
+                wx:for-item="btn" 
+                wx:for-index="btnIdx"
+                wx:key="id"
+                class="a2ui-btn {{btn.type || ''}}"
+                bindtap="onButtonTap"
+                data-msg-id="{{msg.id}}"
+                data-btn-index="{{btnIdx}}"
+                data-label="{{btn.label}}"
+                data-icon="{{btn.icon}}"
+                data-action="{{btn.action}}"
+              >
+                <text class="btn-icon" wx:if="{{btn.icon}}">{{btn.icon}}</text>
+                <text class="btn-label">{{btn.label}}</text>
+              </view>
             </view>
-          </picker>
-          <text class="date-days-tag" wx:if="{{startDate && endDate}}">{{tripDays}}天</text>
-        </view>
-      </view>
 
-      <!-- 交通方式 -->
-      <view class="form-item">
-        <text class="form-label">交通方式</text>
-        <view class="type-tags">
-          <view 
-            class="type-tag {{item.selected ? 'type-tag-active' : ''}}" 
-            wx:for="{{transportTypes}}" 
-            wx:key="id"
-            bindtap="onTransportToggle"
-            data-index="{{index}}"
-          >
-            <text>{{item.name}}</text>
+            <!-- 行程概要卡片 -->
+            <view wx:if="{{msg.summary}}" class="summary-card">
+              <view class="summary-header">
+                <text class="summary-city">{{msg.summary.city}}</text>
+                <text class="summary-days">{{msg.summary.days}}天行程</text>
+              </view>
+              <view class="summary-body">
+                <view class="summary-item" wx:if="{{msg.summary.dateChoice}}">
+                  <text class="summary-icon">📅</text>
+                  <text>{{msg.summary.dateChoice}}</text>
+                </view>
+                <view class="summary-item">
+                  <text class="summary-icon">🚇</text>
+                  <text>{{msg.summary.transport}}</text>
+                </view>
+                <view class="summary-item">
+                  <text class="summary-icon">🏨</text>
+                  <text>{{msg.summary.accommodation}}</text>
+                </view>
+                <view class="summary-item">
+                  <text class="summary-icon">🎯</text>
+                  <text>{{msg.summary.poiTypes}}</text>
+                </view>
+              </view>
+              <view class="summary-footer">
+                <text class="summary-tip">预计包含 8+ 个热门景点</text>
+              </view>
+              <!-- 调整偏好按钮 -->
+              <view class="adjust-prefs-btn" bindtap="onShowPrefsPopup">
+                <text>⚙️ 调整偏好</text>
+              </view>
+            </view>
           </view>
         </view>
-      </view>
 
-      <!-- 住宿偏好 -->
-      <view class="form-item">
-        <text class="form-label">住宿偏好</text>
-        <view class="type-tags">
-          <view 
-            class="type-tag {{item.selected ? 'type-tag-active' : ''}}" 
-            wx:for="{{accommodationTypes}}" 
-            wx:key="id"
-            bindtap="onAccommodationToggle"
-            data-index="{{index}}"
-          >
-            <text>{{item.name}}</text>
+        <!-- 用户消息 -->
+        <view wx:elif="{{msg.role === 'user'}}" class="message-row user" id="msg-{{msg.id}}">
+          <view class="message-bubble user-bubble">
+            <text class="message-text">{{msg.content}}</text>
           </view>
         </view>
-      </view>
 
-      <!-- 景点类型偏好 -->
-      <view class="form-item">
-        <text class="form-label">景点类型偏好</text>
-        <view class="type-tags">
-          <view 
-            class="type-tag {{item.selected ? 'type-tag-active' : ''}}" 
-            wx:for="{{poiTypes}}" 
-            wx:key="id"
-            bindtap="onPoiTypeToggle"
-            data-index="{{index}}"
-          >
-            <text>{{item.name}}</text>
+        <!-- 加载中状态 -->
+        <view wx:elif="{{msg.role === 'loading'}}" class="message-row ai" id="msg-{{msg.id}}">
+          <image class="avatar ai-avatar" src="/images/logo.png" mode="aspectFill"></image>
+          <view class="message-bubble ai-bubble loading-bubble">
+            <view class="loading-dots">
+              <view class="dot"></view>
+              <view class="dot"></view>
+              <view class="dot"></view>
+            </view>
           </view>
         </view>
-      </view>
 
-      <!-- 备注 -->
-      <view class="form-item">
-        <text class="form-label">备注</text>
-        <textarea 
-          class="textarea-input" 
-          placeholder="可说明人数、关系或预算等信息" 
-          placeholder-class="textarea-placeholder"
-          value="{{notes}}"
-          bindblur="onNotesChange"
-          maxlength="200"
-        ></textarea>
-      </view>
+      </block>
 
-      <!-- 生成按钮 -->
-      <view class="generate-btn-container">
-        <button class="generate-btn" bindtap="onGenerate">开始规划</button>
-        <text class="bottom-tip">点击后将为您生成详细行程,按天展示景点并按时间排序。</text>
+      <!-- 滚动锚点 -->
+      <view id="chat-bottom" class="chat-bottom-anchor"></view>
+    </view>
+  </scroll-view>
+
+  <!-- 底部输入区域（summary阶段隐藏） -->
+  <view class="input-area" wx:if="{{stage !== 'summary' && stage !== 'confirm'}}">
+    <view class="input-wrapper">
+      <!-- 城市选择器（仅city阶段显示） -->
+      <picker 
+        wx:if="{{stage === 'city'}}"
+        mode="region"
+        bindchange="onCityPickerChange"
+        class="city-picker-trigger"
+      >
+        <view class="city-btn">🏙️</view>
+      </picker>
+      <!-- 日期选择器（仅date阶段显示） -->
+      <picker 
+        wx:if="{{stage === 'date'}}"
+        mode="date" 
+        value="{{conversationContext.startDate || todayDate}}" 
+        start="{{todayDate}}" 
+        bindchange="onDatePickerChange"
+        class="date-picker-trigger"
+      >
+        <view class="date-btn">📅</view>
+      </picker>
+      <input 
+        class="chat-input" 
+        placeholder="{{stage === 'city' ? '输入城市名称...' : '输入天数或其他需求...'}}"
+        value="{{inputValue}}"
+        bindinput="onInputChange"
+        bindconfirm="onInputConfirm"
+        confirm-type="send"
+        disabled="{{isLoading}}"
+      />
+      <view class="send-btn {{isLoading ? 'disabled' : ''}}" bindtap="{{isLoading ? '' : 'onInputConfirm'}}">
+        <text>{{isLoading ? '等待中' : '发送'}}</text>
       </view>
     </view>
+  </view>
 
-    <!-- 底部占位 -->
-    <view class="bottom-placeholder"></view>
-  </scroll-view>
+  <!-- 自定义日期选择器弹窗 -->
+  <view class="date-picker-overlay {{showDatePicker ? 'show' : ''}}">
+    <view class="date-picker-mask" bindtap="onCustomDateCancel"></view>
+    <view class="date-picker-popup" catchtap="preventBubble">
+      <view class="date-picker-header">
+        <text class="date-picker-title">选择出发日期</text>
+        <view class="date-picker-close" bindtap="onCustomDateCancel">✕</view>
+      </view>
+      <picker-view class="date-picker-view" value="{{datePickerValue}}" bindchange="onDatePickerValueChange">
+        <!-- 这里可以使用更复杂的日期选择器，暂用简单picker -->
+      </picker-view>
+      <picker 
+        mode="date" 
+        value="{{conversationContext.startDate || todayDate}}" 
+        start="{{todayDate}}" 
+        bindchange="onCustomDateConfirm"
+      >
+        <view class="date-select-btn">
+          <text class="date-select-icon">📅</text>
+          <text class="date-select-text">点击选择日期</text>
+          <text class="date-select-arrow">›</text>
+        </view>
+      </picker>
+      <view class="date-picker-footer">
+        <view class="date-cancel-btn" bindtap="onCustomDateCancel">取消</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 偏好设置弹窗 -->
+  <view class="prefs-overlay {{showPrefsPopup ? 'show' : ''}}">
+    <!-- 遮罩层 -->
+    <view class="prefs-mask" bindtap="onClosePrefsPopup"></view>
+    <!-- 弹窗内容 -->
+    <view class="prefs-popup" catchtap="preventBubble">
+      <view class="prefs-header">
+        <text class="prefs-title">偏好设置</text>
+        <view class="prefs-close" bindtap="onClosePrefsPopup">✕</view>
+      </view>
+      
+      <scroll-view class="prefs-content" scroll-y>
+        <view class="prefs-section">
+          <text class="prefs-label">交通方式</text>
+          <view class="prefs-options">
+            <view 
+              wx:for="{{transportTypes}}" 
+              wx:key="id"
+              class="pref-option {{item.selected ? 'selected' : ''}}"
+              bindtap="onTransportSelect"
+              data-id="{{item.id}}"
+            >
+              <text class="pref-icon">{{item.icon}}</text>
+              <text class="pref-name">{{item.name}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="prefs-section">
+          <text class="prefs-label">住宿偏好</text>
+          <view class="prefs-options">
+            <view 
+              wx:for="{{accommodationTypes}}" 
+              wx:key="id"
+              class="pref-option {{item.selected ? 'selected' : ''}}"
+              bindtap="onAccommodationSelect"
+              data-id="{{item.id}}"
+            >
+              <text class="pref-icon">{{item.icon}}</text>
+              <text class="pref-name">{{item.name}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="prefs-section">
+          <text class="prefs-label">景点类型</text>
+          <view class="prefs-options">
+            <view 
+              wx:for="{{poiTypes}}" 
+              wx:key="id"
+              class="pref-option {{item.selected ? 'selected' : ''}}"
+              bindtap="onPoiTypeSelect"
+              data-id="{{item.id}}"
+            >
+              <text class="pref-icon">{{item.icon}}</text>
+              <text class="pref-name">{{item.name}}</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="prefs-footer">
+        <view class="prefs-confirm-btn" bindtap="onClosePrefsPopup">
+          <text>确认</text>
+        </view>
+      </view>
+    </view>
+  </view>
 </view>
