@@ -115,17 +115,7 @@ Page({
                         action: { name: 'selectCity', payload: { cityId: city.id, cityName: city.label } }
                     }
                 }
-            })),
-            // 额外的定位按钮
-            extraButtons: [
-                {
-                    id: 'use_location',
-                    label: '使用当前位置',
-                    icon: '📍',
-                    type: 'secondary',
-                    action: { name: 'useLocation' }
-                }
-            ]
+            }))
         }
 
         this.setData({ messages: [welcomeMsg] })
@@ -335,6 +325,13 @@ Page({
             }
         }
 
+        // 允许通过的action（即使isLoading也可执行）
+        const allowedWhenLoading = ['goToList', 'restart', 'adjustPrefs']
+        if (this.data.isLoading && !allowedWhenLoading.includes(actionName)) {
+            console.log('正在加载中，忽略按钮点击')
+            return
+        }
+
         // 根据action分发处理
         switch (actionName) {
             case 'selectCity':
@@ -427,6 +424,8 @@ Page({
 
     // 城市选择器变化
     onCityPickerChange(e) {
+        if (this.data.isLoading) return  // 防止重复发送
+
         const region = e.detail.value  // [省, 市, 区] 或 [省, 市]
         // 取市级名称，去掉"市"后缀
         let cityName = region[1] || region[0]
@@ -446,6 +445,8 @@ Page({
     },
 
     onInputConfirm(e) {
+        if (this.data.isLoading) return  // 防止重复发送
+
         const value = this.data.inputValue?.trim() || e?.detail?.value?.trim()
         if (!value) return
 
@@ -480,6 +481,8 @@ Page({
 
     // 日期选择器变化
     onDatePickerChange(e) {
+        if (this.data.isLoading) return  // 防止重复发送
+
         const selectedDate = e.detail.value
         this.setData({
             'conversationContext.startDate': selectedDate
@@ -495,6 +498,8 @@ Page({
 
     // 自定义日期确认
     onCustomDateConfirm(e) {
+        if (this.data.isLoading) return  // 防止重复发送
+
         const selectedDate = e.detail.value
         this.setData({
             showDatePicker: false,
@@ -680,10 +685,10 @@ Page({
     // 跳转到行程列表
     goToList() {
         console.log('goToList被调用')
-        wx.switchTab({
+        wx.reLaunch({
             url: '/pages/plan-list/plan-list',
             fail: (err) => {
-                console.error('switchTab失败:', err)
+                console.error('reLaunch失败:', err)
             }
         })
     }

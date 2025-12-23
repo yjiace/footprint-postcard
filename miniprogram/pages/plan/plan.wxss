@@ -400,6 +400,13 @@
   background: rgba(167, 139, 250, 0.2);
 }
 
+/* 选择器按钮禁用状态 */
+.city-btn.disabled,
+.date-btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .send-btn {
   padding: 20rpx 32rpx;
   background: linear-gradient(135deg, #a78bfa 0%, #60a5fa 100%);

@@ -136,8 +136,9 @@
         mode="region"
         bindchange="onCityPickerChange"
         class="city-picker-trigger"
+        disabled="{{isLoading}}"
       >
-        <view class="city-btn">🏙️</view>
+        <view class="city-btn {{isLoading ? 'disabled' : ''}}">🏙️</view>
       </picker>
       <!-- 日期选择器（仅date阶段显示） -->
       <picker 
@@ -147,8 +148,9 @@
         start="{{todayDate}}" 
         bindchange="onDatePickerChange"
         class="date-picker-trigger"
+        disabled="{{isLoading}}"
       >
-        <view class="date-btn">📅</view>
+        <view class="date-btn {{isLoading ? 'disabled' : ''}}">📅</view>
       </picker>
       <input 
         class="chat-input" 
