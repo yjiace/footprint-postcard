@@ -1,8 +1,11 @@
 // utils/api.js
 // API请求工具类
 
+// 统一域名配置（只需在微信小程序后台配置此一个域名）
+const API_DOMAIN = 'https://fp.smallyoung.cn'
+
 // 根据环境配置不同的API地址
-let BASE_URL = 'https://fp-dev.smallyoung.cn/api'
+let BASE_URL = `${API_DOMAIN}/api`
 
 // 开发环境使用本地代理
 // 微信小程序环境判断：使用 wx.getAccountInfoSync() 获取环境信息
@@ -35,7 +38,7 @@ function request(url, data = {}, method = 'GET', header = {}, timeout = 60000) {
         try {
             const accountInfo = wx.getAccountInfoSync()
             if ((accountInfo.miniProgram.envVersion === 'develop' || accountInfo.miniProgram.envVersion === 'trial') && BASE_URL.startsWith('/')) {
-                requestUrl = 'https://fp-dev.smallyoung.cn/api' + url
+                requestUrl = `${API_DOMAIN}/api` + url
             }
         } catch (error) {
             // 保持默认配置
@@ -310,8 +313,8 @@ function getProxiedImageUrl(imageUrl) {
         return imageUrl
     }
 
-    // 构建代理URL
-    const proxyBaseUrl = 'https://fp-dev.smallyoung.cn/api/proxy/image'
+    // 构建代理URL（使用统一域名常量）
+    const proxyBaseUrl = `${API_DOMAIN}/api/proxy/image`
     return `${proxyBaseUrl}?url=${encodeURIComponent(imageUrl)}`
 }
 
