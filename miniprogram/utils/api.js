@@ -369,6 +369,37 @@ function getDayPath(planId, dayIndex, mode = 'driving') {
     return request('/route/day-path', { planId, dayIndex, mode }, 'GET', {}, 120000)
 }
 
+// ========== 两步规划流程接口 ==========
+
+/**
+ * 生成行程方案（步骤一）
+ * 异步调用云函数生成3套方案
+ * @param {Object} params 规划参数
+ * @returns {Promise<{optionsId: string, status: string}>}
+ */
+function generatePlanOptions(params) {
+    return post('/plan/generate-options', params)
+}
+
+/**
+ * 查询方案生成状态
+ * @param {String} optionsId 方案ID
+ * @returns {Promise<{status: string, options?: Array, message?: string}>}
+ */
+function getOptionsStatus(optionsId) {
+    return get('/plan/options-status', { optionsId })
+}
+
+/**
+ * 确认选择的方案（步骤二）
+ * @param {String} optionsId 方案ID
+ * @param {String} selectedOptionId 选中的方案ID
+ * @returns {Promise<{planId: string, status: string}>}
+ */
+function confirmPlanOption(optionsId, selectedOptionId) {
+    return post('/plan/confirm-option', { optionsId, selectedOptionId })
+}
+
 module.exports = {
     request,
     get,
@@ -384,6 +415,11 @@ module.exports = {
     getPlanDetail,
     deletePlan,
     planChat,
+
+    // 两步规划流程
+    generatePlanOptions,
+    getOptionsStatus,
+    confirmPlanOption,
 
     generatePostcard,
     getPostcardList,

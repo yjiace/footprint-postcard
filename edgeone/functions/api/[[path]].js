@@ -997,6 +997,326 @@ async function handleGeneratePlan(request, env, context) {
     }
 }
 
+// ==================== 两步规划流程：步骤一 - 生成3套方案 ====================
+
+/**
+ * 生成行程方案（步骤一）
+ * POST /api/plan/generate-options
+ * 异步调用云函数生成3套方案，前端轮询结果
+ */
+async function handleGeneratePlanOptions(request, env) {
+    const user = await getUserFromRequest(request, env)
+    if (!user) return errorResponse('未登录', 401)
+
+    const params = await request.json()
+    const { city, date, days, transportation, accommodation, poiTypes, notes } = params
+
+    if (!city || !date || !days) {
+        return errorResponse('缺少必要参数', 400)
+    }
+
+    if (!env.PLAN_SERVICE_URL) {
+        return errorResponse('服务配置错误：未配置行程规划服务地址', 500)
+    }
+
+    // 生成方案ID
+    const optionsId = generateId('options_')
+
+    // 计算结束日期
+    const startDate = new Date(date)
+    const endDate = new Date(startDate)
+    endDate.setDate(endDate.getDate() + days - 1)
+    const endDateStr = endDate.toISOString().split('T')[0]
+
+    // 翻译偏好设置
+    const preferenceMap = {
+        'any': '不限', 'nature': '自然风光', 'history': '历史古迹',
+        'museum': '博物馆', 'amusement': '游乐园', 'food': '美食探店'
+    }
+    const translatedPoiTypes = (poiTypes || [])
+        .filter(type => type !== 'any')
+        .map(type => preferenceMap[type] || type)
+
+    const transportMap = { 'public': '公共交通', 'drive': '自驾', 'walk': '步行为主' }
+    const translatedTransport = transportMap[transportation] || transportation || '公共交通'
+
+    const accommodationMap = { 'budget': '经济型酒店', 'comfort': '舒适型酒店', 'luxury': '豪华型酒店' }
+    const translatedAccommodation = accommodationMap[accommodation] || accommodation || '经济型酒店'
+
+    // 创建临时方案记录（12小时TTL）
+    const optionsRecord = {
+        id: optionsId,
+        openid: user.openid,
+        city,
+        date,
+        endDate: endDateStr,
+        days,
+        transportation: translatedTransport,
+        accommodation: translatedAccommodation,
+        poiTypes: translatedPoiTypes,
+        notes,
+        status: 'generating',
+        statusMessage: '正在生成方案...',
+        options: [],
+        createdAt: Date.now()
+    }
+
+    try {
+        // 存入独立的命名空间（与行程列表完全分离），12小时TTL
+        await KV.put(
+            `plan_options:${user.openid}:${optionsId}`,
+            JSON.stringify(optionsRecord),
+            { expirationTtl: 43200 }  // 12小时 = 43200秒
+        )
+
+        // 构建回调URL
+        const callbackUrl = new URL(request.url)
+        callbackUrl.pathname = '/api/plan/options-callback'
+
+        // 异步调用云函数（fire-and-forget）
+        fetch(env.PLAN_SERVICE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': 'EdgeOne-Function/1.0' },
+            body: JSON.stringify({
+                generateType: 'options',
+                city,
+                start_date: date,
+                end_date: endDateStr,
+                travel_days: days,
+                transportation: translatedTransport,
+                accommodation: translatedAccommodation,
+                preferences: translatedPoiTypes.length > 0 ? translatedPoiTypes : ['休闲'],
+                free_text_input: notes || '',
+                amapKey: env.AMAP_KEY,
+                deepseekKey: env.DEEPSEEK_API_KEY,
+                callback: {
+                    url: callbackUrl.toString(),
+                    optionsId,
+                    openid: user.openid
+                }
+            })
+        }).then(res => {
+            console.log('云函数请求已发送，状态码:', res.status)
+        }).catch(err => {
+            console.error('云函数调用失败:', err)
+        })
+
+        return jsonResponse({ optionsId, status: 'generating' })
+
+    } catch (err) {
+        console.error('创建方案记录失败:', err)
+        return errorResponse('创建方案失败: ' + err.message, 500)
+    }
+}
+
+/**
+ * 方案生成回调（云函数完成后调用）
+ * POST /api/plan/options-callback
+ */
+async function handleOptionsCallback(request, env) {
+    try {
+        const { optionsId, openid, success, data, message } = await request.json()
+
+        if (!optionsId || !openid) {
+            return errorResponse('缺少必要参数', 400)
+        }
+
+        const key = `plan_options:${openid}:${optionsId}`
+        const recordData = await KV.get(key)
+
+        if (!recordData) {
+            return errorResponse('方案不存在或已过期', 404)
+        }
+
+        const record = JSON.parse(recordData)
+
+        if (success) {
+            record.status = 'completed'
+            record.statusMessage = ''
+            record.options = data?.options || []
+        } else {
+            record.status = 'failed'
+            record.statusMessage = message || '方案生成失败'
+        }
+
+        // 更新记录，保持12小时TTL
+        await KV.put(key, JSON.stringify(record), { expirationTtl: 43200 })
+
+        return jsonResponse({ received: true, status: record.status })
+
+    } catch (err) {
+        console.error('处理方案回调失败:', err)
+        return errorResponse('回调处理失败: ' + err.message, 500)
+    }
+}
+
+/**
+ * 查询方案生成状态
+ * GET /api/plan/options-status?optionsId=xxx
+ */
+async function handleGetOptionsStatus(request, env) {
+    const user = await getUserFromRequest(request, env)
+    if (!user) return errorResponse('未登录', 401)
+
+    const optionsId = new URL(request.url).searchParams.get('optionsId')
+    if (!optionsId) return errorResponse('缺少optionsId参数', 400)
+
+    const key = `plan_options:${user.openid}:${optionsId}`
+    const data = await KV.get(key)
+
+    if (!data) {
+        return errorResponse('方案不存在或已过期', 404)
+    }
+
+    const record = JSON.parse(data)
+    return jsonResponse({
+        status: record.status,
+        options: record.options || [],
+        message: record.statusMessage
+    })
+}
+
+/**
+ * 确认选择的方案（步骤二）
+ * POST /api/plan/confirm-option
+ * 根据用户选择的方案，创建正式行程并调用云函数规划详细路线
+ */
+async function handleConfirmOption(request, env) {
+    const user = await getUserFromRequest(request, env)
+    if (!user) return errorResponse('未登录', 401)
+
+    const { optionsId, selectedOptionId } = await request.json()
+
+    if (!optionsId || !selectedOptionId) {
+        return errorResponse('缺少必要参数', 400)
+    }
+
+    if (!env.PLAN_SERVICE_URL) {
+        return errorResponse('服务配置错误', 500)
+    }
+
+    // 读取临时方案数据
+    const optionsKey = `plan_options:${user.openid}:${optionsId}`
+    const optionsData = await KV.get(optionsKey)
+
+    if (!optionsData) {
+        return errorResponse('方案不存在或已过期', 404)
+    }
+
+    const optionsRecord = JSON.parse(optionsData)
+
+    if (optionsRecord.status !== 'completed') {
+        return errorResponse('方案尚未生成完成', 400)
+    }
+
+    // 找到用户选择的方案
+    const selectedOption = optionsRecord.options.find(o => o.id === selectedOptionId)
+    if (!selectedOption) {
+        return errorResponse('未找到选中的方案', 400)
+    }
+
+    // 生成正式行程ID
+    const planId = generateId('plan_')
+
+    try {
+        // 下载城市封面图
+        const cityImage = await downloadAndSaveCityImage(optionsRecord.city, planId, env)
+
+        // 创建正式行程记录
+        const pendingPlan = {
+            id: planId,
+            openid: user.openid,
+            city: optionsRecord.city,
+            date: optionsRecord.date,
+            endDate: optionsRecord.endDate,
+            days: optionsRecord.days,
+            transportation: optionsRecord.transportation,
+            accommodation: optionsRecord.accommodation,
+            poiTypes: optionsRecord.poiTypes,
+            notes: optionsRecord.notes,
+            // 选定方案信息
+            selectedOptionId: selectedOption.id,
+            selectedOptionName: selectedOption.name,
+            // 状态字段
+            status: 'generating',
+            statusMessage: '正在生成详细行程...',
+            // 空的详情数据（等待云函数回填）
+            schedule: [],
+            weatherInfo: [],
+            budget: {},
+            overallSuggestions: '',
+            routeInfo: [],
+            routeSummary: null,
+            cityImage,
+            createdAt: Date.now()
+        }
+
+        // 保存正式行程记录
+        await KV.put(`plan:${user.openid}:${planId}`, JSON.stringify(pendingPlan))
+
+        // 更新用户的行程列表
+        const listKey = `plan_list:${user.openid}`
+        const existingList = await KV.get(listKey)
+        const planList = existingList ? JSON.parse(existingList) : []
+        planList.unshift({
+            id: planId,
+            city: pendingPlan.city,
+            date: pendingPlan.date,
+            endDate: pendingPlan.endDate,
+            days: pendingPlan.days,
+            status: 'generating',
+            cityImage,
+            transportation: pendingPlan.transportation,
+            accommodation: pendingPlan.accommodation,
+            poiTypes: pendingPlan.poiTypes,
+            selectedOptionName: selectedOption.name,
+            createdAt: pendingPlan.createdAt
+        })
+        await KV.put(listKey, JSON.stringify(planList))
+
+        // 删除临时方案数据
+        await KV.delete(optionsKey)
+
+        // 构建回调URL
+        const callbackUrl = new URL(request.url)
+        callbackUrl.pathname = '/api/plan/callback'
+
+        // 异步调用云函数规划详细路线
+        fetch(env.PLAN_SERVICE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': 'EdgeOne-Function/1.0' },
+            body: JSON.stringify({
+                generateType: 'route',
+                city: optionsRecord.city,
+                start_date: optionsRecord.date,
+                end_date: optionsRecord.endDate,
+                travel_days: optionsRecord.days,
+                transportation: optionsRecord.transportation,
+                accommodation: optionsRecord.accommodation,
+                preferences: optionsRecord.poiTypes,
+                selectedOption,
+                amapKey: env.AMAP_KEY,
+                deepseekKey: env.DEEPSEEK_API_KEY,
+                callback: {
+                    url: callbackUrl.toString(),
+                    planId,
+                    openid: user.openid
+                }
+            })
+        }).then(res => {
+            console.log('云函数路线规划请求已发送，状态码:', res.status)
+        }).catch(err => {
+            console.error('云函数调用失败:', err)
+        })
+
+        return jsonResponse({ planId, status: 'generating', selectedOptionName: selectedOption.name })
+
+    } catch (err) {
+        console.error('确认方案失败:', err)
+        return errorResponse('确认方案失败: ' + err.message, 500)
+    }
+}
+
 async function handlePlanCallback(request, env) {
     try {
         const body = await request.json()
@@ -1461,10 +1781,15 @@ const routes = {
     'GET /route/driving': handleRouteDriving,
     'GET /route/walking': handleRouteWalking,
     'GET /route/transit': handleRouteTransit,
-    'GET /route/day-path': handleGetDayPath, // 新增排期路线接口
-    'POST /plan/chat': handlePlanChat,       // AI对话规划接口
+    'GET /route/day-path': handleGetDayPath,
+    'POST /plan/chat': handlePlanChat,
     'POST /plan/generate': handleGeneratePlan,
     'POST /plan/callback': handlePlanCallback,
+    // 两步规划流程新增接口
+    'POST /plan/generate-options': handleGeneratePlanOptions,
+    'POST /plan/options-callback': handleOptionsCallback,
+    'GET /plan/options-status': handleGetOptionsStatus,
+    'POST /plan/confirm-option': handleConfirmOption,
     'GET /plan/list': handleGetPlanList,
     'GET /plan/detail': handleGetPlanDetail,
     'DELETE /plan/delete': handleDeletePlan,

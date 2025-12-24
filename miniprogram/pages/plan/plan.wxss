@@ -713,3 +713,95 @@
   opacity: 0.9;
 }
 
+/* ================ 方案选择卡片样式 ================ */
+.options-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  margin-top: 20rpx;
+}
+
+.option-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20rpx);
+  border-radius: 24rpx;
+  padding: 28rpx;
+  border: 2rpx solid rgba(167, 139, 250, 0.2);
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.option-card:active {
+  transform: scale(0.98);
+  border-color: rgba(167, 139, 250, 0.5);
+  box-shadow: 0 12rpx 32rpx rgba(167, 139, 250, 0.2);
+}
+
+.option-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.option-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #1C1C1E;
+}
+
+.option-badge {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 8rpx 20rpx;
+  border-radius: 24rpx;
+}
+
+.option-desc {
+  font-size: 28rpx;
+  color: #6b7280;
+  line-height: 1.6;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.option-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.highlight-tag {
+  font-size: 24rpx;
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.12);
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  border: 1rpx solid rgba(167, 139, 250, 0.2);
+}
+
+.option-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 24rpx;
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.15) 0%, rgba(96, 165, 250, 0.15) 100%);
+  border-radius: 16rpx;
+  margin-top: 12rpx;
+}
+
+.select-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #a78bfa;
+}
+
+.select-arrow {
+  font-size: 32rpx;
+  color: #a78bfa;
+  font-weight: 700;
+}
+

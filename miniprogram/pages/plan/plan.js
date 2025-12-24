@@ -78,7 +78,14 @@ Page({
         ],
 
         // 偏好弹窗
-        showPrefsPopup: false
+        showPrefsPopup: false,
+
+        // ===== 两步规划流程 =====
+        optionsId: '',           // 当前方案ID
+        planOptions: [],         // 3套方案
+        selectedOptionId: '',    // 用户选择的方案ID
+        optionsPollingTimer: null,  // 轮询定时器
+        optionsPollingCount: 0   // 轮询次数
     },
 
     onLoad() {
@@ -352,6 +359,9 @@ Page({
             case 'goToList':
                 this.goToList()
                 break
+            case 'selectOption':
+                this.onSelectOption(payload.optionId)
+                break
             case 'customDate':
             case 'selectCustomDate':
                 // 触发日期选择器
@@ -612,7 +622,7 @@ Page({
         this.setData({ poiTypes })
     },
 
-    // ================ 生成行程 ================
+    // ================ 两步规划流程：步骤一 - 生成方案 ================
     async onGenerate() {
         const ctx = this.data.conversationContext
 
@@ -621,12 +631,11 @@ Page({
             return
         }
 
-        // 构建行程参数 - 参数名需与后端一致
+        // 构建规划参数
         const transport = this.data.transportTypes.find(t => t.selected)
         const accommodation = this.data.accommodationTypes.find(a => a.selected)
         const poiTypesSelected = this.data.poiTypes.filter(p => p.selected && p.id !== 'any').map(p => p.id)
 
-        // 后端需要: city, date, days, transportation, accommodation, poiTypes
         const params = {
             city: ctx.city,
             date: ctx.startDate || this.data.todayDate,
@@ -637,42 +646,45 @@ Page({
             notes: ''
         }
 
-        console.log('生成行程参数:', params)
+        console.log('生成方案参数:', params)
 
-        // 显示加载
-        this.addUserMessage('✅ 开始规划行程')
+        // 显示用户确认消息
+        this.addUserMessage('✅ 开始生成行程方案')
         const loadingId = this.addLoadingMessage()
 
         try {
-            const result = await api.generatePlan(params)
+            // 调用新的方案生成接口
+            const result = await api.generatePlanOptions(params)
             this.removeMessage(loadingId)
 
-            if (result && (result.id || result.planId)) {
-                // 设置生成中状态，禁用所有交互
-                this.setData({ isGenerating: true })
+            if (result && result.optionsId) {
+                this.setData({
+                    optionsId: result.optionsId,
+                    isGenerating: true,
+                    optionsPollingCount: 0
+                })
 
-                // 添加生成中提示消息
-                const generatingMsg = {
+                // 添加等待消息
+                const waitingMsg = {
                     id: genMsgId(),
                     role: 'ai',
-                    content: `⏳ ${ctx.city}${params.days}天行程正在生成中...\n\n⚠️ 预计需要2-3分钟，请耐心等待。\n\n生成完成后可在行程列表中查看。`,
-                    components: [
-                        { id: 'goToList', label: '查看行程列表', icon: '📋', action: { name: 'goToList' } },
-                        { id: 'restart', label: '重新选择', icon: '🔄', action: { name: 'restart' } }
-                    ]
+                    content: `⏳ 正在为您生成 ${ctx.city} ${params.days}天 的3套行程方案...`
                 }
-                this.addMessage(generatingMsg)
+                this.addMessage(waitingMsg)
+
+                // 开始轮询
+                this.startOptionsPolling()
             } else {
-                throw new Error('生成失败')
+                throw new Error('生成方案失败')
             }
         } catch (err) {
             this.removeMessage(loadingId)
-            console.error('生成行程失败:', err)
+            console.error('生成方案失败:', err)
 
             const errorMsg = {
                 id: genMsgId(),
                 role: 'ai',
-                content: '😔 抱歉，行程生成失败，请重试。',
+                content: '😔 抱歉，方案生成失败，请重试。',
                 components: [
                     { id: 'retry', label: '重试', icon: '🔄', action: { name: 'confirmPlan' } },
                     { id: 'restart', label: '重新选择', icon: '↩️', action: { name: 'restart' } }
@@ -680,6 +692,163 @@ Page({
             }
             this.addMessage(errorMsg)
         }
+    },
+
+    // ================ 轮询方案状态 ================
+    startOptionsPolling() {
+        const timer = setInterval(async () => {
+            const count = this.data.optionsPollingCount + 1
+            this.setData({ optionsPollingCount: count })
+
+            // 最多轮询60次（约3分钟）
+            if (count > 60) {
+                this.stopOptionsPolling()
+                this.showOptionsTimeout()
+                return
+            }
+
+            try {
+                const result = await api.getOptionsStatus(this.data.optionsId)
+
+                if (result.status === 'completed' && result.options?.length > 0) {
+                    this.stopOptionsPolling()
+                    this.showPlanOptions(result.options)
+                } else if (result.status === 'failed') {
+                    this.stopOptionsPolling()
+                    this.showOptionsError(result.message)
+                }
+                // status === 'generating' 继续轮询
+            } catch (err) {
+                console.error('查询方案状态失败:', err)
+            }
+        }, 3000)  // 每3秒轮询一次
+
+        this.setData({ optionsPollingTimer: timer })
+    },
+
+    stopOptionsPolling() {
+        if (this.data.optionsPollingTimer) {
+            clearInterval(this.data.optionsPollingTimer)
+            this.setData({ optionsPollingTimer: null })
+        }
+    },
+
+    showOptionsTimeout() {
+        const msg = {
+            id: genMsgId(),
+            role: 'ai',
+            content: '⏰ 方案生成超时，请重试。',
+            components: [
+                { id: 'retry', label: '重试', icon: '🔄', action: { name: 'confirmPlan' } },
+                { id: 'restart', label: '重新选择', icon: '↩️', action: { name: 'restart' } }
+            ]
+        }
+        this.addMessage(msg)
+        this.setData({ isGenerating: false })
+    },
+
+    showOptionsError(message) {
+        const msg = {
+            id: genMsgId(),
+            role: 'ai',
+            content: `😔 方案生成失败：${message || '未知错误'}`,
+            components: [
+                { id: 'retry', label: '重试', icon: '🔄', action: { name: 'confirmPlan' } },
+                { id: 'restart', label: '重新选择', icon: '↩️', action: { name: 'restart' } }
+            ]
+        }
+        this.addMessage(msg)
+        this.setData({ isGenerating: false })
+    },
+
+    // ================ 展示3套方案 ================
+    showPlanOptions(options) {
+        this.setData({
+            planOptions: options,
+            isGenerating: false
+        })
+
+        // 构建方案卡片组件
+        const components = options.map((opt, idx) => ({
+            id: `option_${idx}`,
+            component: {
+                Card: {
+                    title: opt.name,
+                    description: opt.description,
+                    highlights: opt.highlights || [],
+                    budget: opt.estimated_budget
+                }
+            },
+            label: opt.name,
+            action: { name: 'selectOption', payload: { optionId: opt.id } }
+        }))
+
+        const msg = {
+            id: genMsgId(),
+            role: 'ai',
+            content: '🎯 为您生成了3套行程方案，请选择一个：',
+            components: components,
+            isOptionsCard: true  // 标记为方案卡片，用于特殊渲染
+        }
+        this.addMessage(msg)
+    },
+
+    // ================ 两步规划流程：步骤二 - 确认方案 ================
+    async onSelectOption(optionId) {
+        const option = this.data.planOptions.find(o => o.id === optionId)
+        if (!option) {
+            util.showError('方案不存在')
+            return
+        }
+
+        // 显示用户选择
+        this.addUserMessage(`✅ 选择方案：${option.name}`)
+        const loadingId = this.addLoadingMessage()
+
+        try {
+            // 调用确认接口
+            const result = await api.confirmPlanOption(this.data.optionsId, optionId)
+            this.removeMessage(loadingId)
+
+            if (result && result.planId) {
+                this.setData({
+                    isGenerating: true,
+                    selectedOptionId: optionId
+                })
+
+                // 显示正在生成详细行程的消息
+                const generatingMsg = {
+                    id: genMsgId(),
+                    role: 'ai',
+                    content: `⏳ 已选择「${option.name}」方案\n\n正在生成详细行程，预计需要2-3分钟...\n\n生成完成后可在行程列表中查看。`,
+                    components: [
+                        { id: 'goToList', label: '查看行程列表', icon: '📋', action: { name: 'goToList' } },
+                        { id: 'restart', label: '重新规划', icon: '🔄', action: { name: 'restart' } }
+                    ]
+                }
+                this.addMessage(generatingMsg)
+            } else {
+                throw new Error('确认方案失败')
+            }
+        } catch (err) {
+            this.removeMessage(loadingId)
+            console.error('确认方案失败:', err)
+
+            const errorMsg = {
+                id: genMsgId(),
+                role: 'ai',
+                content: '😔 确认方案失败，请重试。',
+                components: [
+                    { id: 'retry', label: '重试', icon: '🔄', action: { name: 'selectOption', payload: { optionId } } }
+                ]
+            }
+            this.addMessage(errorMsg)
+        }
+    },
+
+    // 页面卸载时清理轮询
+    onUnload() {
+        this.stopOptionsPolling()
     },
 
     // 跳转到行程列表

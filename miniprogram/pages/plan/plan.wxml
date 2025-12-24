@@ -66,6 +66,39 @@
               </view>
             </view>
 
+            <!-- 方案选择卡片（isOptionsCard=true时渲染） -->
+            <view wx:if="{{msg.isOptionsCard && msg.components && msg.components.length}}" class="options-cards">
+              <view 
+                wx:for="{{msg.components}}" 
+                wx:for-item="opt" 
+                wx:key="id"
+                class="option-card"
+                bindtap="onButtonTap"
+                data-msg-id="{{msg.id}}"
+                data-btn-index="{{index}}"
+                data-label="{{opt.label}}"
+                data-action="{{opt.action}}"
+              >
+                <view class="option-header">
+                  <text class="option-title">{{opt.component.Card.title || opt.label}}</text>
+                  <text class="option-badge" wx:if="{{opt.component.Card.budget}}">¥{{opt.component.Card.budget}}</text>
+                </view>
+                <text class="option-desc">{{opt.component.Card.description}}</text>
+                <view class="option-highlights" wx:if="{{opt.component.Card.highlights && opt.component.Card.highlights.length}}">
+                  <text 
+                    wx:for="{{opt.component.Card.highlights}}" 
+                    wx:for-item="hl" 
+                    wx:key="*this"
+                    class="highlight-tag"
+                  >{{hl}}</text>
+                </view>
+                <view class="option-select">
+                  <text class="select-text">选择此方案</text>
+                  <text class="select-arrow">›</text>
+                </view>
+              </view>
+            </view>
+
             <!-- 行程概要卡片 -->
             <view wx:if="{{msg.summary}}" class="summary-card">
               <view class="summary-header">
