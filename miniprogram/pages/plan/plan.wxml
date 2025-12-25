@@ -192,8 +192,16 @@
         bindinput="onInputChange"
         bindconfirm="onInputConfirm"
         confirm-type="send"
-        disabled="{{isLoading}}"
+        disabled="{{isLoading || isRecording}}"
       />
+      <!-- 语音输入按钮 -->
+      <view 
+        class="voice-btn {{isLoading ? 'disabled' : ''}} {{isRecording ? 'recording' : ''}}" 
+        bindtap="{{isLoading ? '' : 'onVoiceInput'}}"
+      >
+        <view class="voice-icon-svg"></view>
+        <view wx:if="{{isRecording}}" class="recording-indicator"></view>
+      </view>
       <view class="send-btn {{isLoading ? 'disabled' : ''}}" bindtap="{{isLoading ? '' : 'onInputConfirm'}}">
         <text>{{isLoading ? '等待中' : '发送'}}</text>
       </view>

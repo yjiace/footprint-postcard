@@ -53,11 +53,20 @@
     "permission": {
         "scope.userLocation": {
             "desc": "您的位置信息将用于显示周边景点和记录旅行轨迹"
+        },
+        "scope.record": {
+            "desc": "您的录音权限将用于语音输入功能"
         }
     },
     "requiredPrivateInfos": [
         "getLocation"
     ],
+    "plugins": {
+        "WechatSI": {
+            "version": "0.3.6",
+            "provider": "wx069ba97219f66d99"
+        }
+    },
     "sitemapLocation": "sitemap.json",
     "style": "v2",
     "lazyCodeLoading": "requiredComponents"

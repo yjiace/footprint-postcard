@@ -26,6 +26,7 @@ Page({
         scrollToView: '',
         isLoading: false,
         isGenerating: false,  // 行程生成中状态
+        isRecording: false,   // 语音录制中状态
         showDatePicker: false,  // 自定义日期选择器
 
         // ===== 对话状态 =====
@@ -85,7 +86,10 @@ Page({
         planOptions: [],         // 3套方案
         selectedOptionId: '',    // 用户选择的方案ID
         optionsPollingTimer: null,  // 轮询定时器
-        optionsPollingCount: 0   // 轮询次数
+        optionsPollingCount: 0,   // 轮询次数
+
+        // ===== 语音识别 =====
+        voiceRecognitionManager: null  // 语音识别管理器
     },
 
     onLoad() {
@@ -546,6 +550,122 @@ Page({
             // 其他阶段，直接发送给AI
             this.addUserMessage(value)
             this.callAI(value)
+        }
+    },
+
+    // ================ 语音输入 ================
+    // 开始/停止语音输入
+    onVoiceInput() {
+        if (this.data.isRecording) {
+            // 如果正在录音，则停止
+            this.stopVoiceRecognition()
+        } else {
+            // 开始录音
+            this.startVoiceRecognition()
+        }
+    },
+
+    // 开始语音识别
+    startVoiceRecognition() {
+        // 先检查录音权限
+        wx.authorize({
+            scope: 'scope.record',
+            success: () => {
+                this.doStartVoiceRecognition()
+            },
+            fail: () => {
+                wx.showModal({
+                    title: '提示',
+                    content: '需要您授权录音权限才能使用语音输入功能',
+                    confirmText: '去设置',
+                    success: (res) => {
+                        if (res.confirm) {
+                            wx.openSetting()
+                        }
+                    }
+                })
+            }
+        })
+    },
+
+    // 实际开始语音识别 - 使用同声传译插件
+    doStartVoiceRecognition() {
+        // 获取同声传译插件
+        const plugin = requirePlugin('WechatSI')
+        if (!plugin) {
+            wx.showToast({
+                title: '语音插件加载失败',
+                icon: 'none'
+            })
+            return
+        }
+
+        // 获取录音识别管理器
+        const manager = plugin.getRecordRecognitionManager()
+
+        // 识别过程中返回的结果（实时识别）
+        manager.onRecognize = (res) => {
+            console.log('语音识别中...', res.result)
+            // 可以选择实时更新输入框
+            if (res.result) {
+                this.setData({ inputValue: res.result })
+            }
+        }
+
+        // 录音结束，返回最终识别结果
+        manager.onStop = (res) => {
+            console.log('语音识别结果:', res.result)
+            this.setData({ isRecording: false })
+
+            if (res.result && res.result.trim()) {
+                // 将识别结果填入输入框
+                this.setData({ inputValue: res.result.trim() })
+                // 自动发送
+                this.onInputConfirm()
+            } else {
+                wx.showToast({
+                    title: '未识别到内容',
+                    icon: 'none'
+                })
+            }
+        }
+
+        // 录音开始回调
+        manager.onStart = () => {
+            console.log('语音录制开始')
+        }
+
+        // 发生错误
+        manager.onError = (res) => {
+            console.error('语音识别错误:', res)
+            this.setData({ isRecording: false })
+            wx.showToast({
+                title: res.msg || '语音识别失败',
+                icon: 'none'
+            })
+        }
+
+        // 保存管理器引用
+        this.voiceManager = manager
+
+        // 开始录音+识别
+        wx.showToast({
+            title: '请说话...',
+            icon: 'none',
+            duration: 10000
+        })
+
+        this.setData({ isRecording: true })
+
+        manager.start({
+            lang: 'zh_CN'  // 中文普通话
+        })
+    },
+
+    // 停止语音识别
+    stopVoiceRecognition() {
+        if (this.voiceManager) {
+            this.voiceManager.stop()
         }
     },
 
