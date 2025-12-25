@@ -295,19 +295,71 @@ Page({
     // ================ 构建行程概要 ================
     buildSummary() {
         const ctx = this.data.conversationContext
-        const transport = this.data.transportTypes.find(t => t.selected)
-        const accommodation = this.data.accommodationTypes.find(a => a.selected)
-        const poiTypesSelected = this.data.poiTypes.filter(p => p.selected).map(p => p.name).join('、')
+
+        // 日期格式化：YYYY-MM-DD → M月D日
+        const formatDateDisplay = (dateStr) => {
+            if (!dateStr) return '待定'
+            // 如果已经是中文格式，直接返回
+            if (dateStr.includes('月')) return dateStr
+            // 解析ISO格式
+            const match = dateStr.match(/(\d{4})-(\d{1,2})-(\d{1,2})/)
+            if (match) {
+                return `${parseInt(match[2])}月${parseInt(match[3])}日`
+            }
+            return dateStr
+        }
+
+        // 交通方式翻译映射
+        const transportMap = {
+            'public': '公共交通',
+            'drive': '自驾',
+            'walk': '步行为主'
+        }
+
+        // 住宿偏好翻译映射
+        const accommodationMap = {
+            'budget': '经济型',
+            'comfort': '舒适型',
+            'luxury': '豪华型'
+        }
+
+        // 景点类型翻译映射
+        const poiTypeMap = {
+            'nature': '自然风光',
+            'history': '历史古迹',
+            'museum': '博物馆',
+            'amusement': '游乐园',
+            'food': '美食探店'
+        }
+
+        // 从UI状态读取（作为降级选项）
+        const transportFromUI = this.data.transportTypes.find(t => t.selected)
+        const accommodationFromUI = this.data.accommodationTypes.find(a => a.selected)
+        const poiTypesFromUI = this.data.poiTypes.filter(p => p.selected && p.id !== 'any').map(p => p.name).join('、')
+
+        // 处理后端返回的poiTypes数组
+        let poiTypesDisplay = '不限'
+        if (ctx.poiTypes && Array.isArray(ctx.poiTypes) && ctx.poiTypes.length > 0) {
+            // 使用后端返回的poiTypes，翻译为中文
+            poiTypesDisplay = ctx.poiTypes.map(t => poiTypeMap[t] || t).join('、')
+        } else if (poiTypesFromUI) {
+            // 否则使用UI选中的
+            poiTypesDisplay = poiTypesFromUI
+        }
 
         return {
             city: ctx.city || '未选择',
             days: ctx.days || 3,
-            dateChoice: ctx.dateChoice || '待定',
-            startDate: ctx.startDate,
+            // 显示格式化后的日期
+            dateChoice: formatDateDisplay(ctx.startDate) || ctx.dateChoice || '待定',
+            startDate: ctx.startDate,  // 保留原始格式用于API调用
             endDate: ctx.endDate,
-            transport: transport ? transport.name : '公共交通',
-            accommodation: accommodation ? accommodation.name : '经济型',
-            poiTypes: poiTypesSelected || '不限'
+            // 优先使用后端返回的transport，否则从UI读取
+            transport: ctx.transport ? transportMap[ctx.transport] || ctx.transport : (transportFromUI ? transportFromUI.name : '公共交通'),
+            // 优先使用后端返回的accommodation，否则从UI读取
+            accommodation: ctx.accommodation ? accommodationMap[ctx.accommodation] || ctx.accommodation : (accommodationFromUI ? accommodationFromUI.name : '经济型'),
+            // 优先使用后端返回的poiTypes，否则从UI读取
+            poiTypes: poiTypesDisplay
         }
     },
 
@@ -374,12 +426,21 @@ Page({
                     label?.toLowerCase().includes(kw.toLowerCase())
                 )
 
+                // 检查是否是"开始规划"按钮（安全网，防止AI未返回正确action）
+                const isConfirmPlan = label && (label.includes('开始规划') || label.includes('确认规划') || label.includes('生成行程'))
+
+                // 检查是否是"调整偏好"按钮
+                const isAdjustPrefs = label && (label.includes('调整偏好') || label.includes('修改偏好') || label.includes('调整设置'))
+
                 if (isCustomDate) {
                     this.showCustomDatePicker()
+                } else if (isConfirmPlan) {
+                    this.onGenerate()
+                } else if (isAdjustPrefs) {
+                    this.onShowPrefsPopup()
                 } else if (label) {
-                    // 通用处理：将按钮文本作为用户输入发送给AI
-                    const displayText = `${icon || ''} ${label}`.trim()
-                    this.addUserMessage(displayText)
+                    // 通用处理：将按钮文本作为用户输入发送给AI（不带图标）
+                    this.addUserMessage(label)
                     this.callAI(label)
                 }
         }
@@ -389,7 +450,6 @@ Page({
     handleCitySelect(cityId, cityName) {
         const city = this.data.hotCities.find(c => c.id === cityId)
         const name = cityName || (city ? city.label : cityId)
-        const iconEmoji = city ? city.icon : '📍'
 
         // 更新上下文
         this.setData({
@@ -397,8 +457,8 @@ Page({
             stage: 'date'
         })
 
-        // 添加用户消息
-        this.addUserMessage(`${iconEmoji} ${name}`)
+        // 添加用户消息（不带图标）
+        this.addUserMessage(name)
 
         // 调用AI获取日期选择
         this.callAI(`我想去${name}旅行`)
@@ -420,7 +480,7 @@ Page({
                     'conversationContext.city': cityName,
                     stage: 'date'
                 })
-                this.addUserMessage(`📍 ${cityName}（当前位置）`)
+                this.addUserMessage(`${cityName}（当前位置）`)
                 this.callAI(`我想去${cityName}旅行`)
             } else {
                 util.showError('无法获取城市信息')
@@ -445,7 +505,7 @@ Page({
             'conversationContext.city': cityName,
             stage: 'date'
         })
-        this.addUserMessage(`🏙️ ${cityName}`)
+        this.addUserMessage(cityName)
         this.callAI(`我想去${cityName}旅行`)
     },
 
@@ -468,7 +528,7 @@ Page({
                 'conversationContext.city': value,
                 stage: 'date'
             })
-            this.addUserMessage(`📍 ${value}`)
+            this.addUserMessage(value)
             this.callAI(`我想去${value}旅行`)
         } else if (this.data.stage === 'date') {
             // 日期/天数阶段 - 解析用户输入的天数
@@ -497,7 +557,7 @@ Page({
         this.setData({
             'conversationContext.startDate': selectedDate
         })
-        this.addUserMessage(`📅 ${selectedDate}`)
+        this.addUserMessage(selectedDate)
         this.callAI(`我选择${selectedDate}出发`)
     },
 
@@ -515,7 +575,7 @@ Page({
             showDatePicker: false,
             'conversationContext.startDate': selectedDate
         })
-        this.addUserMessage(`📅 自定义日期：${selectedDate}`)
+        this.addUserMessage(`自定义日期：${selectedDate}`)
         this.callAI(`我选择${selectedDate}出发，请问多少天？`)
     },
 
@@ -526,19 +586,40 @@ Page({
 
     // ================ 重新开始 ================
     onRestart() {
+        // 重置上下文，但保留聊天记录
         this.setData({
-            messages: [],
             stage: 'city',
             conversationContext: {
                 city: '',
                 dateChoice: '',
                 days: 0,
                 startDate: '',
-                endDate: ''
+                endDate: '',
+                daysOffset: null,
+                transport: 'public',
+                accommodation: 'budget',
+                poiTypes: []
             },
             chatHistory: []
         })
-        this.initWelcomeLocal()
+
+        // 添加一条新的AI消息，提示用户重新选择
+        const restartMsg = {
+            id: genMsgId(),
+            role: 'ai',
+            content: '好的，让我们重新开始～想去哪个城市玩呢？',
+            components: this.data.hotCities.map((city) => ({
+                id: `city_${city.id}`,
+                component: {
+                    Button: {
+                        label: city.label,
+                        icon: city.icon,
+                        action: { name: 'selectCity', payload: { cityId: city.id, cityName: city.label } }
+                    }
+                }
+            }))
+        }
+        this.addMessage(restartMsg)
     },
 
     // ================ 偏好设置弹窗 ================

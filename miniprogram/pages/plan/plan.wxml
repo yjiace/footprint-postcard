@@ -160,8 +160,8 @@
     </view>
   </scroll-view>
 
-  <!-- 底部输入区域（summary阶段隐藏） -->
-  <view class="input-area" wx:if="{{stage !== 'summary' && stage !== 'confirm'}}">
+  <!-- 底部输入区域（confirm阶段隐藏，summary阶段保留让用户可以修改计划） -->
+  <view class="input-area" wx:if="{{stage !== 'confirm'}}">
     <view class="input-wrapper">
       <!-- 城市选择器（仅city阶段显示） -->
       <picker 
@@ -187,7 +187,7 @@
       </picker>
       <input 
         class="chat-input" 
-        placeholder="{{stage === 'city' ? '输入城市名称...' : '输入天数或其他需求...'}}"
+        placeholder="{{stage === 'summary' ? '输入修改需求，如：改成自驾游...' : (stage === 'city' ? '输入城市名称...' : '输入天数或其他需求...')}}"
         value="{{inputValue}}"
         bindinput="onInputChange"
         bindconfirm="onInputConfirm"
