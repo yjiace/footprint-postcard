@@ -433,23 +433,23 @@
   pointer-events: none;
 }
 
-/* 语音输入按钮 */
+/* 语音输入按钮 - 微信风格 */
 .voice-btn {
-  width: 60rpx;
-  height: 60rpx;
+  width: 72rpx;
+  height: 72rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(16, 185, 129, 0.15);
   border-radius: 50%;
   margin-right: 12rpx;
-  position: relative;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .voice-btn:active {
   background: rgba(16, 185, 129, 0.3);
-  transform: scale(0.95);
+  transform: scale(0.92);
 }
 
 .voice-btn.disabled {
@@ -457,57 +457,123 @@
   pointer-events: none;
 }
 
-.voice-btn.recording {
-  background: rgba(239, 68, 68, 0.2);
-  animation: pulse-recording 1.5s infinite;
-}
-
-.voice-icon {
-  font-size: 28rpx;
-}
-
-/* 简洁风格的麦克风图标 */
+/* 麦克风图标 */
 .voice-icon-svg {
-  width: 36rpx;
-  height: 36rpx;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2' width='6' height='12' rx='3'%3E%3C/rect%3E%3Cpath d='M5 10a7 7 0 0 0 14 0'%3E%3C/path%3E%3Cline x1='12' y1='17' x2='12' y2='22'%3E%3C/line%3E%3C/svg%3E");
+  width: 40rpx;
+  height: 40rpx;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2' width='6' height='12' rx='3'%3E%3C/rect%3E%3Cpath d='M5 10a7 7 0 0 0 14 0'%3E%3C/path%3E%3Cline x1='12' y1='17' x2='12' y2='22'%3E%3C/line%3E%3C/svg%3E");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
 }
 
-.voice-btn.recording .voice-icon-svg {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2' width='6' height='12' rx='3'%3E%3C/rect%3E%3Cpath d='M5 10a7 7 0 0 0 14 0'%3E%3C/path%3E%3Cline x1='12' y1='17' x2='12' y2='22'%3E%3C/line%3E%3C/svg%3E");
+/* 微信风格语音录音弹窗 */
+.voice-recording-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2000;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
 }
 
-/* 录音指示器 */
-.recording-indicator {
+.voice-recording-overlay.show {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+}
+
+.voice-recording-mask {
   position: absolute;
-  top: -4rpx;
-  right: -4rpx;
-  width: 16rpx;
-  height: 16rpx;
-  background: #ef4444;
-  border-radius: 50%;
-  animation: blink 0.8s infinite;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
 }
 
-@keyframes pulse-recording {
+.voice-recording-popup {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 360rpx;
+  padding: 60rpx 40rpx;
+  background: rgba(60, 60, 60, 0.95);
+  border-radius: 32rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+}
+
+/* 声波动画 */
+.voice-recording-waves {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  height: 100rpx;
+  margin-bottom: 32rpx;
+}
+
+.recording-wave {
+  width: 12rpx;
+  background: #10b981;
+  border-radius: 6rpx;
+  animation: wave-bounce 1s ease-in-out infinite;
+}
+
+.recording-wave:nth-child(1) {
+  animation-delay: 0s;
+  height: 40rpx;
+}
+
+.recording-wave:nth-child(2) {
+  animation-delay: 0.1s;
+  height: 60rpx;
+}
+
+.recording-wave:nth-child(3) {
+  animation-delay: 0.2s;
+  height: 80rpx;
+}
+
+.recording-wave:nth-child(4) {
+  animation-delay: 0.1s;
+  height: 60rpx;
+}
+
+.recording-wave:nth-child(5) {
+  animation-delay: 0s;
+  height: 40rpx;
+}
+
+@keyframes wave-bounce {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    transform: scaleY(0.5);
+    opacity: 0.7;
   }
   50% {
-    box-shadow: 0 0 0 12rpx rgba(239, 68, 68, 0);
-  }
-}
-
-@keyframes blink {
-  0%, 100% {
+    transform: scaleY(1.2);
     opacity: 1;
   }
-  50% {
-    opacity: 0.3;
-  }
+}
+
+.voice-recording-text {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 16rpx;
+}
+
+.voice-recording-tip {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* 自定义日期选择器弹窗 */

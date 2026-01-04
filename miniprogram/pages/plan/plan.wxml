@@ -194,18 +194,36 @@
         confirm-type="send"
         disabled="{{isLoading || isRecording}}"
       />
-      <!-- 语音输入按钮 -->
+      <!-- 语音输入按钮（微信风格） -->
       <view 
-        class="voice-btn {{isLoading ? 'disabled' : ''}} {{isRecording ? 'recording' : ''}}" 
+        class="voice-btn {{isLoading ? 'disabled' : ''}}" 
         bindtap="{{isLoading ? '' : 'onVoiceInput'}}"
       >
         <view class="voice-icon-svg"></view>
-        <view wx:if="{{isRecording}}" class="recording-indicator"></view>
       </view>
       <view class="send-btn {{isLoading ? 'disabled' : ''}}" bindtap="{{isLoading ? '' : 'onInputConfirm'}}">
         <text>{{isLoading ? '等待中' : '发送'}}</text>
       </view>
     </view>
+  </view>
+
+  <!-- 微信风格语音录音弹窗 -->
+  <view class="voice-recording-overlay {{isRecording ? 'show' : ''}}">
+    <view class="voice-recording-popup">
+      <!-- 声波动画 -->
+      <view class="voice-recording-waves">
+        <view class="recording-wave"></view>
+        <view class="recording-wave"></view>
+        <view class="recording-wave"></view>
+        <view class="recording-wave"></view>
+        <view class="recording-wave"></view>
+      </view>
+      <!-- 录音提示文字 -->
+      <view class="voice-recording-text">正在录音...</view>
+      <view class="voice-recording-tip">点击任意位置结束录音</view>
+    </view>
+    <!-- 点击任意位置结束 -->
+    <view class="voice-recording-mask" bindtap="onVoiceInput"></view>
   </view>
 
   <!-- 自定义日期选择器弹窗 -->
