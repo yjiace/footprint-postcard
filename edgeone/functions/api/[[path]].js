@@ -1894,6 +1894,30 @@ async function handleProxyImage(request) {
     } catch { return errorResponse('图片代理失败', 500) }
 }
 
+// ==================== 应用配置接口 ====================
+
+/**
+ * 获取应用配置
+ * 根据环境变量控制是否使用表单模式（规避 AI 审核）
+ */
+async function handleGetAppConfig(request, env) {
+    // 从请求头获取环境类型（小程序传递）
+    const envType = request.headers.get('X-Env-Type') || 'release'
+
+    // 根据环境类型读取对应的环境变量
+    // 生产环境: USE_FORM_MODE_PROD
+    // 开发/体验版: USE_FORM_MODE_DEV
+    const useFormMode = envType === 'release'
+        ? (env.USE_FORM_MODE_PROD === 'true')
+        : (env.USE_FORM_MODE_DEV === 'true')
+
+    return jsonResponse({
+        useFormMode,
+        envType,
+        version: '1.0.0'
+    })
+}
+
 // ==================== 路由表 ====================
 
 const routes = {
@@ -1922,7 +1946,8 @@ const routes = {
     'GET /postcard/list': handleGetPostcardList,
     'GET /postcard/detail': handleGetPostcardDetail,
     'DELETE /postcard/delete': handleDeletePostcard,
-    'GET /proxy/image': handleProxyImage
+    'GET /proxy/image': handleProxyImage,
+    'GET /config/app': handleGetAppConfig
 }
 
 // ==================== Pages Functions 入口 ====================

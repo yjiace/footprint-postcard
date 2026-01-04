@@ -9,7 +9,8 @@
         "pages/profile/profile",
         "pages/login/login",
         "pages/agreement/agreement",
-        "pages/privacy/privacy"
+        "pages/privacy/privacy",
+        "pages/plan-form/plan-form"
     ],
     "window": {
         "navigationBarTextStyle": "white",

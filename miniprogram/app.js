@@ -23,6 +23,9 @@ App({
 
     // 获取系统信息
     this.getSystemInfo()
+
+    // 获取应用配置（控制页面模式）
+    this.fetchAppConfig()
   },
 
   // 用户登录
@@ -74,6 +77,22 @@ App({
     }
   },
 
+  // 获取应用配置（用于控制页面模式）
+  async fetchAppConfig() {
+    try {
+      const api = require('./utils/api.js')
+      const config = await api.getAppConfig()
+      this.globalData.appConfig = config
+      this.globalData.configLoaded = true
+      console.log('应用配置获取成功', config)
+    } catch (e) {
+      console.error('获取应用配置失败', e)
+      // 失败时默认使用表单模式（更安全，避免审核问题）
+      this.globalData.appConfig = { useFormMode: true }
+      this.globalData.configLoaded = true
+    }
+  },
+
   // 全局数据
   globalData: {
     userInfo: null,
@@ -89,6 +108,11 @@ App({
     // 当前行程信息
     currentPlan: null,
     // 当前足迹信息
-    currentTrack: null
+    currentTrack: null,
+    // 应用配置（控制页面模式等）
+    appConfig: {
+      useFormMode: false  // 默认不使用表单模式
+    },
+    configLoaded: false  // 配置是否已加载
   }
 })

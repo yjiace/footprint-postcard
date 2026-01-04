@@ -146,6 +146,25 @@ function del(url, data = {}) {
     return request(url, data, 'DELETE')
 }
 
+/**
+ * 获取应用配置（无需登录）
+ * 用于控制页面模式等全局配置
+ */
+function getAppConfig() {
+    try {
+        const accountInfo = wx.getAccountInfoSync()
+        const envType = accountInfo.miniProgram.envVersion || 'release'
+
+        return request('/config/app', {}, 'GET', {
+            'X-Env-Type': envType
+        })
+    } catch (e) {
+        console.error('获取应用配置失败', e)
+        // 返回默认配置（使用表单模式更安全）
+        return Promise.resolve({ useFormMode: true })
+    }
+}
+
 // ========== 具体业务接口 ==========
 
 /**
@@ -409,6 +428,7 @@ module.exports = {
     post,
     put,
     del,
+    getAppConfig,
     login,
     getHotDestinations,
     getNearbyAttractions,

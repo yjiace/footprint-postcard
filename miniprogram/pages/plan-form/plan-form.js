@@ -1,0 +1,476 @@
+// pages/plan/plan.js
+const app = getApp()
+const api = require('../../utils/api.js')
+const storage = require('../../utils/storage.js')
+const util = require('../../utils/util.js')
+const mapUtil = require('../../utils/map.js')
+
+Page({
+    data: {
+        // 城市
+        cityRegion: [],
+        city: '',
+
+        // 日期
+        startDate: '',
+        endDate: '',
+        todayDate: '',
+        maxStartDate: '', // 开始日期的最大值（无限制）
+        maxEndDate: '', // 结束日期的最大值（开始日期+10天）
+        tripDays: 0, // 行程天数
+
+        // 交通方式
+        transportTypes: [
+            { id: 'public', name: '公共交通', selected: true },
+            { id: 'drive', name: '自驾', selected: false },
+            { id: 'walk', name: '步行为主', selected: false }
+        ],
+
+        // 住宿偏好
+        accommodationTypes: [
+            { id: 'budget', name: '经济型酒店', selected: true },
+            { id: 'comfort', name: '舒适型酒店', selected: false },
+            { id: 'luxury', name: '豪华型酒店', selected: false }
+        ],
+
+        // 景点类型
+        poiTypes: [
+            { id: 'any', name: '不限', selected: true },
+            { id: 'nature', name: '自然风光', selected: false },
+            { id: 'history', name: '历史古迹', selected: false },
+            { id: 'museum', name: '博物馆', selected: false },
+            { id: 'amusement', name: '游乐园', selected: false },
+            { id: 'food', name: '美食探店', selected: false }
+        ],
+
+        // 备注
+        notes: ''
+    },
+
+    onLoad() {
+        // 设置今天的日期
+        const today = new Date()
+        const todayStr = util.formatDate(today)
+        this.setData({
+            todayDate: todayStr
+        })
+
+        // 从全局数据获取当前城市
+        if (app.globalData.location && app.globalData.location.city) {
+            this.setData({
+                city: app.globalData.location.city
+            })
+        }
+    },
+
+    // 使用当前位置
+    async useCurrentLocation() {
+        try {
+            // 检查定位权限
+            const authSetting = await new Promise((resolve) => {
+                wx.getSetting({
+                    success: resolve
+                })
+            })
+
+            // 如果用户未授权定位权限，则请求授权
+            if (!authSetting.authSetting['scope.userLocation']) {
+                const authResult = await new Promise((resolve) => {
+                    wx.authorize({
+                        scope: 'scope.userLocation',
+                        success: () => resolve(true),
+                        fail: () => resolve(false)
+                    })
+                })
+
+                if (!authResult) {
+                    // 用户拒绝授权，显示提示
+                    wx.showModal({
+                        title: '定位权限申请',
+                        content: '需要获取您的位置信息来为您推荐合适的行程路线',
+                        confirmText: '去设置',
+                        cancelText: '取消',
+                        success: (res) => {
+                            if (res.confirm) {
+                                wx.openSetting()
+                            }
+                        }
+                    })
+                    return
+                }
+            }
+
+            // 获取位置信息
+            const location = await new Promise((resolve, reject) => {
+                wx.getLocation({
+                    type: 'gcj02',
+                    success: resolve,
+                    fail: reject
+                })
+            })
+
+            // ====== 距离判断逻辑 ======
+            // 先检查缓存的位置
+            const cachedLocation = storage.getLocation()
+            if (cachedLocation && cachedLocation.latitude && cachedLocation.longitude) {
+                const distance = mapUtil.calculateDistance(
+                    cachedLocation.latitude,
+                    cachedLocation.longitude,
+                    location.latitude,
+                    location.longitude
+                )
+                console.log('位置变化距离:', mapUtil.formatDistance(distance))
+
+                // 距离小于3000米(3公里)，使用缓存数据，不调用API
+                if (distance < 3000) {
+                    console.log('位置变化小于3km，使用缓存城市')
+                    this.setData({
+                        city: cachedLocation.city
+                    })
+                    wx.showToast({
+                        title: '已使用当前位置',
+                        icon: 'success'
+                    })
+                    return // 直接返回，不调用API
+                }
+
+                console.log('位置变化超过3km，重新获取城市信息')
+            }
+
+            // ====== 需要更新数据时才调用API ======
+            // 调用后端API获取城市信息
+            const cityInfo = await api.getCityByLocation(location.latitude, location.longitude)
+
+            // 根据新的API数据结构适配
+            const cityData = cityInfo.data || {}
+            const cityName = cityData.city || cityData.formattedAddress || '未知城市'
+
+            this.setData({
+                city: cityName
+            })
+
+            wx.showToast({
+                title: '已使用当前位置',
+                icon: 'success'
+            })
+
+        } catch (err) {
+            console.error('获取位置失败:', err)
+            if (err.message && err.message.includes('权限')) {
+                wx.showToast({
+                    title: '请授权定位权限',
+                    icon: 'none'
+                })
+            } else {
+                wx.showToast({
+                    title: '获取位置失败',
+                    icon: 'none'
+                })
+            }
+        }
+    },
+
+    // 选择城市
+    onCityChange(e) {
+        const region = e.detail.value
+        const city = region[1] // 取市级
+        this.setData({
+            cityRegion: region,
+            city: city
+        })
+    },
+
+    // 选择开始日期
+    onStartDateChange(e) {
+        const startDate = e.detail.value
+        let endDate = this.data.endDate
+
+        // 计算结束日期的最大值（开始日期+10天）
+        const startDateObj = new Date(startDate)
+        const maxEndDateObj = new Date(startDateObj)
+        maxEndDateObj.setDate(maxEndDateObj.getDate() + 9) // +9天，共10天
+        const maxEndDate = util.formatDate(maxEndDateObj)
+
+        // 如果结束日期早于开始日期或超过10天，清空结束日期
+        if (endDate && (endDate < startDate || endDate > maxEndDate)) {
+            endDate = ''
+        }
+
+        // 计算天数
+        let tripDays = 0
+        if (endDate) {
+            tripDays = this.calculateDays(startDate, endDate)
+        }
+
+        this.setData({
+            startDate: startDate,
+            endDate: endDate,
+            maxEndDate: maxEndDate,
+            tripDays: tripDays
+        })
+    },
+
+    // 选择结束日期
+    onEndDateChange(e) {
+        const endDate = e.detail.value
+        const startDate = this.data.startDate
+
+        // 检查是否超过10天
+        if (startDate) {
+            const days = this.calculateDays(startDate, endDate)
+            if (days > 10) {
+                util.showError('行程日期间隔不能超过10天')
+                return
+            }
+            this.setData({
+                endDate: endDate,
+                tripDays: days
+            })
+        } else {
+            this.setData({
+                endDate: endDate
+            })
+        }
+    },
+
+    // 计算两个日期之间的天数
+    calculateDays(startDate, endDate) {
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+        return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
+    },
+
+    // 切换景点类型
+    onPoiTypeToggle(e) {
+        const index = e.currentTarget.dataset.index
+        const poiTypes = this.data.poiTypes
+
+        // 如果点击的是"不限",取消其他选项
+        if (index === 0) {
+            poiTypes.forEach((item, i) => {
+                item.selected = i === 0
+            })
+        } else {
+            // 取消"不限"选项
+            poiTypes[0].selected = false
+            // 切换当前选项
+            poiTypes[index].selected = !poiTypes[index].selected
+
+            // 如果没有任何选项,自动选中"不限"
+            const hasSelected = poiTypes.slice(1).some(item => item.selected)
+            if (!hasSelected) {
+                poiTypes[0].selected = true
+            }
+        }
+
+        this.setData({
+            poiTypes
+        })
+    },
+
+    // 切换交通方式
+    onTransportToggle(e) {
+        const index = e.currentTarget.dataset.index
+        const transportTypes = this.data.transportTypes
+        transportTypes.forEach((item, i) => {
+            item.selected = i === index
+        })
+        this.setData({ transportTypes })
+    },
+
+    // 切换住宿偏好
+    onAccommodationToggle(e) {
+        const index = e.currentTarget.dataset.index
+        const accommodationTypes = this.data.accommodationTypes
+        accommodationTypes.forEach((item, i) => {
+            item.selected = i === index
+        })
+        this.setData({ accommodationTypes })
+    },
+
+    // 备注输入
+    onNotesChange(e) {
+        this.setData({
+            notes: e.detail.value
+        })
+    },
+
+    // 规划行程
+    async onGenerate() {
+        // 检查用户是否已登录
+        if (!storage.isLoggedIn()) {
+            console.log('用户未登录，显示登录提示')
+            this.showLoginGuide('规划行程')
+            return
+        }
+
+        // 验证表单
+        if (!this.data.city) {
+            util.showError('请选择城市')
+            return
+        }
+
+        if (!this.data.startDate) {
+            util.showError('请选择开始日期')
+            return
+        }
+
+        if (!this.data.endDate) {
+            util.showError('请选择结束日期')
+            return
+        }
+
+        // 计算天数
+        const startDate = new Date(this.data.startDate)
+        const endDate = new Date(this.data.endDate)
+        const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1
+
+        if (days < 1 || days > 30) {
+            util.showError('行程天数应在1-30天之间')
+            return
+        }
+
+        // 获取选中的景点类型
+        const selectedTypes = this.data.poiTypes
+            .filter(item => item.selected)
+            .map(item => item.id)
+
+        // 获取选中的交通方式
+        const transportMap = {
+            'public': '公共交通',
+            'drive': '自驾',
+            'walk': '步行为主'
+        }
+        const selectedTransport = this.data.transportTypes.find(item => item.selected)
+        const transportation = selectedTransport ? transportMap[selectedTransport.id] : '公共交通'
+
+        // 获取选中的住宿偏好
+        const accommodationMap = {
+            'budget': '经济型酒店',
+            'comfort': '舒适型酒店',
+            'luxury': '豪华型酒店'
+        }
+        const selectedAccommodation = this.data.accommodationTypes.find(item => item.selected)
+        const accommodation = selectedAccommodation ? accommodationMap[selectedAccommodation.id] : '经济型酒店'
+
+        // 构建请求参数
+        const params = {
+            city: this.data.city,
+            date: this.data.startDate,
+            endDate: this.data.endDate,
+            days: days,
+            poiTypes: selectedTypes,
+            notes: this.data.notes,
+            transportation: transportation,
+            accommodation: accommodation,
+            // 用户起点坐标（用于规划从起点到第一个景点、最后一个景点回起点的路线）
+            userLocation: null,
+            apiVersion: 'v3'
+        }
+
+        // 尝试获取用户当前位置作为起点
+        try {
+            const cachedLocation = storage.getLocation()
+            if (cachedLocation && cachedLocation.latitude && cachedLocation.longitude) {
+                params.userLocation = {
+                    latitude: cachedLocation.latitude,
+                    longitude: cachedLocation.longitude,
+                    name: cachedLocation.city ? (cachedLocation.city + '(起点)') : '起点'
+                }
+                console.log('使用用户起点坐标:', params.userLocation)
+            }
+        } catch (e) {
+            console.log('获取用户位置失败，将不使用起点规划:', e)
+        }
+
+        try {
+            util.showLoading('正在提交规划请求...')
+
+            // 调用实际API规划行程（异步模式，立即返回生成中状态）
+            const result = await api.generatePlan(params)
+
+            // API返回的是"生成中"状态的行程
+            const plan = result
+
+            // 保存到本地存储（带状态）
+            storage.addPlan(plan)
+
+            util.hideLoading()
+
+            // 根据状态显示不同的提示
+            if (plan.status === 'generating') {
+                wx.showModal({
+                    title: '规划已提交',
+                    content: '行程正在后台生成中，通常需要1-2分钟，请稍后在列表中刷新查看。',
+                    confirmText: '查看列表',
+                    showCancel: false,
+                    success: () => {
+                        // 跳转到行程列表页
+                        wx.switchTab({
+                            url: '/pages/plan-list/plan-list'
+                        })
+                    }
+                })
+            } else {
+                // 已完成状态（向后兼容）
+                util.showSuccess('行程规划成功')
+                setTimeout(() => {
+                    wx.navigateTo({
+                        url: `/pages/plan-detail/plan-detail?id=${plan.id}`
+                    })
+                }, 1000)
+            }
+
+        } catch (err) {
+            console.error('行程规划失败', err)
+            util.hideLoading()
+
+            // 显示具体的错误信息
+            if (err.errMsg && err.errMsg.includes('fail')) {
+                util.showError('网络连接失败，请检查网络后重试')
+            } else if (err.statusCode && err.statusCode >= 500) {
+                util.showError('服务器繁忙，请稍后重试')
+            } else {
+                util.showError('行程规划失败，请重试')
+            }
+        }
+    },
+
+    // 显示登录引导
+    showLoginGuide(action = '行程规划') {
+        wx.showModal({
+            title: '登录提示',
+            content: `您需要登录后才能${action}`,
+            confirmText: '去登录',
+            cancelText: '稍后再说',
+            success: (res) => {
+                if (res.confirm) {
+                    // 跳转到登录页面，并传递回调页面
+                    wx.redirectTo({
+                        url: '/pages/login/login?redirect=/pages/plan/plan'
+                    })
+                }
+            }
+        })
+    },
+
+    // 返回
+    onBack() {
+        wx.navigateBack({
+            fail: () => {
+                wx.switchTab({
+                    url: '/pages/plan-list/plan-list'
+                })
+            }
+        })
+    },
+
+    // 分享
+    onShareAppMessage() {
+        return util.shareToWeChat(
+            '来一起规划旅行吧',
+            '/images/share.jpg',
+            '/pages/plan/plan'
+        )
+    }
+})
